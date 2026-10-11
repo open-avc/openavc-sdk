@@ -37,6 +37,8 @@ credentials, controls in your own software and the optional full OpenAVC server.
 and systemd examples.
 The [adapter API](docs/adapter-api.md) and [product model](docs/product-model.md)
 references describe fields, callback types and value lifetimes.
+[Compatibility and updates](docs/compatibility.md) explains matching SDK/server
+revisions and the checks for a new firmware build.
 [Firmware testing](docs/qualification.md) and [Troubleshooting](docs/troubleshooting.md)
 cover target testing and diagnostics.
 

@@ -1,5 +1,8 @@
 # Build the hardware integration
 
+Select a matching SDK/server revision and retain its build evidence as described
+in [Compatibility and updates](compatibility.md).
+
 The source checkout includes the C/C++ runtime and examples. A prebuilt library
 archive includes compiled libraries and the Linux device service; its normal
 build compiles only your C adapter and generated C code.

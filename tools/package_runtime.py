@@ -66,7 +66,7 @@ def package(args):
     if system == 'Linux':
         triplet = {'aarch64': 'aarch64-linux-gnu', 'x86_64': 'x86_64-linux-gnu'}[platform.machine()]
         (destination / 'sdk/bin').mkdir()
-        shutil.copy2(build / 'example-service', destination / 'sdk/bin/example-service')
+        shutil.copy2(build / 'openavc-device-service', destination / 'sdk/bin/openavc-device-service')
         for name in ['libc++.so.1', 'libc++abi.so.1', 'libunwind.so.1']:
             source = (Path('/usr/lib') / triplet / name).resolve(strict=True)
             shutil.copy2(source, lib / name)

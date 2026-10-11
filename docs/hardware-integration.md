@@ -101,7 +101,7 @@ whichever is later. Do not retain them past that point.
 ## Select how it runs
 
 With a `bridge_path`, the adapter provides a local Unix socket inside your
-product process. The supplied Linux `example-service` process handles networking
+product process. The supplied Linux `openavc-device-service` process handles networking
 and uses that socket. The SDK supplies both sides of the process bridge.
 Keep the socket in a directory owned by the product's service account.
 

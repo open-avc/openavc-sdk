@@ -39,7 +39,7 @@ def main(args):
                  '-DPython3_EXECUTABLE=' + sys.executable,
                  *(['-DOPENSSL_ROOT_DIR=' + str(args.openssl.resolve())] if args.openssl else [])],
                 ['cmake', '--build', str(build), '--target', target,
-                 *(['example-service'] if args.form == 'service' else []), '--parallel', '1']]
+                 *(['openavc-device-service'] if args.form == 'service' else []), '--parallel', '1']]
     label = args.language + '-' + args.form
     build_record = build / (label + '-build-result.json')
     built = {'status': 'building', 'language': args.language, 'form': args.form,
@@ -54,7 +54,7 @@ def main(args):
         files = [target, 'generated/model.json', 'generated/commands.h', 'generated/commands.c',
                  'generated/model.provenance.json', 'generated/provenance.json']
         if args.form == 'service':
-            files.append('example-service')
+            files.append('openavc-device-service')
         built.update(status='built', files={name: {'sha256': hashlib.sha256((build / name).read_bytes()).hexdigest(),
                                                 'bytes': (build / name).stat().st_size} for name in files})
     except (ValueError, OSError, subprocess.SubprocessError):
@@ -128,7 +128,7 @@ def main(args):
                     raise ValueError('The example did not start. Read ' + endpoint_log + '.')
                 if args.form == 'service':
                     if ready[1] != '0': raise ValueError('The service product unexpectedly opened a network listener.')
-                    service = subprocess.Popen([str(build / 'example-service'), str(build / 'generated/model.json'),
+                    service = subprocess.Popen([str(build / 'openavc-device-service'), str(build / 'generated/model.json'),
                         str(private / 'server.pem'), str(private / 'product.sock')],
                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=log, text=True,
                         env={**environment, 'OPENAVC_TOKEN': token})
@@ -184,7 +184,7 @@ def main(args):
                 result.update(model_sha256=hashlib.sha256((build / 'generated/model.json').read_bytes()).hexdigest(),
                               binary_sha256=hashlib.sha256((build / target).read_bytes()).hexdigest())
                 if service:
-                    result['service_sha256'] = hashlib.sha256((build / 'example-service').read_bytes()).hexdigest()
+                    result['service_sha256'] = hashlib.sha256((build / 'openavc-device-service').read_bytes()).hexdigest()
             except BaseException as exc:
                 result.update(status='failed', error=str(exc)); raise
             finally:

@@ -54,7 +54,7 @@ image or provisioning process and substitute your actual paths.
   "identity": "stable-identity-for-this-physical-unit",
   "data_dir": "/var/lib/product/openavc",
   "model": "/usr/share/product/openavc/model.json",
-  "device_service": "/usr/lib/product/openavc/example-service",
+  "device_service": "/usr/lib/product/openavc/openavc-device-service",
   "bridge_path": "/run/product/openavc.sock",
   "certificate": "/etc/product/openavc-server.pem",
   "ca_file": "/etc/product/openavc-ca.pem",

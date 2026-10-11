@@ -20,5 +20,5 @@ ENTRYPOINT ["python"]
 
 FROM server-runtime AS example
 RUN cmake -S /opt/sdk -B /opt/sdk/build -DCMAKE_BUILD_TYPE=Release && \
-    cmake --build /opt/sdk/build --target example-c example-service --parallel 2
+    cmake --build /opt/sdk/build --target example-c openavc-device-service --parallel 2
 CMD ["examples/system/product.py"]

@@ -23,7 +23,7 @@ def free_port():
         return listener.getsockname()[1]
 
 
-@unittest.skipUnless(sys.platform == 'linux' and (ROOT / 'build/example-service').exists(),
+@unittest.skipUnless(sys.platform == 'linux' and (ROOT / 'build/openavc-device-service').exists(),
                      'Build the Linux service before running the complete host check')
 class HostSystem(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -50,7 +50,7 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
         equipment, management, server = free_port(), free_port(), free_port()
         self.config = {'identity': 'acme-host-test', 'data_dir': str(self.root / 'data'),
             'model': model, 'management_token_file': str(self.root / 'management.token'),
-            'device_service': str(ROOT / 'build/example-service'), 'bridge_path': str(self.root / 'product.sock'),
+            'device_service': str(ROOT / 'build/openavc-device-service'), 'bridge_path': str(self.root / 'product.sock'),
             'certificate': str(self.root / 'server.pem'), 'ca_file': str(self.root / 'ca.pem'),
             'login': self.login, 'equipment_bind': '127.0.0.1', 'equipment_port': equipment,
             'management_port': management, 'server_python': sys.executable, 'firmware_version': 'example',

@@ -38,7 +38,7 @@ async def main():
     if (await asyncio.wait_for(hardware.stdout.readline(), 10)).strip() != b'READY 0':
         raise RuntimeError('The example hardware process did not start. Read /data/hardware.log.')
     config = {'identity': identity, 'data_dir': str(DATA / 'openavc'), 'model': model,
-        'management_token_file': str(DATA / 'management.token'), 'device_service': str(ROOT / 'build/example-service'),
+        'management_token_file': str(DATA / 'management.token'), 'device_service': str(ROOT / 'build/openavc-device-service'),
         'bridge_path': str(DATA / 'hardware.sock'), 'certificate': str(DATA / 'server.pem'),
         'ca_file': str(DATA / 'ca.pem'), 'login': credentials, 'example_ui': True, 'example_bind': '0.0.0.0',
         'example_server_port': int(os.environ.get('EXAMPLE_SERVER_PORT', '8080')),

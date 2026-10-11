@@ -98,9 +98,56 @@ await manager.run()
 ```
 
 `check_product_credentials(username, password)` returns a boolean. It must be
-fast and must not block on network I/O. The same account appears in OpenAVC's
-normal equipment connection settings. The SDK's optional example HTML/login is
-off by default; a production product uses its own authenticated management UI.
+fast and must not block on network I/O. This checks credentials entered in
+OpenAVC's equipment connection settings; it does not authenticate Programmer
+users. The SDK's optional example HTML/login is off by default; a production
+product uses its own authenticated management UI.
+
+## Programmer login
+
+The included server uses normal OpenAVC administrator setup and login. On first
+use, the installer creates the Programmer login. It is retained in the server's
+data directory across stop/start. No OpenAVC Cloud account is required.
+
+| Control or credential | What it does |
+|---|---|
+| Product login / `credential_check` | Authenticates another server controlling the equipment. Your product's own UI retains its own authentication. |
+| Management token | Lets your product backend change SDK settings through `/oem/*`. It is not a Programmer password or an OpenAVC API credential. |
+| `programmer` setting | Enables or disables Programmer access. It does not create, change or remove the administrator login. |
+| OpenAVC administrator login | Authenticates access to the Programmer and protected OpenAVC APIs. |
+
+Your product can keep the normal first-run page, or provide a setup form in its
+own authenticated UI. With the server running and Programmer access enabled,
+your backend can call the existing OpenAVC API at the server's configured address:
+
+1. Read `GET /api/auth/required`. A `state` of `setup` means the server has no
+   administrator credential yet.
+2. Submit the installer's chosen `username` and `password` as a JSON object to
+   `POST /api/auth/setup`. The password must contain at least eight characters
+   after surrounding whitespace is removed. This succeeds only before initial
+   setup; HTTP 409 means a credential already exists. Do not overwrite it.
+3. Open the Programmer for normal sign-in. Subsequent password changes use
+   **Settings > Access > Programmer login**, or the authenticated
+   `PATCH /api/system/config` API with `auth.programmer_password`.
+
+These requests go to OpenAVC, not the management port. Initial setup needs no
+existing OpenAVC credential; later changes require OpenAVC authentication. Your
+backend must still authorize the person using your product's setup form. Use a
+local connection from that backend, or HTTPS when crossing a network, and keep
+passwords out of logs.
+
+For firmware that manages the Programmer credential itself, `server_environment`
+can supply the normal `OPENAVC_PROGRAMMER_USERNAME` and
+`OPENAVC_PROGRAMMER_PASSWORD` settings before starting the server. This skips
+first-run setup. Environment-managed credentials cannot be changed through the
+Programmer; your software owns changes and must restart the server to apply a
+changed environment. Provision credentials per product rather than shipping a
+shared default password.
+
+The SDK does not provide automatic single sign-on between your product UI and
+the Programmer. Supplying the same credentials does not share browser sessions,
+and `credential_check` does not connect a product account store to Programmer
+authentication. The complete example uses the normal OpenAVC setup page.
 
 ## Management API
 
@@ -134,8 +181,9 @@ Turning off Programmer access does not stop the project, schedules, macros or
 hardware control. Interface access is optional product policy; the normal full
 server example includes both Programmer and panel access.
 
-`GET /oem/diagnostics` returns current status without credentials. Keep access to
-it authenticated. `POST /oem/repair` repairs damaged or interrupted settings by
+`GET /oem/diagnostics` returns current status with credential values excluded.
+Access requires management authentication. `POST /oem/repair` repairs damaged or
+interrupted settings by
 disabling all OpenAVC permissions and retaining the damaged settings for
 inspection. Show this only when `settings_valid` is false. It does not erase
 the OpenAVC project or change the physical unit's identity.

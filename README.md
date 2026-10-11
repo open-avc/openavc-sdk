@@ -34,7 +34,10 @@ python3 try-system.py --arrangement external
 The launcher builds the pinned OpenAVC revision and starts two invented amplifiers,
 ordinary TCP equipment and a separate OpenAVC server. It prints the Programmer,
 panel and product-settings links, plus generated product credentials. Create the
-OpenAVC administrator account through its normal first-run page.
+OpenAVC Programmer administrator login through its normal first-run page.
+This is separate from the product-settings login. See
+[Programmer login](docs/product-controls.md#programmer-login) to provide setup
+through your own product software.
 
 Press Ctrl+C to stop. Then try OpenAVC running inside the first amplifier:
 
@@ -84,10 +87,16 @@ that server; the SDK does not automatically select a server or take over if it f
 
 ## Upstream compatibility
 
+For evaluation, use the OpenAVC revision built by the supplied system example.
+OpenAVC v0.36.0 does not include SDK equipment support. A separate server that
+will control your product also needs the compatible revision below; an existing
+OpenAVC installation is not necessarily compatible with this preview.
+
 [`sdk/contract/origin.json`](sdk/contract/origin.json) records the compatible
 OpenAVC revision and source-file hashes. CI checks that combination, native
-builds, prebuilt libraries and both system examples. A separate workflow tests
-new OpenAVC changes against the hardware adapter and product controls. Ship SDK
+builds, prebuilt libraries and both system examples. A separate weekly and
+manually triggered workflow checks current OpenAVC changes against the hardware
+adapter and product controls. Ship SDK
 and server versions that have passed testing together, and repeat the relevant
 firmware tests when updating.
 

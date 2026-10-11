@@ -17,6 +17,11 @@ uses invented hardware; it does not connect to AV equipment. See
 [Building](docs/building.md) for prerequisites and target compatibility.
 `bundle.json` records the CPU, libc, upstream contract and file hashes.
 
+Use the OpenAVC revision recorded in
+[`sdk/contract/origin.json`](sdk/contract/origin.json) with this preview, including
+on a separate server controlling your product. OpenAVC v0.36.0 does not include
+SDK equipment support.
+
 To connect your product, edit [product.json](product.json) and implement the
 callbacks in [sample/example.c](sample/example.c). Follow
 [Hardware integration](docs/hardware-integration.md) for readback, channels,

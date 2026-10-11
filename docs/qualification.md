@@ -4,6 +4,23 @@ Start with the supplied examples, then repeat the relevant checks on your actual
 firmware with its normal service account and audio/video workload. A CPU family
 alone does not establish compatibility with a firmware image.
 
+## What the supplied checks cover
+
+| Tool | What it checks |
+|---|---|
+| `doctor.py` | Build-host prerequisites and a compiled dependency/link check. It does not qualify a remote target or measure AV workload headroom. |
+| `try-example.py --build-only` | Your model and adapter compile. It starts no hardware. |
+| `try-example.py --inspect` | The launched example integration reports the generated model and current readback. It sends no hardware commands. |
+| `try-example.py --exercise-demo` | Commands, independent feedback and delayed completion for the unchanged invented amplifier. |
+| `try-system.py --check` | Both SDK products and ordinary TCP equipment work in the selected example arrangement. Use it with the supplied demonstration model. |
+
+After changing the product model or callbacks, use build and inspection checks,
+then verify safe operations through OpenAVC against your hardware's own readback.
+The preview does not yet include a general command-conformance runner, resource
+profiler or complete support-bundle collector for arbitrary products. The checks
+below describe the additional firmware validation required; a passing demo does
+not perform those checks on your product.
+
 ## Build and describe
 
 Run the doctor on the build environment. Build with the product's toolchain and

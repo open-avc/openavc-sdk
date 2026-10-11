@@ -19,9 +19,10 @@ python3 try-system.py --arrangement external
 
 Keep the terminal open. The launcher prints links to the normal Programmer,
 panel and each product's example settings page, plus freshly generated product
-credentials. Open the Programmer and create an administrator account through
-OpenAVC's normal first-run page. The product login and OpenAVC administrator
-account serve different applications.
+credentials. Open the Programmer and set up its administrator login through
+OpenAVC's normal first-run page. Signing into the product-settings page does
+not sign you into the Programmer. See [Programmer login](product-controls.md#programmer-login)
+for setup through your own software.
 
 The project already contains both amplifiers and the ordinary TCP device. Open
 the panel and press a control. Its adjacent value reports hardware readback.

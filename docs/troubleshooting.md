@@ -17,8 +17,9 @@ generated files, binaries and SDK/core revision with the report.
 | OpenAVC says to update through the product | Update through the manufacturer's firmware process. OpenAVC is updated as part of that firmware. |
 | Docker build stops | Read the output directory's `build.log`. Confirm internet access and available Docker memory/storage. The full example builds both web interfaces in addition to native code. This is build-machine resource use, not a measured firmware minimum. |
 
-`GET /oem/diagnostics` reports current settings and observed status without login
-credentials. Product logs are stored under the configured data directory's
+`GET /oem/diagnostics` requires management authentication and reports current
+settings and observed status with credential values excluded. Product logs are
+stored under the configured data directory's
 `logs/`. Core and recovery logs retain bounded recent generations/segments.
 The complete Docker example saves container logs and product data when it stops;
 those data include example credentials and must be kept private.

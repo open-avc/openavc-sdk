@@ -131,6 +131,35 @@ power cut during a physical operation, controller replacement, a network partiti
 firmware update or automatic takeover. Use [product testing](product-testing.md)
 for selected checks against your own adapter.
 
+## Exercise access and hardware faults
+
+Use `--faults` with the unchanged invented products:
+
+```sh
+python3 try-system.py --products 5 --arrangement embedded --out build/fault-check --check --recovery --faults
+```
+
+The additional checks verify these outcomes:
+
+| Injected condition | Expected result |
+|---|---|
+| Untrusted certificate or incorrect product password | TLS verification or authentication refuses access; hardware counters do not change. |
+| Undeclared command parameter or expired session | The equipment endpoint refuses the request before hardware work. |
+| Remote access to the product running OpenAVC | The equipment interface refuses access, including through a remembered address. |
+| Remote control disabled in product settings | Commands are unavailable. Re-enabling it restores the ordinary OpenAVC connection. |
+| Hardware readback unavailable | The endpoint reports unavailable feedback and OpenAVC clears the old values. Current values return when readback recovers. |
+| Hardware cannot accept a command | OpenAVC reports a rejected operation without a hardware write. A later new command succeeds after admission is restored. |
+
+`--arrangement external` runs the same applicable checks with a separate server.
+The example injects hardware faults through loopback-only test instrumentation;
+that instrumentation is not part of the SDK adapter API. These checks do not
+send commands to AV equipment or disable certificate verification. Reports remain
+in the selected output directory alongside the recovery evidence.
+
+Network partitions, interrupted physical operations, mixed protocol versions and
+controller replacement require their own acceptance tests; this option does not
+claim to cover them.
+
 Use `--port 19080` if the default localhost ports 18080 through 18084 are in use.
 The five-product example uses 18080 through 18090 instead. Each product uses two
 ports and the separate controller uses the final port.

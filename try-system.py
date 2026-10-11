@@ -29,7 +29,8 @@ def run(args):
     containers = []
     network_created = False
     layout = {'arrangement': args.arrangement, 'product_count': args.products,
-              'recovery': args.recovery, 'docker': docker, 'network': prefix, 'products': {},
+              'recovery': args.recovery, 'faults': args.faults,
+              'docker': docker, 'network': prefix, 'products': {},
               'contract': json.loads((ROOT / 'sdk/contract/origin.json').read_text()),
               'containers': containers, 'status': 'starting'}
 
@@ -259,11 +260,14 @@ if __name__ == '__main__':
     parser.add_argument('--docker-context', help='Use a named Docker context without changing your active context.')
     parser.add_argument('--check', action='store_true', help='Exercise the sample equipment and stop after verification.')
     parser.add_argument('--recovery', action='store_true', help='With --check, stop/restart an invented peer and the controller, then verify recovery.')
+    parser.add_argument('--faults', action='store_true', help='With --check, exercise trust, access, hardware-feedback and command refusals in the invented products.')
     options = parser.parse_args()
     if not 1024 <= options.port <= 65535 - options.products * 2:
         parser.error('--port must leave room for two ports per product and one controller port below 65536.')
     if options.recovery and not options.check:
         parser.error('--recovery requires --check.')
+    if options.faults and not options.check:
+        parser.error('--faults requires --check.')
     try:
         run(options)
     except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as error:

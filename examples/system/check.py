@@ -19,6 +19,7 @@ def check(folder):
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     authorization = 'Basic ' + base64.b64encode((account['username'] + ':' + account['password']).encode()).decode()
     report = {'status': 'running', 'arrangement': layout['arrangement'],
+              'recovery': layout.get('recovery', False), 'faults': layout.get('faults', False),
               'product_count': len(layout['products']), 'image': layout['image'],
               'core_head': layout['contract']['core_head'], 'checks': [], 'observations': {}}
 
@@ -71,6 +72,10 @@ def check(folder):
         return {'writes': int(output[1]), 'callbacks': int(output[2]), 'wrong_threads': int(output[3]),
                 'counter': int(output[5]), 'gain1': float(output[7]), 'gain2': float(output[8])}
 
+    def equipment_probe(*arguments):
+        return json.loads(docker('exec', layout['products']['product2']['container'],
+                                 'python', 'examples/system/probe.py', *arguments))
+
     def recorded(name):
         report['checks'].append(name)
         (folder / 'checks.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -105,6 +110,57 @@ def check(folder):
         api('/api/devices/ordinary/command', {'command': 'set_level', 'params': {'level': 42}})
         until(lambda: api('/api/devices/ordinary')['state'].get('level') == 42)
         recorded('The same server controls ordinary non-SDK equipment')
+        if layout.get('faults'):
+            before = physical('product2')
+            assert equipment_probe('--wrong-trust') == {'tls_refused': True}
+            assert equipment_probe('--wrong-login')['status'] == 401
+            assert physical('product2')['writes'] == before['writes']
+            recorded('Untrusted TLS and incorrect credentials refuse access without hardware work')
+            description = equipment_probe()['response']
+            invalid = {'session': description['session'], 'id': 1, 'command': 'increment', 'params': {'undeclared': 1}}
+            refused = equipment_probe('--path', '/v1/command', '--body', json.dumps(invalid))
+            assert refused['status'] == 422 and refused['response']['error'] == 'invalid_parameter'
+            invalid.update(session='expired-example-session', params={})
+            refused = equipment_probe('--path', '/v1/command', '--body', json.dumps(invalid))
+            assert refused['status'] == 409 and refused['response']['error'] == 'session_changed'
+            assert physical('product2')['writes'] == before['writes']
+            recorded('Invalid parameters and stale sessions do not reach the hardware')
+            if layout['arrangement'] == 'embedded':
+                host_before = physical('product1')
+                assert equipment_probe('--host', 'product1')['status'] == 403
+                assert physical('product1')['writes'] == host_before['writes']
+                recorded('The active host refuses remote equipment access through its remembered address')
+            product_status('product2', 'remote_access', False)
+            try:
+                assert equipment_probe()['status'] == 403
+                until(lambda: not api('/api/devices/product2')['connected'], timeout=60)
+                api('/api/devices/product2/command', {'command': 'increment', 'params': {}}, expected=503)
+                assert physical('product2')['writes'] == before['writes']
+            finally:
+                product_status('product2', 'remote_access', True)
+            until(lambda: api('/api/devices/product2')['connected'], timeout=90)
+            recorded('Disabled remote access refuses control and re-enabling it restores the normal connection')
+            physical('product2', 'readfail 1')
+            try:
+                until(lambda: equipment_probe('--path', '/v1/snapshot')['status'] == 503)
+                until(lambda: not api('/api/devices/product2')['connected'], timeout=60)
+                assert api('/api/devices/product2')['state']['channel.1.gain'] is None
+                assert physical('product2')['writes'] == before['writes']
+            finally:
+                physical('product2', 'readfail 0')
+            until(lambda: api('/api/devices/product2')['connected'], timeout=90)
+            until(lambda: api('/api/devices/product2')['state'].get('channel.1.gain') == before['gain1'])
+            recorded('Unavailable readback clears stale values; current feedback returns after hardware recovery')
+            physical('product2', 'refuse 1')
+            try:
+                refused = api('/api/devices/product2/command', {'command': 'increment', 'params': {}}, expected=409)
+                assert refused['outcome'] == 'rejected'
+                assert physical('product2')['writes'] == before['writes']
+            finally:
+                physical('product2', 'refuse 0')
+            api('/api/devices/product2/command', {'command': 'increment', 'params': {}})
+            assert physical('product2')['counter'] == before['counter'] + 1
+            recorded('A hardware admission refusal is reported as rejected; a later new command runs once')
         if layout.get('recovery'):
             peer = 'product2'
             container = layout['products'][peer]['container']

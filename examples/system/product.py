@@ -56,8 +56,8 @@ async def main():
         # loopback-bound and is not part of the firmware integration API.
         try:
             command = (await asyncio.wait_for(reader.readline(), 2)).decode().strip()
-            if command != 'snapshot' and not command.startswith(('external ', 'delay ')):
-                raise ValueError('Use snapshot, external <gain> or delay <milliseconds>.')
+            if command not in {'snapshot', 'readfail 0', 'readfail 1', 'refuse 0', 'refuse 1'} and not command.startswith(('external ', 'delay ')):
+                raise ValueError('Use a documented example-hardware operation.')
             async with lock:
                 hardware.stdin.write((command + '\n').encode())
                 await hardware.stdin.drain()

@@ -1,0 +1,155 @@
+# Add OpenAVC controls to your product
+
+The SDK provides two capabilities. A product can make its equipment available to
+an OpenAVC server elsewhere, and it can optionally include the full OpenAVC server.
+Use the same hardware adapter for both.
+
+When the local server runs, its equipment appears as **Built-in equipment**.
+The SDK withdraws the equipment advertisement and refuses remote equipment
+control. The server remains accessible through the normal Programmer and panel
+interfaces. Stopping that server restores the product's saved equipment-access
+settings. A failed server start keeps the equipment reserved until the operator
+stops or successfully restarts the server.
+
+## Runtime components
+
+Your application owns the hardware and its event loop. It links the C-facing
+adapter, publishes readback and implements the generated hardware callbacks.
+The supplied native device service communicates with that application over a
+Unix socket. The `openavc-oem` Python service provides network authentication,
+discovery, product controls and optional OpenAVC process supervision.
+
+The complete managed integration needs Linux, Python 3.12 or newer, `aiohttp` and
+`psutil`, even when the full OpenAVC server is omitted. Your hardware application
+and the native device service do not embed Python. Including the full server
+also requires OpenAVC and its dependencies in the selected Python environment.
+Use the [server bundle builder](building.md#build-the-optional-server-bundle)
+to collect them for offline installation into your firmware image. Product
+startup does not download software.
+
+Install the product-management package into the firmware's Python environment:
+
+```sh
+python3 -m pip install .
+python3 -m openavc_oem --config /etc/product/openavc.json
+```
+
+Start your hardware application before this service. Run both under your normal
+firmware service supervisor. The SDK starts/stops its native device service and
+the optional OpenAVC server; it does not own the manufacturer's application.
+Give the service account access to the hardware socket, certificates and its
+writable data directory. Keep that directory across firmware updates.
+
+## Product configuration
+
+The paths below are example installation paths. Create the files in your firmware
+image or provisioning process and substitute your actual paths.
+
+```json
+{
+  "identity": "stable-identity-for-this-physical-unit",
+  "data_dir": "/var/lib/product/openavc",
+  "model": "/usr/share/product/openavc/model.json",
+  "device_service": "/usr/lib/product/openavc/example-service",
+  "bridge_path": "/run/product/openavc.sock",
+  "certificate": "/etc/product/openavc-server.pem",
+  "ca_file": "/etc/product/openavc-ca.pem",
+  "management_token_file": "/etc/product/openavc-management.token",
+  "equipment_port": 9443,
+  "management_port": 9081,
+  "login": {"username": "product-user", "password": "provision-a-product-password"},
+  "server_python": "/usr/lib/product/python/bin/python3",
+  "firmware_version": "your-firmware-version"
+}
+```
+
+- Use absolute paths. `certificate` contains the PEM certificate and private key.
+  `ca_file` contains the trusted CA for the native loopback endpoint. Include
+  `127.0.0.1` in that endpoint's certificate SAN, together with the product's
+  network names/addresses used for remote equipment control.
+- Generate a separate management credential of at least 32 random characters.
+  Store the credential file and private keys with access restricted to the
+  product's service account. Do not give the management credential to a browser.
+- Keep `identity` stable for a unit. Use different identities for different units.
+  The product model has a separate model ID shared by units of that model.
+- Omit `server_python` and `firmware_version` to omit the full server. Remote
+  equipment integration still works. A request to start the absent server returns
+  a clear refusal.
+- `equipment_bind` defaults to `0.0.0.0`. `advertise_addresses`, when supplied,
+  selects IPv4 addresses for equipment advertisement. The management API always
+  binds to loopback in production.
+- `server_environment` passes ordinary OpenAVC environment settings to the
+  optional server. The SDK supplies its project/data paths, permanent equipment
+  manifest and supervision credentials. The normal OpenAVC interface and account
+  setup remain available by default.
+
+For an existing product credential store, construct the service in your Python
+backend and provide a synchronous credential check:
+
+```python
+from openavc_oem.manager import Manager
+
+manager = Manager(configuration, credential_check=check_product_credentials)
+await manager.run()
+```
+
+`check_product_credentials(username, password)` returns a boolean. It must be
+fast and must not block on network I/O. The same account appears in OpenAVC's
+normal equipment connection settings. The SDK's optional example HTML/login is
+off by default; a production product uses its own authenticated management UI.
+
+## Management API
+
+Your product's backend calls `http://127.0.0.1:9081/oem/settings` with
+`Authorization: Bearer <management-file-contents>`. A GET returns saved settings,
+their revision, actual server status, actual equipment availability and any error.
+
+A POST changes one setting:
+
+```json
+{"revision": 0, "field": "server", "enabled": true}
+```
+
+Use the revision from the preceding GET. A stale revision returns HTTP 409;
+refresh the status before deciding whether to resubmit. A success response
+includes the resulting status. A saved setting that could not be applied returns
+an error together with `state`; show that error and the actual state in your UI.
+Do not show a running server solely because `server` is true. Use
+`server_running`, `server_responsive` and `interfaces_observed`.
+
+| Field | Effect |
+|---|---|
+| `equipment` | Set equipment discovery and remote access together. Recommended primary control. |
+| `server` | Start or stop the included OpenAVC server. Recommended primary control. |
+| `discovery` | Advertise equipment to other OpenAVC servers. Advanced control. |
+| `remote_access` | Permit authenticated remote equipment control. Advanced control. |
+| `programmer` | Permit project editing, including cloud programming. Default on. |
+| `panel` | Permit touch-panel access. Default on. |
+
+Turning off Programmer access does not stop the project, schedules, macros or
+hardware control. Interface access is optional product policy; the normal full
+server example includes both Programmer and panel access.
+
+`GET /oem/diagnostics` returns current status without credentials. Keep access to
+it authenticated. `POST /oem/repair` repairs damaged or interrupted settings by
+disabling all OpenAVC permissions and retaining the damaged settings for
+inspection. Show this only when `settings_valid` is false. It does not erase
+the OpenAVC project or change the physical unit's identity.
+
+## Updates and recovery
+
+The manufacturer updates the adapter, native service, Python service and optional
+OpenAVC server as part of its firmware. OpenAVC identifies updates as firmware
+managed and points to the product's update process. Keep tested component
+versions together and retain the OpenAVC data directory when updating.
+
+The built-in equipment integration belongs to the firmware. A new/imported project
+cannot replace its hardware endpoint or uninstall it. Ordinary project import
+reuses programming; Backup Restore also restores saved variable state. For a
+different product model, use normal **Reassign Driver** to select compatible
+built-in equipment. OpenAVC checks declared controls/settings and refuses an
+incompatible or already-used receiving reference; review scripts for assumptions
+about the original product.
+
+The SDK does not elect a controller or provide automatic failover. The installer
+chooses which product runs OpenAVC. A second server is a separate control system.

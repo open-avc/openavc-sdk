@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Product settings · OpenAVC</title>
+<style>
+:root{font:16px/1.5 system-ui,sans-serif;color:#1e3029;background:#f4f6f3;color-scheme:light}*{box-sizing:border-box}body{max-width:850px;margin:48px auto;padding:0 24px}h1{font-size:32px;line-height:1.2;margin:8px 0}h2{font-size:20px;margin:0 0 8px}p{margin:8px 0;color:#526159}header{margin-bottom:28px}.eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#52775f}.card{background:white;border:1px solid #d9e0d8;border-radius:14px;margin:16px 0;padding:24px}.row{display:flex;align-items:start;justify-content:space-between;gap:20px}.row>div{flex:1}label{display:block;font-weight:600}input[type=text],input[type=password]{width:100%;padding:10px;margin:6px 0 16px;border:1px solid #9fab9f;border-radius:6px;font:inherit}input[type=checkbox]{width:24px;height:24px;accent-color:#386448;cursor:pointer;flex-shrink:0}button,a.button{background:#365f45;color:white;border:0;border-radius:7px;padding:10px 16px;cursor:pointer;font:inherit;text-decoration:none}button.secondary{background:#e8eee7;color:#284833}button:disabled{opacity:.5;cursor:wait}.state{font-size:14px;font-weight:600;margin-top:14px;color:#365f45}#message{background:#fff0d8;padding:14px;border-radius:8px;white-space:pre-line}details summary{cursor:pointer;font-weight:600}details .row{border-top:1px solid #e5e9e3;padding:16px 0}small{color:#526159}a{color:#285b3c}[hidden]{display:none!important}footer{font-size:13px;margin:24px 0;color:#526159}#server-links{display:flex;gap:20px;margin-top:14px}.advanced-note{margin-bottom:20px}@media(max-width:560px){body{margin:24px auto;padding:0 16px}.card{padding:18px}h1{font-size:28px}}
+</style>
+<header><div class="eyebrow">Example product management</div><h1>OpenAVC</h1><p>Choose how this product participates in your control system.</p></header>
+<p id="message" role="alert" hidden></p>
+<p id="activity" role="status" hidden>Applying settings…</p>
+<form id="login" class="card"><h2>Sign in to the product</h2><p>Use the product credentials printed by the example launcher.</p><label for="username">Username</label><input type="text" id="username" name="username" autocomplete="username" required><label for="password">Password</label><input type="password" id="password" name="password" autocomplete="current-password" required><button>Sign in</button></form>
+<main id="settings" hidden>
+<section class="card"><div class="row"><div><h2><label for="equipment">Available to another OpenAVC server</label></h2><p>Discover and add this product in OpenAVC on another computer or piece of equipment. Use this product’s login in the device connection settings.</p></div><input id="equipment" type="checkbox" data-field="equipment"></div><div class="state" id="equipment-status"></div></section>
+<section class="card"><div class="row"><div><h2><label for="server">Run OpenAVC on this product</label></h2><p>Use the full Programmer, touch panels and automation here. This product’s equipment is built in and cannot be removed.</p></div><input id="server" type="checkbox" data-field="server"></div><div class="state" id="server-status"></div><div id="server-links" hidden><a id="programmer-link" target="_blank" rel="noopener">Open Programmer</a><a id="panel-link" target="_blank" rel="noopener">Open panel</a></div></section>
+<details class="card"><summary>Advanced access settings</summary><p class="advanced-note">These settings preserve the running project. Equipment access pauses while OpenAVC runs on this product.</p>
+<div class="row"><div><label for="discovery">Equipment discovery</label><p>Advertise this product to other OpenAVC servers.</p></div><input id="discovery" type="checkbox" data-field="discovery"></div>
+<div class="row"><div><label for="remote_access">Remote equipment control</label><p>Allow an authenticated OpenAVC server to control this equipment by its address.</p></div><input id="remote_access" type="checkbox" data-field="remote_access"></div>
+<div class="row"><div><label for="programmer">Programmer access</label><p>Allow project editing, including through OpenAVC Cloud. Automation continues when access is off.</p></div><input id="programmer" type="checkbox" data-field="programmer"></div>
+<div class="row"><div><label for="panel">Panel access</label><p>Allow touch panels to connect to this product’s OpenAVC server.</p></div><input id="panel" type="checkbox" data-field="panel"></div>
+</details>
+<p><button id="retry" hidden>Retry settings</button> <button id="repair" hidden>Repair OpenAVC settings</button> <button class="secondary" id="diagnostics">Download diagnostics</button> <button class="secondary" id="logout">Sign out</button></p>
+</main><footer>This is a working SDK example. A manufacturer can put these controls in its own product interface.</footer>
+<script>
+let current, busy=false;
+const byId=id=>document.getElementById(id);
+function message(text=''){byId('message').textContent=text;byId('message').hidden=!text}
+async function request(path,body){const response=await fetch('/oem/'+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});let result;const text=await response.text();try{result=JSON.parse(text)}catch{result={detail:text}}if(!response.ok){if(result.state)render(result.state);if(response.status===401){byId('login').hidden=false;byId('settings').hidden=true}throw Error(result.detail||'The request did not finish. Refresh and try again.')}return result}
+function render(state){current=state;byId('login').hidden=true;byId('settings').hidden=false;for(const input of document.querySelectorAll('[data-field]')){const field=input.dataset.field;input.checked=field==='equipment'?state.discovery&&state.remote_access:state[field];input.disabled=busy||!state.settings_valid||field==='server'&&!state.server_installed}
+byId('equipment').indeterminate=state.discovery!==state.remote_access;
+byId('equipment-status').textContent=state.equipment.reserved_locally?'In use by the built-in OpenAVC server. Other servers cannot discover or control this equipment.':state.equipment.discovery_active&&state.equipment.remote_access_active?'Available for discovery and control.':state.equipment.remote_access_active?'Control is available by address. Discovery is off or unavailable.':'Remote equipment control is off.';
+byId('server-status').textContent=!state.server_installed?'The OpenAVC server is not included in this firmware.':state.server_running?(state.server_responsive===false?'Running; the latest health check did not respond.':'OpenAVC is running.'):(state.server?'OpenAVC is requested but is not running.':'OpenAVC is stopped.');
+byId('server-links').hidden=!state.server_running;const endpoint=state.server_endpoint; if(endpoint){const url=new URL(location.href);url.protocol=endpoint.scheme+':';url.port=state.example_server_port||endpoint.port;for(const name of ['programmer','panel']){url.pathname='/'+name;url.search='';url.hash='';byId(name+'-link').href=url.href;byId(name+'-link').hidden=!state[name]}}
+byId('retry').hidden=!state.retry_setting;byId('repair').hidden=state.settings_valid;message(state.error||state.warning||state.discovery_error||'');}
+async function refresh(){if(busy)return;try{render(await request('settings'))}catch(error){if(!byId('login').hidden)return;message(error.message)}}
+async function update(field,enabled){busy=true;let failure='';render(current);message();byId('activity').hidden=false;try{render(await request('settings',{revision:current.revision,field,enabled}))}catch(error){failure=error.message}finally{busy=false;byId('activity').hidden=true;render(current);if(failure)message(failure)}}
+byId('login').onsubmit=async event=>{event.preventDefault();try{render(await request('login',{username:byId('username').value,password:byId('password').value}));byId('password').value=''}catch(error){message(error.message)}};
+for(const input of document.querySelectorAll('[data-field]'))input.onchange=()=>update(input.dataset.field,input.checked);
+byId('retry').onclick=()=>update(current.retry_setting,current[current.retry_setting]??(current.discovery&&current.remote_access));
+byId('repair').onclick=async()=>{try{render(await request('repair',{}))}catch(error){message(error.message)}};
+byId('logout').onclick=async()=>{await request('logout',{});location.reload()};
+byId('diagnostics').onclick=async()=>{try{const data=await request('diagnostics');const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='openavc-product-diagnostics.json';link.click();URL.revokeObjectURL(url)}catch(error){message(error.message)}};
+refresh();setInterval(refresh,3000);
+</script></html>

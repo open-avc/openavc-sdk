@@ -1,0 +1,76 @@
+name: SDK checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: Native Linux (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake clang libc++-dev libc++abi-dev libssl-dev openssl
+      - name: Install the pinned core and product controls
+        run: |
+          python -c "import json,pathlib; print(json.loads(pathlib.Path('sdk/contract/origin.json').read_text())['core_head'])" > /tmp/openavc-ref
+          git clone --filter=blob:none https://github.com/open-avc/openavc.git /tmp/openavc
+          git -C /tmp/openavc checkout "$(cat /tmp/openavc-ref)"
+          python -m pip install /tmp/openavc .
+          python tools/sync_contract.py --core /tmp/openavc --check
+      - name: Build and exercise C and C++
+        run: |
+          python doctor.py --report build/environment.json
+          python try-example.py --exercise-demo
+          python try-example.py --language cpp --exercise-demo
+          python try-example.py --form direct --exercise-demo
+          python -m unittest discover -s tests -v
+      - name: Build and check a supplied runtime
+        run: |
+          python tools/package_runtime.py --out build/package
+          mkdir build/extracted
+          tar -xzf build/package/openavc-sdk-linux-*.tar.gz -C build/extracted
+          cd build/extracted/openavc-sdk
+          python doctor.py --report build/environment.json
+          python try-example.py --exercise-demo
+          python try-example.py --form direct --exercise-demo
+      - name: Exercise both complete arrangements
+        run: |
+          python try-system.py --arrangement external --out build/check-external --check
+          python try-system.py --arrangement embedded --out build/check-embedded --check
+      - name: Build and install the offline server bundle
+        run: |
+          python tools/build_server.py --out build/server-bundle
+          python -m venv build/offline-environment
+          build/offline-environment/bin/python -m pip install --no-index --find-links=build/server-bundle/wheels openavc openavc-oem
+          build/offline-environment/bin/python -c "from importlib.resources import files; import openavc_oem; assert files('openavc').joinpath('web/programmer/dist/index.html').is_file()"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdk-${{ matrix.runner }}
+          path: |
+            build/package/*.tar.gz
+            build/package/*.sha256
+            build/package/build.log
+            build/server-bundle/bundle.json
+            build/server-bundle/*.log
+            build/*-result.json
+            build/host-system-logs/*.log
+            build/check-*/checks.json
+            build/check-*/discovery.json
+            build/check-*/build.log
+          if-no-files-found: ignore

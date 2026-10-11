@@ -1,0 +1,34 @@
+{
+  "repository": "https://github.com/open-avc/openavc",
+  "core_head": "cc1cf0704b2c31bb5be1a98c149bc8e10338dc6b",
+  "files": {
+    "__init__.py": {
+      "sha256": "9f74d33d967882b9a42e969f003be18611b75925150899891247fdfcc7d07d89"
+    },
+    "drivers/__init__.py": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "drivers/avcdriver_semantic.py": {
+      "sha256": "a6a80d3028525ed9d0a87f8f915f547335f337f846b55aff86e20f92d39d0c5b"
+    },
+    "drivers/child_ids.py": {
+      "sha256": "75a154536bceb2974576853fa27d259e7c236d4a5840149a76be5c66d686232b"
+    },
+    "drivers/equipment_protocol.py": {
+      "sha256": "c86b70f11676d824fd6506efec993369cec73c8eb95c24a6ff5ff76f11d3ed39"
+    },
+    "drivers/spec.py": {
+      "sha256": "35cf892a716082fdefc481e578c59ea2605f438d0abf3189826d86d1be764aed"
+    },
+    "utils/__init__.py": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "utils/regex_safety.py": {
+      "sha256": "98389acb5628d4006322e680044d9f9e5f1e566bcdd086709fa3fe5706f1f44f"
+    }
+  },
+  "dns_sources": {
+    "openavc/discovery/mdns_scanner.py": "5d81ab55bd06dbb92b89708abf35ec33a1a24af8d3769a08928538cfcb15f99b",
+    "openavc/discovery/mdns_advertiser.py": "7d13923def068edae0ee7ef5c467eceddb13d442d87a371c709f6891b6a1a759"
+  }
+}

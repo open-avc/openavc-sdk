@@ -1,0 +1,106 @@
+{
+  "id": "acme_amplifier",
+  "name": "Acme Amplifier",
+  "manufacturer": "Acme",
+  "category": "audio",
+  "version": "0.0.1",
+  "author": "OpenAVC",
+  "source_url": "https://github.com/open-avc/openavc-sdk",
+  "description": "Example amplifier with input selection, channel gain and mute.",
+  "state_variables": {
+    "input": {
+      "type": "enum",
+      "values": [
+        "analog",
+        "network"
+      ],
+      "label": "Input"
+    },
+    "fault": {
+      "type": "boolean",
+      "label": "Hardware Fault"
+    },
+    "counter": {
+      "type": "integer",
+      "label": "Completed Increments"
+    },
+    "external_ticks": {
+      "type": "integer",
+      "label": "Product Activity"
+    }
+  },
+  "child_entity_types": {
+    "channel": {
+      "label": "Channel",
+      "id_format": {
+        "type": "integer",
+        "min": 1,
+        "max": 4
+      },
+      "state_variables": {
+        "gain": {
+          "type": "number",
+          "label": "Gain",
+          "unit": "dB",
+          "min": -80,
+          "max": 12
+        },
+        "mute": {
+          "type": "boolean",
+          "label": "Mute"
+        }
+      }
+    }
+  },
+  "commands": {
+    "set_gain": {
+      "label": "Set Gain",
+      "params": {
+        "channel": {
+          "type": "integer",
+          "min": 1,
+          "max": 4,
+          "required": true
+        },
+        "gain": {
+          "type": "number",
+          "min": -80,
+          "max": 12,
+          "required": true
+        }
+      }
+    },
+    "set_mute": {
+      "label": "Set Mute",
+      "params": {
+        "channel": {
+          "type": "integer",
+          "min": 1,
+          "max": 4,
+          "required": true
+        },
+        "mute": {
+          "type": "boolean",
+          "required": true
+        }
+      }
+    },
+    "select_input": {
+      "label": "Select Input",
+      "params": {
+        "input": {
+          "type": "enum",
+          "values": [
+            "analog",
+            "network"
+          ],
+          "required": true
+        }
+      }
+    },
+    "increment": {
+      "label": "Increment Once",
+      "params": {}
+    }
+  }
+}

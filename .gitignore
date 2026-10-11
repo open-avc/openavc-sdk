@@ -7,3 +7,8 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+build/
+build-target/
+*.egg-info/
+__pycache__/
+*.pyc

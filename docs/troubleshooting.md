@@ -17,6 +17,8 @@ generated files, binaries and SDK/core revision with the report.
 | A command is pending or uncertain | Inspect the retained result and hardware readback. Confirm the manufacturer's completion callback. Do not resend the operation under another request ID. |
 | OpenAVC settings require repair | Preserve the logs and saved settings, check product storage, then use the authenticated repair operation. Repair disables access; explicitly re-enable the intended settings afterward. |
 | OpenAVC says to update through the product | Update through the manufacturer's firmware process. OpenAVC is updated as part of that firmware. |
+| The complete example cannot reach OpenAVC Cloud | Start it with `--cloud` in a new output directory. The default example has no outbound controller access. Pair through the normal Cloud page; see [OpenAVC Cloud](cloud.md). |
+| A cloud tunnel says the interface is disabled | Enable the corresponding Programmer or Panel switch in product management. A connected tunnel does not override product permissions. |
 | Docker build stops | Read the output directory's `build.log`. Confirm internet access and available Docker memory/storage. The full example builds both web interfaces in addition to native code. This is build-machine resource use, not a measured firmware minimum. |
 
 `GET /oem/diagnostics` requires management authentication and reports current

@@ -91,6 +91,19 @@ def check(folder):
         (folder / 'checks.json').write_text(json.dumps(report, indent=2) + '\n')
 
     try:
+        for entry in layout['products'].values():
+            networks = json.loads(docker('inspect', '-f', '{{json .NetworkSettings.Networks}}', entry['container']))
+            expected_bridge = layout.get('cloud_access', False) and entry['container'] == layout['controller']
+            assert set(networks) == {layout['network'], *(['bridge'] if expected_bridge else [])}
+        controller_networks = json.loads(docker('inspect', '-f', '{{json .NetworkSettings.Networks}}', layout['controller']))
+        assert ('bridge' in controller_networks) == layout.get('cloud_access', False)
+        roots_code = "import hashlib,json,ssl; print(json.dumps(sorted(hashlib.sha256(cert).hexdigest() for cert in ssl.create_default_context().get_ca_certs(binary_form=True))))"
+        original_roots = set(json.loads(docker('exec', layout['ordinary'], 'python', '-c', roots_code)))
+        controller_roots = set(json.loads(docker('exec', '-e', 'SSL_CERT_FILE=/data/trust.pem', layout['controller'], 'python', '-c', roots_code)))
+        assert original_roots and original_roots <= controller_roots
+        report['observations']['network'] = {'cloud_access': layout.get('cloud_access', False),
+                                             'public_trust_roots_retained': len(original_roots)}
+        recorded('Only the selected controller can have optional outbound access; normal public TLS trust is retained')
         assert api('/api/auth/required')['state'] == 'setup'
         api('/api/auth/setup', account)
         local = 'local' if layout['arrangement'] == 'embedded' else 'product1'

@@ -1,4 +1,4 @@
-"""Run example products and ordinary equipment on an isolated Docker network."""
+"""Run invented equipment locally, with optional controller internet access."""
 import argparse
 import contextlib
 import importlib.util
@@ -29,7 +29,7 @@ def run(args):
     containers = []
     network_created = False
     layout = {'arrangement': args.arrangement, 'product_count': args.products,
-              'recovery': args.recovery, 'faults': args.faults,
+              'recovery': args.recovery, 'faults': args.faults, 'cloud_access': args.cloud,
               'docker': docker, 'network': prefix, 'products': {},
               'contract': json.loads((ROOT / 'sdk/contract/origin.json').read_text()),
               'containers': containers, 'status': 'starting'}
@@ -123,7 +123,12 @@ def run(args):
         call(['start', ordinary])
         ready(ordinary)
         addresses = {}
-        certificates = []
+        # Retain the image's normal public trust roots alongside the invented
+        # equipment certificates. A custom equipment CA must not remove trust
+        # needed by the server's ordinary HTTPS clients.
+        public_trust = call(['exec', ordinary, 'python', '-c',
+            "import ssl; print(''.join(ssl.DER_cert_to_PEM_cert(cert) for cert in ssl.create_default_context().get_ca_certs(binary_form=True)))"])
+        certificates = [public_trust.encode()]
         for number in range(1, args.products + 1):
             name = f'product{number}'
             port = args.port + (number - 1) * 2
@@ -175,8 +180,11 @@ def run(args):
                 'OPENAVC_PORT80_REDIRECT': 'false', 'SSL_CERT_FILE': '/data/trust.pem'})
             copy(seed, controller, '/data')
             call(['start', controller])
-        # Docker does not publish ports from an internal network. Only this
-        # HTTP gateway joins the normal bridge; all equipment stays isolated.
+        if args.cloud:
+            call(['network', 'connect', 'bridge', controller])
+        # Docker does not publish ports from an internal network. This HTTP
+        # gateway joins the normal bridge. With --cloud, the selected
+        # controller also joins it; equipment-only peers stay isolated.
         # Preserve Host for the example management page's same-origin check.
         routes = {}
         for index, product in enumerate(layout['products'].values()):
@@ -220,6 +228,8 @@ def run(args):
         save()
         print(f'\nOpenAVC Programmer: {server_url}/programmer\nOpenAVC panel: {server_url}/panel')
         print('Create your OpenAVC administrator account on the normal first-run page.')
+        if args.cloud:
+            print('The controller has outbound network access. Pair it through the normal Cloud page if wanted.')
         for name, product in layout['products'].items():
             print(name + ' settings: ' + product['management_url'])
         print(f"Product login: {credentials['username']}\nProduct password: {credentials['password']}")
@@ -258,6 +268,7 @@ if __name__ == '__main__':
     parser.add_argument('--out', type=Path, default=Path('build/system-example'))
     parser.add_argument('--port', type=int, default=18080, help='First localhost port; uses two per product plus one for the controller.')
     parser.add_argument('--docker-context', help='Use a named Docker context without changing your active context.')
+    parser.add_argument('--cloud', action='store_true', help='Allow the selected controller outbound network access for normal optional cloud pairing.')
     parser.add_argument('--check', action='store_true', help='Exercise the sample equipment and stop after verification.')
     parser.add_argument('--recovery', action='store_true', help='With --check, stop/restart an invented peer and the controller, then verify recovery.')
     parser.add_argument('--faults', action='store_true', help='With --check, exercise trust, access, hardware-feedback and command refusals in the invented products.')

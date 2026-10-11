@@ -11,6 +11,11 @@ too. The first build needs internet access to obtain build dependencies and the
 OpenAVC revision pinned in `sdk/contract/origin.json`. Running the example network
 does not require internet or OpenAVC Cloud.
 
+To try optional cloud pairing, add `--cloud`. Only the selected controller gets
+outbound network access; the other products remain on the isolated network.
+Nothing is paired automatically. See [OpenAVC Cloud](cloud.md) for the normal
+account, pairing and product-permission workflow.
+
 From the SDK checkout:
 
 ```sh

@@ -50,6 +50,8 @@ See [the walkthrough](docs/system-example.md) for verification commands, ports,
 Docker contexts, saved evidence and cleanup.
 Add `--products 5` to try five server-capable products with one selected controller.
 The walkthrough also supplies automatic outage and recovery checks.
+Add `--cloud` to give the selected controller outbound access for
+[optional OpenAVC Cloud pairing](docs/cloud.md).
 
 ## Connect your hardware
 
@@ -84,6 +86,7 @@ preview diagnostics before sharing them.
 | [Product testing tools](docs/product-testing.md) | A separate product starter, command checks, resource measurements and diagnostic previews. |
 | [Product controls](docs/product-controls.md) | Your product's management UI/API, credentials, optional server and firmware updates. |
 | [Linux firmware](docs/firmware.md) | Runnable service startup, persistent storage, systemd templates and per-unit provisioning. |
+| [OpenAVC Cloud](docs/cloud.md) | Optional pairing, remote access, product permissions and firmware testing. |
 | [Protocol reference](docs/protocol.md) | Network messages, identity, authentication, outcomes and transport bounds. |
 | [Firmware testing](docs/qualification.md) | Product-specific build, hardware, resource, recovery and cloud acceptance. |
 | [Troubleshooting](docs/troubleshooting.md) | Common failures, diagnostics and next steps. |

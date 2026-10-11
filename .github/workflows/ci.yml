@@ -135,8 +135,8 @@ jobs:
           python examples/linux/check.py --with-server --out build/firmware-server
       - name: Exercise both complete arrangements
         run: |
-          python try-system.py --arrangement external --out build/check-external --check
-          python try-system.py --arrangement embedded --out build/check-embedded --check
+          python try-system.py --arrangement external --out build/check-external --check --cloud
+          python try-system.py --arrangement embedded --out build/check-embedded --check --cloud
       - name: Exercise five products, recovery and faults
         run: |
           python try-system.py --products 5 --arrangement external --out build/check-five-external --check --recovery --faults

@@ -182,6 +182,9 @@ Do not show a running server solely because `server` is true. Use
 Turning off Programmer access does not stop the project, schedules, macros or
 hardware control. Interface access is optional product policy; the normal full
 server example includes both Programmer and panel access.
+These settings also apply through cloud tunnels. Cloud configuration restores
+require Programmer access; normal runtime control and monitoring continue when
+the Programmer is off. See [OpenAVC Cloud](cloud.md).
 
 `GET /oem/diagnostics` returns current status with credential values excluded.
 Access requires management authentication. `POST /oem/repair` repairs damaged or

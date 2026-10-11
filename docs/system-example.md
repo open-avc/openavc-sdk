@@ -155,6 +155,8 @@ The example injects hardware faults through loopback-only test instrumentation;
 that instrumentation is not part of the SDK adapter API. These checks do not
 send commands to AV equipment or disable certificate verification. Reports remain
 in the selected output directory alongside the recovery evidence.
+The checker spaces its OpenAVC API requests slightly more than a second apart
+to respect the server's normal request limits. It does not retry commands.
 
 Network partitions, interrupted physical operations, mixed protocol versions and
 controller replacement require their own acceptance tests; this option does not

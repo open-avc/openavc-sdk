@@ -22,6 +22,9 @@ def check(folder):
               'recovery': layout.get('recovery', False), 'faults': layout.get('faults', False),
               'product_count': len(layout['products']), 'image': layout['image'],
               'core_head': layout['contract']['core_head'], 'checks': [], 'observations': {}}
+    request_interval = 1.1
+    next_request = 0.0
+    report['observations']['controller_requests'] = {'count': 0, 'minimum_interval_seconds': request_interval}
 
     def docker(*arguments):
         return subprocess.check_output(layout['docker'] + list(arguments), text=True, timeout=100).strip()
@@ -41,6 +44,13 @@ def check(folder):
         return json.loads(docker('exec', layout['products'][name]['container'], 'python', '-c', code))
 
     def api(path, data=None, method=None, expected=200):
+        nonlocal next_request
+        # All these requests pass through the example's gateway. Pace the
+        # observer below even the normal 60/minute API budget; the controller's
+        # ordinary limits stay enabled. Never retry a hardware command.
+        time.sleep(max(0.0, next_request - time.monotonic()))
+        next_request = time.monotonic() + request_interval
+        report['observations']['controller_requests']['count'] += 1
         request = urllib.request.Request(layout['server_url'] + path,
             data=json.dumps(data).encode() if data is not None else None, method=method,
             headers={'Content-Type': 'application/json', 'Authorization': authorization})

@@ -48,6 +48,8 @@ python3 try-system.py --arrangement embedded --out build/embedded-example
 The examples run on an isolated Docker network and do not contact AV equipment.
 See [the walkthrough](docs/system-example.md) for verification commands, ports,
 Docker contexts, saved evidence and cleanup.
+Add `--products 5` to try five server-capable products with one selected controller.
+The walkthrough also supplies automatic outage and recovery checks.
 
 ## Connect your hardware
 

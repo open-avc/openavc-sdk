@@ -258,7 +258,7 @@ if __name__ == '__main__':
     parser.add_argument('--port', type=int, default=18080, help='First localhost port; uses two per product plus one for the controller.')
     parser.add_argument('--docker-context', help='Use a named Docker context without changing your active context.')
     parser.add_argument('--check', action='store_true', help='Exercise the sample equipment and stop after verification.')
-    parser.add_argument('--recovery', action='store_true', help='With --check, stop and restart one invented peer and verify recovery.')
+    parser.add_argument('--recovery', action='store_true', help='With --check, stop/restart an invented peer and the controller, then verify recovery.')
     options = parser.parse_args()
     if not 1024 <= options.port <= 65535 - options.products * 2:
         parser.error('--port must leave room for two ports per product and one controller port below 65536.')

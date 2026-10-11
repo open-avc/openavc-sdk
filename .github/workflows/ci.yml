@@ -66,7 +66,7 @@ jobs:
         run: |
           python try-system.py --arrangement external --out build/check-external --check
           python try-system.py --arrangement embedded --out build/check-embedded --check
-      - name: Exercise five products and peer recovery
+      - name: Exercise five products and recovery
         run: |
           python try-system.py --products 5 --arrangement external --out build/check-five-external --check --recovery
           python try-system.py --products 5 --arrangement embedded --out build/check-five-embedded --check --recovery

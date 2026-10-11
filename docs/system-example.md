@@ -97,7 +97,7 @@ device. Normal Discovery finds five SDK products in this arrangement, or four
 when amplifier 1 runs the server. The active host's equipment interface is paused;
 its Programmer and panel remain available.
 
-## Exercise a peer outage and recovery
+## Exercise outages and recovery
 
 Add `--check --recovery` to either arrangement:
 
@@ -112,6 +112,13 @@ ordinary TCP device while that peer is down. It restarts the peer, waits for the
 normal reconnect, checks that old and refused commands were not replayed, and
 sends a new command. The peer's installed server stays stopped.
 
+It then stops the selected OpenAVC server. Every product's hardware remains
+operating and accepts a front-panel-style change; no peer starts a server.
+After the selected server restarts, its administrator account and project still
+work, feedback includes the changes made while it was stopped, and new commands
+reach every product once. On the product-hosted example, the stop/start uses the
+product management API. On the separate controller, it stops/starts that container.
+
 `checks.json` records the image identity, core revision, completed checks,
 offline reason, observed reconnect time and independent example-hardware counters.
 `run.json` records the containers, addresses and topology; `discovery.json` records
@@ -119,7 +126,7 @@ the ordinary discovery result. These files remain with the private example data
 after cleanup. A reconnect time from this Docker exercise is an observation on
 that host, not a firmware timing guarantee.
 
-This exercise covers a peer process outage and restart. It does not simulate a
+This exercise covers peer and controller stop/restart. It does not simulate a
 power cut during a physical operation, controller replacement, a network partition,
 firmware update or automatic takeover. Use [product testing](product-testing.md)
 for selected checks against your own adapter.

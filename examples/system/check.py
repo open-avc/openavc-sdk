@@ -25,11 +25,18 @@ def check(folder):
     def docker(*arguments):
         return subprocess.check_output(layout['docker'] + list(arguments), text=True, timeout=100).strip()
 
-    def product_status(name):
+    def product_status(name, field=None, enabled=None):
         code = ("import json,pathlib,urllib.request; "
                 "token=pathlib.Path('/data/management.token').read_text(); "
-                "req=urllib.request.Request('http://127.0.0.1:9081/oem/settings',headers={'Authorization':'Bearer '+token}); "
-                "print(json.dumps(json.load(urllib.request.urlopen(req,timeout=10))))")
+                "url='http://127.0.0.1:9081/oem/settings'; "
+                "headers={'Authorization':'Bearer '+token,'Content-Type':'application/json'}; "
+                "req=urllib.request.Request(url,headers=headers); "
+                "state=json.load(urllib.request.urlopen(req,timeout=10)); ")
+        if field:
+            code += (f"body=json.dumps({{'revision':state['revision'],'field':{field!r},'enabled':{enabled!r}}}).encode(); "
+                     "req=urllib.request.Request(url,headers=headers,data=body); "
+                     "state=json.load(urllib.request.urlopen(req,timeout=60)); ")
+        code += 'print(json.dumps(state))'
         return json.loads(docker('exec', layout['products'][name]['container'], 'python', '-c', code))
 
     def api(path, data=None, method=None, expected=200):
@@ -133,6 +140,44 @@ def check(folder):
                 'reconnect_seconds': round(time.monotonic() - started, 3),
                 'before': initial, 'after_reconnect': restored, 'after_new_command': current}
             recorded('The peer reconnects without replaying old or refused commands; its server remains stopped')
+            before_stop = {name: physical(name) for name in devices}
+            if layout['arrangement'] == 'embedded':
+                product_status('product1', 'server', False)
+            else:
+                docker('stop', '--time', '20', layout['controller'])
+
+            def controller_available():
+                try:
+                    with opener.open(layout['server_url'] + '/api/health', timeout=2) as response:
+                        return response.status == 200
+                except (urllib.error.URLError, OSError):
+                    return False
+
+            until(lambda: not controller_available())
+            for name in devices:
+                status = product_status(name)
+                assert not status['server_running'] and not status['server']
+                physical(name, 'external -9.5')
+                current = physical(name)
+                assert current['counter'] == before_stop[name]['counter']
+                assert current['gain2'] == -9.5
+            recorded('Stopping the controller leaves all product hardware operating; no peer starts a server')
+            if layout['arrangement'] == 'embedded':
+                product_status('product1', 'server', True)
+            else:
+                docker('start', layout['controller'])
+            until(controller_available, timeout=60)
+            until(lambda: wanted <= {device['id'] for device in api('/api/devices')['devices'] if device['connected']}, timeout=90)
+            for name, device in devices.items():
+                until(lambda: api('/api/devices/' + device)['state'].get('channel.2.gain') == -9.5)
+                assert physical(name)['counter'] == before_stop[name]['counter']
+                api('/api/devices/' + device + '/command', {'command': 'increment', 'params': {}})
+                assert physical(name)['counter'] == before_stop[name]['counter'] + 1
+            report['observations']['controller_restart'] = {
+                'hardware_before': before_stop,
+                'hardware_after_new_commands': {name: physical(name) for name in devices},
+                'administrator_login_retained': True}
+            recorded('The selected controller restarts with its account and project, resynchronizes feedback and controls every product')
         if layout['arrangement'] == 'embedded':
             api('/api/devices/local', method='DELETE', expected=409)
             recorded('Product hardware cannot be removed')

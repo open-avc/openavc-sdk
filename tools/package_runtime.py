@@ -51,7 +51,7 @@ def package(args):
                         ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
     (destination / 'sdk/src').mkdir()
     shutil.copy2(ROOT / 'sdk/src/open_adapter.c', destination / 'sdk/src/open_adapter.c')
-    for name in ['product.json', 'try-example.py', 'try-system.py', 'doctor.py', 'inspection.py', 'product_checks.py', 'check-product.py',
+    for name in ['product.json', 'try-example.py', 'example_build.py', 'try-system.py', 'doctor.py', 'inspection.py', 'product_checks.py', 'check-product.py',
                  'resource_profile.py', 'profile-product.py', 'diagnostic_report.py', 'collect-diagnostics.py',
                  'new-product.py',
                  'pyproject.toml', '.dockerignore', 'LICENSE']:

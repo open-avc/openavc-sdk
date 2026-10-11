@@ -7,6 +7,8 @@ generated files, binaries and SDK/core revision with the report.
 |---|---|
 | Doctor reports a missing compiler or library | Install the prerequisites in [Building](building.md), or use prebuilt libraries compatible with your target ABI. Run the doctor again with a new report filename. |
 | Build reports a missing `oavc_hw_*` symbol | Implement the callback declared in the generated `commands.h`. Rebuild after changing the model; keep its generated C and model together. |
+| A transferred build is refused | Check the selected language/form, recorded hashes and target OS/processor. Transfer the complete original build with executable permissions. Use the same SDK revision; see [Cross-building](cross-building.md). |
+| A matching-CPU binary cannot load a library or interpreter | Check its ELF report and the target's loader, libc, OpenSSL and C++ runtime. Rebuild with the actual firmware toolchain/sysroot; matching the CPU alone is insufficient. |
 | Service refuses a model mismatch | Deploy the model and adapter built together. Do not edit `model.json` independently. |
 | Inspection says feedback is unavailable | Check the product's `readback` result and refresh timing. Publish all declared state and advance the hardware generation/revision correctly. Check that callbacks execute on the product's permitted thread. |
 | Equipment does not appear in Discovery | The product's server must be stopped and equipment discovery enabled. Check `discovery_error`, selected network addresses and multicast access. Ordinary manual Add remains available when remote equipment control is enabled. |

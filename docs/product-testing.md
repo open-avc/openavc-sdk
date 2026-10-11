@@ -39,6 +39,9 @@ The launcher builds the selected product, creates temporary local credentials
 and certificates, starts the adapter, runs the selected checks and stops its
 processes. It does not install your product as a service or choose a firmware
 toolchain. See [Building](building.md) for those build requirements.
+For a product built on another computer, use the [cross-build workflow](cross-building.md)
+and pass its output to `--run-built`; inspection and selected checks then use
+those binaries without compiling again.
 
 ## Select commands and expected state
 

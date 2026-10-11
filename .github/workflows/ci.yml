@@ -8,6 +8,77 @@ permissions:
   contents: read
 
 jobs:
+  cross-build:
+    name: Cross-build ${{ matrix.target }} on ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: arm64
+          - runner: ubuntu-24.04-arm
+            target: x86_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Cross-compile without target execution
+        run: python tools/build_target.py --target "${{ matrix.target }}" --out build/cross
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cross-${{ matrix.target }}
+          path: |
+            build/cross/target.tar.gz
+            build/cross/target.tar.gz.sha256
+            build/cross/build.log
+          if-no-files-found: error
+
+  cross-run:
+    name: Run transferred ${{ matrix.target }} build
+    needs: cross-build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64
+          - runner: ubuntu-24.04-arm
+            target: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: cross-${{ matrix.target }}
+          path: build/received
+      - name: Verify and extract
+        working-directory: build/received
+        run: |
+          sha256sum -c target.tar.gz.sha256
+          tar -xzf target.tar.gz
+      - name: Run the unchanged cross-built binaries on their native processor
+        run: |
+          python try-example.py --run-built build/received/target --exercise-demo
+          python try-example.py --run-built build/received/target --language cpp --exercise-demo
+          python try-example.py --run-built build/received/target --form direct --exercise-demo
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cross-run-${{ matrix.target }}
+          path: |
+            build/received/target/*-result.json
+            build/received/target/*.log
+            build/received/target/cross-build.json
+          if-no-files-found: error
+
   native:
     name: Native Linux (${{ matrix.runner }})
     strategy:

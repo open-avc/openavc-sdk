@@ -16,6 +16,7 @@ until you replace their callbacks or network configuration.
 | Hardware integration, C++ | Linux ARM64/x86-64; C++ source checkout | `python3 try-example.py --language cpp --exercise-demo` | The same behavior and generated C-facing API through a C++ product class. |
 | Hardware integration, in-process library | Linux or macOS; C/C++ source | `python3 try-example.py --form direct --exercise-demo` | Product and network endpoint in one process. Add `--language cpp` for C++. |
 | [Separate product](product-testing.md) | Same native build requirements | `python3 new-product.py --out ../my-product` | Your model, C hardware source, selected checks and README, separate from the SDK. Source Git checkouts also supply a pinned CI build. |
+| [Cross-build and transfer](cross-building.md) | Linux Docker engine; C/C++ source | `python3 tools/build_target.py --target arm64 --out build/arm64-target` | Compiles for the selected Linux processor; `--run-built` checks the transferred binaries on the target. Also accepts `--target x86_64`. |
 | [Linux firmware](firmware.md), equipment only | Linux; C by default | `python3 examples/linux/check.py --out build/firmware-device` | Staged unprivileged services, hardware restart, persistent settings and shutdown. Build first as described in the guide. |
 | Linux firmware, full server | Linux with the compatible server installed | `python3 examples/linux/check.py --with-server --out build/firmware-server` | The same layout with the full server and retained server setting. |
 | Linux service supervisor | Isolated Linux host running systemd | `python3 examples/linux/check-systemd.py --with-server --out build/firmware-systemd` | Actual service units, filesystem protection, restart and cleanup; requires administrator access. |
@@ -35,6 +36,8 @@ tests an independently changed model/adapter, creates a separate product project
 builds and extracts the prebuilt libraries, runs the firmware/service checks and
 both complete system arrangements, then builds and installs the offline server.
 Reports and package hashes are retained as workflow artifacts.
+Separate jobs cross-build each processor from the other, transfer the archives
+and exercise their unchanged binaries on native runners.
 
 The macOS source path uses the in-process library. The separate Linux service,
 product supervision and systemd checks do not run natively on macOS. A firmware

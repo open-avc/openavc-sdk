@@ -1,6 +1,7 @@
 .git
 build
 build-target
+build-cross
 __pycache__
 *.pyc
 *.egg-info

@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(openavc_manufacturer_product LANGUAGES C)
+file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/build-target.json"
+  CONTENT "{\"system\":\"${CMAKE_SYSTEM_NAME}\",\"machine\":\"${CMAKE_SYSTEM_PROCESSOR}\"}\n")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(OPENAVC_PRODUCT "${CMAKE_CURRENT_SOURCE_DIR}/product.json" CACHE FILEPATH "Equipment capability description")
 find_package(Python3 3.12 REQUIRED COMPONENTS Interpreter)

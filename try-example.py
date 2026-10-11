@@ -15,6 +15,7 @@ import time
 import urllib.error
 import urllib.request
 
+from example_build import prepare
 from inspection import inspect_product
 from product_checks import Client, read_json, run_checks
 
@@ -29,48 +30,21 @@ def main(args):
         raise ValueError('Use Python 3.12 or newer for this source starter.')
     if sys.platform not in {'linux', 'darwin'}:
         raise ValueError('Use the Linux evaluation environment described in README.md.')
-    if args.form == 'service' and sys.platform != 'linux':
+    if args.form == 'service' and sys.platform != 'linux' and not (args.toolchain and args.build_only):
         raise ValueError('The service example requires Linux. Use the direct example on this development host.')
-    for tool in ('cmake', 'cc') + (() if supplied else ('c++',)) + (() if args.build_only else ('openssl',)):
-        if shutil.which(tool) is None:
-            raise ValueError(f'{tool} is missing. Install the prerequisites in README.md, then retry.')
-    build = project / 'build'
-    build.mkdir(exist_ok=True)
+    if not args.build_only and shutil.which('openssl') is None:
+        raise ValueError('openssl is missing. Install the prerequisites in docs/building.md.')
+    build, built = prepare(args, root, project, supplied)
     target = 'example-' + args.language
-    commands = [['cmake', '-S', str(root), '-B', str(build), '-DCMAKE_BUILD_TYPE=Release',
-                 '-DPython3_EXECUTABLE=' + sys.executable,
-                 '-DOPENAVC_PRODUCT=' + str(project / 'product.json'),
-                 '-DOPENAVC_EXAMPLE_' + args.language + '=' + str(
-                     project / ('hardware.' + args.language) if args.project else root / ('sample/example.' + args.language)),
-                 *(['-DOPENSSL_ROOT_DIR=' + str(args.openssl.resolve())] if args.openssl else [])],
-                ['cmake', '--build', str(build), '--target', target,
-                 *(['openavc-device-service'] if args.form == 'service' else []), '--parallel', '1']]
     label = args.language + '-' + args.form
     build_record = build / (label + '-build-result.json')
-    built = {'status': 'building', 'language': args.language, 'form': args.form,
-             'validation': 'model_and_compilation', 'commands': commands}
-    build_record.write_text(json.dumps(built, indent=2) + '\n')
-    try:
-        with (build / (label + '-build.log')).open('w') as log:
-            for command in commands:
-                proc = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, timeout=300)
-                if proc.returncode:
-                    raise ValueError('Build failed. Open ' + str(build / (label + '-build.log')) + ' for the named dependency, file or callback.')
-        files = [target, 'generated/model.json', 'generated/commands.h', 'generated/commands.c',
-                 'generated/model.provenance.json', 'generated/provenance.json']
-        if args.form == 'service':
-            files.append('openavc-device-service')
-        built.update(status='built', files={name: {'sha256': hashlib.sha256((build / name).read_bytes()).hexdigest(),
-                                                'bytes': (build / name).stat().st_size} for name in files})
-    except (ValueError, OSError, subprocess.SubprocessError):
-        built['status'] = 'failed'
-        raise
-    finally:
-        build_record.write_text(json.dumps(built, indent=2) + '\n')
     if args.build_only:
         print('Build complete. Outputs and hashes: ' + str(build_record))
         return
-    result = {'status': 'running', 'language': args.language, 'form': args.form, 'checks': {}, 'commands': commands}
+    result = {'status': 'running', 'language': args.language, 'form': args.form, 'checks': {},
+              'build_record_sha256': hashlib.sha256(build_record.read_bytes()).hexdigest(),
+              'build_host': built['build_host'], 'run_host': {'system': sys.platform, 'machine': os.uname().machine},
+              'transferred_build': bool(args.run_built)}
     result_path = build / (label + ('-inspection.json' if args.inspect else '-result.json'))
     product = service = None
     pending = {}
@@ -92,16 +66,19 @@ def main(args):
         return first.decode().strip()
 
     def hardware(command='snapshot'):
-        product.stdin.write(command + '\n'); product.stdin.flush()
+        product.stdin.write(command + '\n')
+        product.stdin.flush()
         row = line(product).split()
-        if row[0] != 'STATE': raise ValueError('Unexpected hardware response: ' + str(row))
+        if row[0] != 'STATE':
+            raise ValueError('Unexpected hardware response: ' + str(row))
         keys = ['writes', 'callbacks', 'wrong_threads', 'channels', 'counter', 'ticks',
                 'gain1', 'gain2', 'mute1', 'input', 'reads', 'close_waited', 'pending']
         return {k: float(v) if k.startswith('gain') else int(v) for k, v in zip(keys, row[1:])}
 
     def check(name, condition):
         result['checks'][name] = bool(condition)
-        if not condition: raise ValueError(name + ' failed. Read the logs in build/.')
+        if not condition:
+            raise ValueError(name + ' failed. Read the logs in build/.')
 
     with tempfile.TemporaryDirectory(prefix='openavc-hardware-example-') as directory:
         private = Path(directory)
@@ -132,7 +109,8 @@ def main(args):
                 if len(ready) != 2 or ready[0] != 'READY':
                     raise ValueError('The example did not start. Read ' + endpoint_log + '.')
                 if args.form == 'service':
-                    if ready[1] != '0': raise ValueError('The service product unexpectedly opened a network listener.')
+                    if ready[1] != '0':
+                        raise ValueError('The service product unexpectedly opened a network listener.')
                     service = subprocess.Popen([str(build / 'openavc-device-service'), str(build / 'generated/model.json'),
                         str(private / 'server.pem'), str(private / 'product.sock')],
                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=log, text=True,
@@ -146,8 +124,10 @@ def main(args):
                     req = urllib.request.Request(base + path,
                         data=json.dumps(payload).encode() if payload is not None else None,
                         headers={'Authorization': 'Bearer ' + token, 'X-OpenAVC-Client': client_id, 'Content-Type': 'application/json'})
-                    try: response = client.open(req, timeout=4)
-                    except urllib.error.HTTPError as exc: response = exc
+                    try:
+                        response = client.open(req, timeout=4)
+                    except urllib.error.HTTPError as exc:
+                        response = exc
                     with response:
                         return response.status, json.load(response)
 
@@ -155,7 +135,8 @@ def main(args):
                     deadline = time.monotonic() + 4
                     while True:
                         value = probe()
-                        if value: return value
+                        if value:
+                            return value
                         if time.monotonic() > deadline:
                             raise ValueError('Feedback timed out. Read ' + endpoint_log + '; do not replay an uncertain command.')
                         time.sleep(.01)
@@ -196,15 +177,21 @@ def main(args):
                 if service:
                     result['service_sha256'] = hashlib.sha256((build / 'openavc-device-service').read_bytes()).hexdigest()
             except BaseException as exc:
-                result.update(status='failed', error=str(exc)); raise
+                result.update(status='failed', error=str(exc))
+                raise
             finally:
                 for name, process, stop in [('service', service, 'quit'), ('product', product, 'stop')]:
                     if process and process.poll() is None:
-                        try: process.stdin.write(stop + '\n'); process.stdin.flush()
-                        except BrokenPipeError: pass
-                        try: process.wait(timeout=10)
+                        try:
+                            process.stdin.write(stop + '\n')
+                            process.stdin.flush()
+                        except BrokenPipeError:
+                            pass
+                        try:
+                            process.wait(timeout=10)
                         except subprocess.TimeoutExpired:
-                            process.kill(); process.wait(timeout=5)
+                            process.kill()
+                            process.wait(timeout=5)
                     result[name + '_exit'] = process.returncode if process else None
                     if process:
                         remaining = pending.get(process, b'')
@@ -230,7 +217,8 @@ def main(args):
                 if args.form == 'service' and (not service or (private / 'product.sock').exists()):
                     result['status'] = 'failed'
                 result_path.write_text(json.dumps(result, indent=2) + '\n')
-    if result['status'] not in {'passed', 'inspected'}: raise ValueError('Example cleanup failed. Read ' + endpoint_log + '.')
+    if result['status'] not in {'passed', 'inspected'}:
+        raise ValueError('Example cleanup failed. Read ' + endpoint_log + '.')
     if args.checks:
         print('Product checks passed. Report: ' + str(args.out / 'report.json'))
         print('Coverage: protocol and reported state. Verify physical effects independently on your product.')
@@ -250,6 +238,10 @@ if __name__ == '__main__':
     parser.add_argument('--language', choices=['c', 'cpp'], default='c')
     parser.add_argument('--form', choices=['direct', 'service'], default='service' if sys.platform == 'linux' else 'direct')
     parser.add_argument('--openssl', type=Path)
+    parser.add_argument('--build-dir', type=Path, help='Build directory; defaults to build/ in the product directory.')
+    build_mode = parser.add_mutually_exclusive_group()
+    build_mode.add_argument('--toolchain', type=Path, help='CMake firmware toolchain; requires --build-only.')
+    build_mode.add_argument('--run-built', type=Path, help='Verify and run an existing build directory without compiling.')
     parser.add_argument('--project', type=Path, help='Your product directory containing product.json and hardware.c or hardware.cpp.')
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--build-only', action='store_true', help='Validate the product and compile without starting hardware.')
@@ -258,10 +250,15 @@ if __name__ == '__main__':
     mode.add_argument('--checks', type=Path, help='Run your selected command/readback checks after building and starting the adapter.')
     parser.add_argument('--out', type=Path, help='New evidence directory, required with --checks.')
     options = parser.parse_args()
+    if options.toolchain and not options.build_only:
+        parser.error('Use --toolchain with --build-only, then --run-built on the target.')
+    if options.run_built and (options.build_only or options.build_dir or options.project or options.openssl):
+        parser.error('--run-built uses the transferred build; omit build options.')
     if bool(options.checks) != bool(options.out):
         parser.error('Use --checks and --out together.')
     if not options.build_only and not options.exercise_demo and not options.checks:
         options.inspect = True
-    try: main(options)
+    try:
+        main(options)
     except (ValueError, OSError, subprocess.SubprocessError) as exc:
         parser.exit(1, str(exc) + '\n')

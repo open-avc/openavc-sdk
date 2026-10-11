@@ -79,6 +79,7 @@ preview diagnostics before sharing them.
 | [Adapter API](docs/adapter-api.md) | C/C++ configuration, function results, thread rules and value lifetimes. |
 | [Product model](docs/product-model.md) | Model fields, channels, parameters, state and canonical OpenAVC metadata. |
 | [Building](docs/building.md) | Workstation prerequisites, firmware toolchains and prebuilt C libraries. |
+| [Cross-building](docs/cross-building.md) | Build for another processor and test the transferred binaries without recompiling them. |
 | [Compatibility and updates](docs/compatibility.md) | Select matching SDK/server revisions, qualify an update and retain build evidence. |
 | [Product testing tools](docs/product-testing.md) | A separate product starter, command checks, resource measurements and diagnostic previews. |
 | [Product controls](docs/product-controls.md) | Your product's management UI/API, credentials, optional server and firmware updates. |

@@ -83,8 +83,11 @@ def check(args):
         first = wait_for(description)
         report['checks'].append('ordered_services_start')
         pid = property_value(management, 'MainPID')
-        program_options = run('nsenter', '--target', pid, '--mount', 'findmnt', '-n', '-o', 'OPTIONS', '-T', config['model']).strip().split(',')
-        data_options = run('nsenter', '--target', pid, '--mount', 'findmnt', '-n', '-o', 'OPTIONS', '-T', config['data_dir']).strip().split(',')
+        # Resolve paths from the service's root/cwd, not the caller's retained
+        # root mount. These can differ on a host with a separately mounted workspace.
+        view = ('nsenter', '--target', pid, '--mount', '--root', '--wd')
+        program_options = run(*view, 'findmnt', '-n', '-o', 'OPTIONS', '-T', config['model']).strip().split(',')
+        data_options = run(*view, 'findmnt', '-n', '-o', 'OPTIONS', '-T', config['data_dir']).strip().split(',')
         report['filesystem_observed'] = {'program': program_options, 'data': data_options}
         assert 'ro' in program_options and 'rw' in data_options
         report['checks'].append('program_read_only_and_data_writable_in_service_namespace')

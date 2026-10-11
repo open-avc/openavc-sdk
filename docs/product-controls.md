@@ -4,12 +4,16 @@ The SDK provides two capabilities. A product can make its equipment available to
 an OpenAVC server elsewhere, and it can optionally include the full OpenAVC server.
 Use the same hardware adapter for both.
 
-When the local server runs, its equipment appears as **Built-in equipment**.
-The SDK withdraws the equipment advertisement and refuses remote equipment
-control. The server remains accessible through the normal Programmer and panel
-interfaces. Stopping that server restores the product's saved equipment-access
-settings. A failed server start keeps the equipment reserved until the operator
-stops or successfully restarts the server.
+When OpenAVC runs on your product, your product's own hardware appears
+automatically in every project, marked **Product hardware**. For an amplifier,
+that means its audio channels and controls. Other OpenAVC servers cannot
+discover or control that hardware while the local server is enabled.
+The normal Programmer and panel interfaces remain available. Stopping OpenAVC
+restores the product's saved equipment-access settings.
+
+If the server fails to start, remote equipment control stays off. The operator
+can retry starting OpenAVC or turn off **Run OpenAVC on this product** to allow
+another server to control it.
 
 ## Runtime components
 
@@ -143,13 +147,13 @@ OpenAVC server as part of its firmware. OpenAVC identifies updates as firmware
 managed and points to the product's update process. Keep tested component
 versions together and retain the OpenAVC data directory when updating.
 
-The built-in equipment integration belongs to the firmware. A new/imported project
-cannot replace its hardware endpoint or uninstall it. Ordinary project import
-reuses programming; Backup Restore also restores saved variable state. For a
-different product model, use normal **Reassign Driver** to select compatible
-built-in equipment. OpenAVC checks declared controls/settings and refuses an
-incompatible or already-used receiving reference; review scripts for assumptions
-about the original product.
+Your firmware supplies the connection to your product's hardware. Creating or
+importing a project cannot replace that connection or remove the product hardware.
+Ordinary project import reuses programming; Backup Restore also restores saved
+variable state. For a different product model, use **Reassign Driver** and select
+**Product hardware** to use the new product's controls. OpenAVC checks compatibility
+and refuses the change if those controls already have programming or saved settings.
+Review scripts for assumptions about the original product.
 
-The SDK does not elect a controller or provide automatic failover. The installer
-chooses which product runs OpenAVC. A second server is a separate control system.
+The installer chooses which product runs OpenAVC. Starting a second server
+creates another control system; it does not provide automatic takeover.

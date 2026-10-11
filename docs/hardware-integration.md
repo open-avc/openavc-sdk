@@ -6,7 +6,10 @@ commands and counters exercise the integration without connecting to equipment.
 
 ## Describe the product
 
-Edit `product.json` to name your product, commands, state and channels. For example:
+Edit `product.json` to name your product, commands, state and channels. State means
+the current values reported by the product, such as input selection or channel gain.
+OpenAVC calls addressable parts such as channels `child entities` in the model.
+For example:
 
 ```json
 "set_gain": {
@@ -18,7 +21,7 @@ Edit `product.json` to name your product, commands, state and channels. For exam
 }
 ```
 
-The build validates this description with OpenAVC's canonical driver validator,
+The build validates this description with the same validator used by OpenAVC drivers,
 then generates `build/generated/commands.h`, `commands.c` and `model.json`.
 Keep those generated files together. Do not edit them. The runtime refuses a
 model that differs from the model compiled into the hardware adapter.

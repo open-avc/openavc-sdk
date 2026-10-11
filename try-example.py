@@ -22,7 +22,7 @@ def main(args):
     root = Path(__file__).resolve().parent
     supplied = (root / 'bundle.json').exists()
     if supplied and args.language != 'c':
-        raise ValueError('This supplied-runtime package builds the C adapter. Use the source checkout for the C++ example.')
+        raise ValueError('This prebuilt library package builds the C adapter. Use the source checkout for the C++ example.')
     if sys.version_info < (3, 12):
         raise ValueError('Use Python 3.12 or newer for this source starter.')
     if sys.platform not in {'linux', 'darwin'}:

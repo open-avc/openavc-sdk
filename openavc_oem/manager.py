@@ -603,7 +603,7 @@ class ProductManager:
         if not self.check_policy():
             refused(web.HTTPServiceUnavailable, 'OpenAVC settings require repair in product management.')
         if self.equipment_status()['reserved_locally']:
-            refused(web.HTTPForbidden, 'This product’s hardware is reserved for its built-in OpenAVC server.')
+            refused(web.HTTPForbidden, 'Remote control is paused for OpenAVC on this product. Check its status in the product settings.')
         try:
             credential = BasicAuth.decode(request.headers.get('Authorization', ''))
             valid = (len(request.headers.getall('Authorization', [])) == 1

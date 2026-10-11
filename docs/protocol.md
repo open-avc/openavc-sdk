@@ -19,11 +19,10 @@ contain no credentials and do not authorize control.
 The product service authenticates remote requests using HTTP Basic over TLS,
 against the manufacturer's product credentials. Normal OpenAVC device settings
 contain the username/password and certificate-verification option. Keep
-verification enabled with a certificate trusted by the controller. Turning it
-off is an explicit connection choice, not an enrollment mechanism.
+verification enabled with a certificate trusted by the OpenAVC server.
 
-The built-in connection uses a separate, randomly provisioned bearer credential
-and a TLS-verified loopback endpoint. Its connection details belong to the
+The connection from a server to its own product hardware uses a separate,
+randomly provisioned bearer credential and a TLS-verified loopback endpoint. Its connection details belong to the
 firmware manifest and are not exported with the integrator's project.
 
 ## Endpoints

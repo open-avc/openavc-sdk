@@ -28,7 +28,7 @@ the panel and press a control. Its adjacent value reports hardware readback.
 In the Programmer, open a device to see its controls, channels and connection
 status. The SDK equipment uses the ordinary device view.
 
-On amplifier 1's product settings page, **Available to another OpenAVC server**
+On amplifier 1's product settings page, **Allow control from another OpenAVC server**
 is on and **Run OpenAVC on this product** is off. Its server is installed but is
 not running. Amplifier 2 shows that its firmware does not include a server.
 
@@ -45,13 +45,13 @@ Stop the preceding example, then use a new output directory:
 python3 try-system.py --arrangement embedded --out build/embedded-example
 ```
 
-OpenAVC now runs inside amplifier 1. That amplifier appears as **Built-in
-equipment**, while amplifier 2 and the ordinary TCP device connect remotely.
-The panel's controls work the same way. The built-in equipment cannot be removed.
+OpenAVC now runs inside amplifier 1. That amplifier appears as **Product hardware**,
+while amplifier 2 and the ordinary TCP device connect remotely. The panel's controls
+work the same way. Amplifier 1 cannot be removed from its own OpenAVC project.
 
-Amplifier 1's product page reports that its hardware is in use by its built-in
-server. Its equipment advertisement is withdrawn and remote equipment control
-is refused. Its normal Programmer and panel remain available. Stop its server
+Amplifier 1's product page reports that control from other servers is paused.
+Other OpenAVC servers can no longer discover or control amplifier 1. Its normal
+Programmer and panel remain available. Stop its server
 on the product page to make the saved remote-equipment settings active again.
 The manufacturer's hardware process continues running.
 

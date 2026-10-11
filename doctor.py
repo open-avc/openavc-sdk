@@ -51,8 +51,8 @@ def inspect(form, openssl):
         "Use the direct example on macOS, or run the service example in the documented Linux environment.")
     if supplied:
         expected = bundle['runtime_host']
-        add('Supplied runtime host', expected == {'system': platform.system(), 'machine': platform.machine()},
-            str(expected), 'Use the archive built for this development host. Firmware requires its own qualified runtime.')
+        add('Prebuilt library platform', expected == {'system': platform.system(), 'machine': platform.machine()},
+            str(expected), 'Use the archive built for this OS and CPU. Build from source for a different firmware ABI.')
         verified = True
         for name, sha in json.loads((root_package / 'sdk/sha256.json').read_text()).items():
             path = (root_package / name).resolve()
@@ -127,7 +127,7 @@ def inspect(form, openssl):
                     probe["status"] = "passed"
             add("C11, supplied SDK, threads and OpenSSL 3 development files" if supplied else "C11/C++17, threads and OpenSSL 3 development files",
                 probe["status"] == "passed", probe["status"],
-                ("Read the configure/build output in this report. Use the matching supplied runtime and C compiler; install OpenSSL 3 development files."
+                ("Read the configure/build output in this report. Use the matching prebuilt libraries and C compiler; install OpenSSL 3 development files."
                  if supplied else "Read the configure/build output in this report. On Ubuntu install build-essential and libssl-dev; on Homebrew pass --openssl /opt/homebrew/opt/openssl@3."))
     passed = all(row["status"] == "passed" for row in rows)
     return {"format": 1, "status": "prerequisites-verified" if passed else "needs-attention",

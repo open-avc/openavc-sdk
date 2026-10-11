@@ -1,6 +1,6 @@
 # Build the hardware integration
 
-The source checkout includes the C/C++ runtime and examples. A supplied-runtime
+The source checkout includes the C/C++ runtime and examples. A prebuilt library
 archive includes compiled libraries and the Linux device service; its normal
 build compiles only your C adapter and generated C code.
 
@@ -104,7 +104,7 @@ for an x86-64 bundle. The tool does not qualify a different firmware libc or
 cross-compile a Python interpreter. `--docker-context <name>` selects an engine
 without changing the active Docker context.
 
-## Produce a supplied-runtime archive
+## Produce a prebuilt library archive
 
 On a native Linux Debian/Ubuntu build host with Clang, libc++, libc++abi,
 libunwind and OpenSSL development packages installed:

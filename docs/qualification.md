@@ -1,4 +1,4 @@
-# Qualify your product integration
+# Test the integration on your firmware
 
 Start with the supplied examples, then repeat the relevant checks on your actual
 firmware with its normal service account and audio/video workload. A CPU family
@@ -32,7 +32,7 @@ With the product's server stopped, discover and add the equipment to ordinary
 OpenAVC. Use normal product credentials. Check denied credentials, direct-address
 access with discovery off, and withdrawal when equipment access is disabled.
 
-If the firmware includes OpenAVC, start it and check permanent local equipment,
+If the firmware includes OpenAVC, start it and check your product's hardware,
 another SDK product and ordinary driver-controlled equipment. Confirm that no
 other OpenAVC server can discover or command this product's local equipment while
 its server runs. Stop/restart the server during an asynchronous operation; verify
@@ -46,8 +46,8 @@ Check that saved settings, actual service state and displayed errors agree.
 ## Persistence, updates and resources
 
 Test project import and Backup Restore separately, including saved variable
-state. Retain the product identity and firmware-owned hardware mapping through
-project replacement, product restart and firmware upgrade. For different models,
+state. Retain the product identity and hardware mapping through project
+replacement, product restart and firmware upgrade. For different models,
 review compatibility before using Reassign Driver; inspect scripts and bindings
 that rely on product-specific behavior.
 

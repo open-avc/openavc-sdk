@@ -1,8 +1,8 @@
-# OpenAVC supplied runtime
+# OpenAVC prebuilt libraries
 
-This archive contains compiled SDK libraries, a native Linux device service,
-the C hardware example and manufacturer integration guides. Your build compiles
-your C adapter and generated product code against the supplied libraries.
+This archive contains compiled SDK libraries, the C hardware example and
+manufacturer integration guides. Linux archives also include the device service.
+Your build compiles your C adapter and generated product code against the supplied libraries.
 
 Start on a compatible Linux development host with Python 3.12 or newer, CMake,
 a C11 compiler and OpenSSL 3 development files:
@@ -26,12 +26,13 @@ invented amplifier.
 
 [Product controls](docs/product-controls.md) explains network discovery,
 credentials, controls in your own software and the optional full OpenAVC server.
-[Qualification](docs/qualification.md) and [Troubleshooting](docs/troubleshooting.md)
+[Firmware testing](docs/qualification.md) and [Troubleshooting](docs/troubleshooting.md)
 cover target testing and diagnostics.
 
 For the complete Docker system examples, C++ example or a different firmware
 toolchain, use the [source repository](https://github.com/open-avc/openavc-sdk).
 The source and supplied libraries use the same hardware callback interface.
-This is an engineering preview, not a claim that your firmware is qualified.
+This is an engineering preview. Test it on your product before including it
+in a firmware release.
 
 Software: [MIT](LICENSE), with redistributed notices in `licenses/`.

@@ -10,17 +10,17 @@ hardware mapping supports both uses:
 - **Equipment for another OpenAVC server.** Discover and add the product through
   OpenAVC's normal device setup, using the product's credentials.
 - **OpenAVC running on the product.** Use the full Programmer, panels, automation
-  and ordinary equipment drivers. The product's own hardware appears as permanent
-  built-in equipment. While that server runs, the local hardware is not exported
-  to another OpenAVC server.
+  and drivers for other equipment. Your product's hardware is automatically
+  available in every project and cannot be removed from the project. While
+  OpenAVC runs on your product, other OpenAVC servers cannot discover or control it.
 
 Manufacturers can expose the on/off controls in their own product software. The
 full server is optional; a server-capable product can keep it stopped while
 another OpenAVC server controls the equipment.
 
-This is an engineering preview. The SDK consumes the maintained OpenAVC server
-and its canonical capability definitions. It does not contain a fork of the server.
-Use the [qualification guide](docs/qualification.md) before shipping it in firmware.
+This is an engineering preview. The SDK uses the maintained OpenAVC server
+and its device capability definitions.
+Use the [firmware testing guide](docs/qualification.md) before shipping it in firmware.
 
 ## Try the complete system
 
@@ -53,7 +53,8 @@ the [C++ example](sample/example.cpp). The build generates typed command callbac
 and state publishers from the model. Implement those callbacks using your product's
 existing APIs; keep hardware work on your product's permitted thread.
 
-On a Linux development host with the [build prerequisites](docs/building.md):
+On a Linux development host with the [build prerequisites](docs/building.md),
+check your environment and run the hardware example:
 
 ```sh
 python3 doctor.py --report build/environment.json
@@ -66,29 +67,29 @@ The demonstration command checks send commands to the unchanged invented amplifi
 | Guide | Use it for |
 |---|---|
 | [Hardware integration](docs/hardware-integration.md) | Capabilities, callbacks, readback, channels, asynchronous completion and shutdown. |
-| [Building](docs/building.md) | Workstation prerequisites, firmware toolchains and supplied C-runtime packages. |
+| [Building](docs/building.md) | Workstation prerequisites, firmware toolchains and prebuilt C libraries. |
 | [Product controls](docs/product-controls.md) | Your product's management UI/API, credentials, optional server and firmware updates. |
 | [Protocol reference](docs/protocol.md) | Network messages, identity, authentication, outcomes and transport bounds. |
-| [Qualification](docs/qualification.md) | Product-specific build, hardware, resource, recovery and cloud acceptance. |
+| [Firmware testing](docs/qualification.md) | Product-specific build, hardware, resource, recovery and cloud acceptance. |
 | [Troubleshooting](docs/troubleshooting.md) | Common failures, diagnostics and next steps. |
 
 The managed product integration targets Linux ARM64 and x86-64. The native adapter
 and device service use C/C++ and OpenSSL 3; product management uses Python 3.12 or
 newer. The optional full server adds OpenAVC's dependencies. A macOS development
-host can run the in-process C/C++ example. These are build/evaluation paths, not a
-claim that an unknown manufacturer's firmware is qualified.
+host can run the C/C++ example inside the product process. Follow the firmware
+testing guide to check compatibility and resource use on your product.
 
-There is no automatic controller election, failover or reduced full-server
-edition. Long-duration and physical-firmware qualification are separate from
-the supplied simulated examples.
+The installer selects which product runs OpenAVC. Other products connect to
+that server; the SDK does not automatically select a server or take over if it fails.
 
 ## Upstream compatibility
 
-[`sdk/contract/origin.json`](sdk/contract/origin.json) identifies the tested core
-revision and canonical source hashes. Normal CI checks the pinned pair, native
-builds, supplied runtimes and both system arrangements. The upstream compatibility
-workflow checks current OpenAVC against the adapter and host controls. Firmware
-updates should use a tested SDK/core combination and repeat product qualification.
+[`sdk/contract/origin.json`](sdk/contract/origin.json) records the compatible
+OpenAVC revision and source-file hashes. CI checks that combination, native
+builds, prebuilt libraries and both system examples. A separate workflow tests
+new OpenAVC changes against the hardware adapter and product controls. Ship SDK
+and server versions that have passed testing together, and repeat the relevant
+firmware tests when updating.
 
 ## License
 

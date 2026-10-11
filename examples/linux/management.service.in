@@ -22,6 +22,7 @@ TimeoutStopSec=45
 UMask=0077
 NoNewPrivileges=yes
 ProtectSystem=strict
+ProtectHome=read-only
 ReadWritePaths=@ROOT@/data @ROOT@/run
 
 [Install]

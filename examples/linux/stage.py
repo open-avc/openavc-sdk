@@ -20,7 +20,9 @@ def stage(args):
     if sys.platform != 'linux':
         raise ValueError('Run this firmware example on Linux.')
     destination = args.out.resolve()
-    python = args.python.resolve()
+    # Preserve a virtual environment's executable path; resolving its symlink
+    # selects the base interpreter and loses the environment's installed packages.
+    python = Path(os.path.abspath(args.python))
     args.python = python
     account = pwd.getpwnam(args.service_user) if args.service_user else pwd.getpwuid(os.getuid())
     if account.pw_uid == 0:

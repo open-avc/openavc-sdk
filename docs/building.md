@@ -52,6 +52,8 @@ To use the SDK from your own CMake project, add this source directory with
 `add_subdirectory`, set `OPENAVC_PRODUCT` to your description, set
 `OPENAVC_BUILD_EXAMPLES=OFF`, and link your product target to `adapter`.
 Your product supplies the callbacks declared in the generated `commands.h`.
+For a working separate starter, use `new-product.py` and the
+[product testing workflow](product-testing.md).
 
 ## Firmware toolchains
 

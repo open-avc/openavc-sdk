@@ -23,6 +23,8 @@ stored under the configured data directory's
 `logs/`. Core and recovery logs retain bounded recent generations/segments.
 The complete Docker example saves container logs and product data when it stops;
 those data include example credentials and must be kept private.
+Use [the diagnostic preview](product-testing.md#preview-diagnostics-before-sharing)
+to export selected status and measurement summaries without those private values.
 
 The SDK cannot infer whether an OEM hardware operation physically completed after
 its process or device failed. Accurate completion callbacks and independent

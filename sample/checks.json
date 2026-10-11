@@ -1,0 +1,17 @@
+{
+  "model_id": "acme_amplifier",
+  "checks": [
+    {
+      "name": "Increment once",
+      "command": "increment",
+      "params": {},
+      "expect": [{"state": "counter", "delta": 1}]
+    },
+    {
+      "name": "Set channel gain",
+      "command": "set_gain",
+      "params": {"channel": 1, "gain": -31},
+      "expect": [{"child_type": "channel", "child_id": 1, "state": "gain", "equals": -31}]
+    }
+  ]
+}

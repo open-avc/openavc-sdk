@@ -1,0 +1,26 @@
+"""Preview selected product diagnostics; export that same preview with --out."""
+import argparse
+import json
+from pathlib import Path
+
+from diagnostic_report import summarize
+from product_checks import read_json
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--status', type=Path, help='JSON from product management: Download diagnostics')
+    parser.add_argument('--checks', type=Path, help='report.json from the product checker')
+    parser.add_argument('--resources', type=Path, help='report.json from the resource profiler')
+    parser.add_argument('--out', type=Path, help='Explicit export to a new file; omitted means preview only')
+    args = parser.parse_args()
+    try:
+        report = summarize(*(read_json(path, limit=16 * 1024 * 1024) if path else None
+                             for path in (args.status, args.checks, args.resources)))
+        text = json.dumps(report, indent=2, allow_nan=False) + '\n'
+        if args.out:
+            with args.out.open('x') as stream:
+                stream.write(text)
+        print(text, end='')
+    except (ValueError, OSError, RecursionError):
+        parser.exit(1, 'Diagnostics could not be collected. Select a supported JSON report and a new export filename.\n')

@@ -28,6 +28,8 @@ callbacks in [sample/example.c](sample/example.c). Follow
 asynchronous completion and shutdown. Use `--build-only` or `--inspect` after
 changing the model; the demonstration command checks are for the unchanged
 invented amplifier.
+Use [Product testing tools](docs/product-testing.md) for a separate C product
+starter, selected command checks, resource measurements and diagnostic previews.
 
 [Product controls](docs/product-controls.md) explains network discovery,
 credentials, controls in your own software and the optional full OpenAVC server.

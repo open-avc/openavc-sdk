@@ -66,11 +66,15 @@ python3 try-example.py --exercise-demo
 
 After editing the product or its hardware mapping, use `--build-only` or `--inspect`.
 The demonstration command checks send commands to the unchanged invented amplifier.
+Use [your own product project and checks](docs/product-testing.md) to keep your
+adapter separate from the SDK, verify selected commands, measure resources and
+preview diagnostics before sharing them.
 
 | Guide | Use it for |
 |---|---|
 | [Hardware integration](docs/hardware-integration.md) | Capabilities, callbacks, readback, channels, asynchronous completion and shutdown. |
 | [Building](docs/building.md) | Workstation prerequisites, firmware toolchains and prebuilt C libraries. |
+| [Product testing tools](docs/product-testing.md) | A separate product starter, command checks, resource measurements and diagnostic previews. |
 | [Product controls](docs/product-controls.md) | Your product's management UI/API, credentials, optional server and firmware updates. |
 | [Protocol reference](docs/protocol.md) | Network messages, identity, authentication, outcomes and transport bounds. |
 | [Firmware testing](docs/qualification.md) | Product-specific build, hardware, resource, recovery and cloud acceptance. |

@@ -131,3 +131,6 @@ starts the selected integration and reads its description and state; it sends
 no hardware commands. Inspect the JSON report and endpoint log under `build/`.
 Use `--exercise-demo` only with the unchanged amplifier example: it sends that
 example's commands and checks its independent counters.
+
+Use [Product testing tools](product-testing.md) to create a separate product
+project and run commands and readback expectations you select for your hardware.

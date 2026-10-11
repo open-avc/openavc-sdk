@@ -12,14 +12,17 @@ alone does not establish compatibility with a firmware image.
 | `try-example.py --build-only` | Your model and adapter compile. It starts no hardware. |
 | `try-example.py --inspect` | The launched example integration reports the generated model and current readback. It sends no hardware commands. |
 | `try-example.py --exercise-demo` | Commands, independent feedback and delayed completion for the unchanged invented amplifier. |
+| `new-product.py` | A separate C or C++ product starter; source checkouts also supply a CI build workflow pinned to the SDK revision. |
+| `try-example.py --checks` / `check-product.py` | Your selected commands, retained outcomes, duplicate request handling and reported state against the generated model. Physical effects need independent verification. |
+| `profile-product.py` | Sampled local process resources and optional data-directory size during a workload you select. |
+| `collect-diagnostics.py` | A preview or explicit export of selected, allowlisted status and measurement summaries. |
 | `try-system.py --check` | Both SDK products and ordinary TCP equipment work in the selected example arrangement. Use it with the supplied demonstration model. |
 
 After changing the product model or callbacks, use build and inspection checks,
-then verify safe operations through OpenAVC against your hardware's own readback.
-The preview does not yet include a general command-conformance runner, resource
-profiler or complete support-bundle collector for arbitrary products. The checks
-below describe the additional firmware validation required; a passing demo does
-not perform those checks on your product.
+then use [Product testing tools](product-testing.md) to select safe operations and
+expected readback. Repeat control through ordinary OpenAVC and verify physical
+effects independently. The checks below describe additional firmware validation;
+a passing tool report does not perform those checks on your product.
 
 ## Build and describe
 

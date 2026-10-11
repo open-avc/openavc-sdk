@@ -16,10 +16,12 @@ import urllib.error
 import urllib.request
 
 from inspection import inspect_product
+from product_checks import Client, read_json, run_checks
 
 
 def main(args):
     root = Path(__file__).resolve().parent
+    project = args.project.resolve() if args.project else root
     supplied = (root / 'bundle.json').exists()
     if supplied and args.language != 'c':
         raise ValueError('This prebuilt library package builds the C adapter. Use the source checkout for the C++ example.')
@@ -32,11 +34,14 @@ def main(args):
     for tool in ('cmake', 'cc') + (() if supplied else ('c++',)) + (() if args.build_only else ('openssl',)):
         if shutil.which(tool) is None:
             raise ValueError(f'{tool} is missing. Install the prerequisites in README.md, then retry.')
-    build = root / 'build'
+    build = project / 'build'
     build.mkdir(exist_ok=True)
     target = 'example-' + args.language
     commands = [['cmake', '-S', str(root), '-B', str(build), '-DCMAKE_BUILD_TYPE=Release',
                  '-DPython3_EXECUTABLE=' + sys.executable,
+                 '-DOPENAVC_PRODUCT=' + str(project / 'product.json'),
+                 '-DOPENAVC_EXAMPLE_' + args.language + '=' + str(
+                     project / ('hardware.' + args.language) if args.project else root / ('sample/example.' + args.language)),
                  *(['-DOPENSSL_ROOT_DIR=' + str(args.openssl.resolve())] if args.openssl else [])],
                 ['cmake', '--build', str(build), '--target', target,
                  *(['openavc-device-service'] if args.form == 'service' else []), '--parallel', '1']]
@@ -50,7 +55,7 @@ def main(args):
             for command in commands:
                 proc = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, timeout=300)
                 if proc.returncode:
-                    raise ValueError('Build failed. Open build/' + label + '-build.log for the named dependency, file or callback.')
+                    raise ValueError('Build failed. Open ' + str(build / (label + '-build.log')) + ' for the named dependency, file or callback.')
         files = [target, 'generated/model.json', 'generated/commands.h', 'generated/commands.c',
                  'generated/model.provenance.json', 'generated/provenance.json']
         if args.form == 'service':
@@ -63,13 +68,13 @@ def main(args):
     finally:
         build_record.write_text(json.dumps(built, indent=2) + '\n')
     if args.build_only:
-        print('Build complete. Outputs and hashes: build/' + build_record.name)
+        print('Build complete. Outputs and hashes: ' + str(build_record))
         return
     result = {'status': 'running', 'language': args.language, 'form': args.form, 'checks': {}, 'commands': commands}
     result_path = build / (label + ('-inspection.json' if args.inspect else '-result.json'))
     product = service = None
     pending = {}
-    endpoint_log = 'build/' + label + '-endpoint.log'
+    endpoint_log = str(build / (label + '-endpoint.log'))
 
     def line(process):
         buffered = pending.get(process, b'')
@@ -109,7 +114,7 @@ def main(args):
         (private / 'server.pem').write_bytes((private / 'cert.pem').read_bytes() + (private / 'key.pem').read_bytes())
         tls = ssl.create_default_context(cafile=str(private / 'cert.pem'))
         client = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPSHandler(context=tls))
-        with (root / endpoint_log).open('w') as log:
+        with Path(endpoint_log).open('w') as log:
             try:
                 environment = dict(os.environ)
                 for key in ('OPENAVC_TOKEN', 'OPENAVC_PRODUCT_SOCKET'):
@@ -155,7 +160,12 @@ def main(args):
                             raise ValueError('Feedback timed out. Read ' + endpoint_log + '; do not replay an uncertain command.')
                         time.sleep(.01)
 
-                if args.inspect:
+                if args.checks:
+                    until(lambda: request('/v1/snapshot')[0] == 200)
+                    report = run_checks(Client(base, {'token': token}, private / 'cert.pem'),
+                                        read_json(build / 'generated/model.json'), args.out, read_json(args.checks))
+                    result.update(status=report['status'], product_checks=str(args.out / 'report.json'))
+                elif args.inspect:
                     result['inspection'] = inspect_product(request, json.loads((build / 'generated/model.json').read_text()))
                     result['status'] = 'inspected'
                 else:
@@ -221,8 +231,12 @@ def main(args):
                     result['status'] = 'failed'
                 result_path.write_text(json.dumps(result, indent=2) + '\n')
     if result['status'] not in {'passed', 'inspected'}: raise ValueError('Example cleanup failed. Read ' + endpoint_log + '.')
+    if args.checks:
+        print('Product checks passed. Report: ' + str(args.out / 'report.json'))
+        print('Coverage: protocol and reported state. Verify physical effects independently on your product.')
+        return
     if args.inspect:
-        print('Inspection saved: build/' + result_path.name)
+        print('Inspection saved: ' + str(result_path))
         print('Feedback: ' + result['inspection']['feedback'] + '. No hardware commands were sent.')
         if result['inspection']['feedback'] != 'current':
             print('Check hardware readback and ' + endpoint_log + '.')
@@ -236,12 +250,17 @@ if __name__ == '__main__':
     parser.add_argument('--language', choices=['c', 'cpp'], default='c')
     parser.add_argument('--form', choices=['direct', 'service'], default='service' if sys.platform == 'linux' else 'direct')
     parser.add_argument('--openssl', type=Path)
+    parser.add_argument('--project', type=Path, help='Your product directory containing product.json and hardware.c or hardware.cpp.')
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--build-only', action='store_true', help='Validate the product and compile without starting hardware.')
     mode.add_argument('--inspect', action='store_true', help='Start the selected integration, read capabilities/state and stop without sending hardware commands.')
     mode.add_argument('--exercise-demo', action='store_true', help='Send the amplifier demonstration commands and verify its simulated hardware.')
+    mode.add_argument('--checks', type=Path, help='Run your selected command/readback checks after building and starting the adapter.')
+    parser.add_argument('--out', type=Path, help='New evidence directory, required with --checks.')
     options = parser.parse_args()
-    if not options.build_only and not options.exercise_demo:
+    if bool(options.checks) != bool(options.out):
+        parser.error('Use --checks and --out together.')
+    if not options.build_only and not options.exercise_demo and not options.checks:
         options.inspect = True
     try: main(options)
     except (ValueError, OSError, subprocess.SubprocessError) as exc:

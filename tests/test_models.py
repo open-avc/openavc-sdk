@@ -17,6 +17,8 @@ import unittest
 import urllib.error
 import urllib.request
 
+from product_checks import Client, run_checks
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -180,6 +182,33 @@ target_link_libraries(model-test PRIVATE adapter)
             with self.subTest(params=params):
                 self.assertEqual(self.command(params)[0], 422)
         self.assertEqual(self.ready()["state"]["writes"], before)
+
+    def test_product_checker_with_changed_model_and_adapter(self):
+        work = Path(self.folder.name)
+        model = json.loads((work / 'build/sdk/generated/model.json').read_text())
+        plan = {'model_id': model['id'], 'checks': [{
+            'name': 'Configure named output', 'command': 'configure',
+            'params': {'output': 'Main-L', 'input': 2, 'gain': -12.5, 'label': '  Test  ', 'mute': False},
+            'expect': [{'state': 'writes', 'delta': 1}, {'state': 'label', 'equals': '  Test  '},
+                       {'state': 'mute', 'equals': False},
+                       {'child_type': 'output', 'child_id': 'Main-L', 'state': 'gain', 'equals': -12.5}]}]}
+        before = self.ready()['state']['writes']
+        report = run_checks(Client(self.url, {'token': self.token}, work / 'cert.pem'), model,
+                            work / 'product-check', plan)
+        self.assertEqual(report['status'], 'passed')
+        self.assertFalse(report['physical_hardware_verified'])
+        self.assertEqual(self.ready()['state']['writes'], before + 1)
+        self.assertEqual(sum(row['method'] == 'POST' for row in report['requests']), 2)
+        # Exercise the supplied CLI against this non-demo product, without commands.
+        credential = work / 'credentials.json'
+        credential.write_text(json.dumps({'token': self.token}))
+        result = subprocess.run([sys.executable, str(ROOT / 'check-product.py'), '--url', self.url,
+                                 '--credentials', str(credential), '--ca-file', str(work / 'cert.pem'),
+                                 '--model', str(work / 'build/sdk/generated/model.json'),
+                                 '--out', str(work / 'inspection')], capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.ready()['state']['writes'], before + 1)
+        self.assertNotIn(self.token, (work / 'inspection/report.json').read_text() + result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

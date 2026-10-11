@@ -18,14 +18,16 @@ add_library(oavc_runtime STATIC IMPORTED)
 set_target_properties(oavc_runtime PROPERTIES IMPORTED_LOCATION "${SDK}/lib/libruntime.a")
 add_library(oavc_http STATIC IMPORTED)
 set_target_properties(oavc_http PROPERTIES IMPORTED_LOCATION "${SDK}/lib/libhttp.a")
-add_executable(example-c sample/example.c "${SDK}/src/open_adapter.c" "${GENERATED}/commands.c")
+set(OPENAVC_EXAMPLE_c "${CMAKE_CURRENT_SOURCE_DIR}/sample/example.c" CACHE FILEPATH "Product adapter source")
+add_executable(example-c "${OPENAVC_EXAMPLE_c}" "${SDK}/src/open_adapter.c" "${GENERATED}/commands.c")
 target_compile_features(example-c PRIVATE c_std_11)
 target_compile_options(example-c PRIVATE -Wall -Wextra -Werror -Wno-missing-field-initializers)
 target_include_directories(example-c PRIVATE "${SDK}/include" "${GENERATED}")
 target_link_libraries(example-c PRIVATE oavc_runtime oavc_http OpenSSL::SSL OpenSSL::Crypto Threads::Threads ${CMAKE_DL_LIBS})
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_libraries(example-c PRIVATE "${SDK}/lib/libc++.so.1" "${SDK}/lib/libc++abi.so.1" "${SDK}/lib/libunwind.so.1" m)
-  set_target_properties(example-c PROPERTIES BUILD_WITH_INSTALL_RPATH ON INSTALL_RPATH "$ORIGIN/../sdk/lib")
+  file(RELATIVE_PATH SDK_LIB_FROM_BINARY "${CMAKE_CURRENT_BINARY_DIR}" "${SDK}/lib")
+  set_target_properties(example-c PROPERTIES BUILD_WITH_INSTALL_RPATH ON INSTALL_RPATH "$ORIGIN/${SDK_LIB_FROM_BINARY}")
   add_custom_target(openavc-device-service
     COMMAND "${CMAKE_COMMAND}" -E create_symlink "${SDK}/bin/openavc-device-service" "${CMAKE_CURRENT_BINARY_DIR}/openavc-device-service"
     DEPENDS "${SDK}/bin/openavc-device-service"

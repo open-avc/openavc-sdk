@@ -38,6 +38,11 @@ jobs:
           python try-example.py --exercise-demo
           python try-example.py --language cpp --exercise-demo
           python try-example.py --form direct --exercise-demo
+          python try-example.py --checks sample/checks.json --out build/product-checks
+          python new-product.py --out build/my-product
+          python try-example.py --project build/my-product --build-only
+          python try-example.py --project build/my-product --checks build/my-product/checks.json --out build/project-checks
+          python collect-diagnostics.py --checks build/project-checks/report.json --out build/support-preview.json
           python -m unittest discover -s tests -v
       - name: Build and check a supplied runtime
         run: |
@@ -48,6 +53,8 @@ jobs:
           python doctor.py --report build/environment.json
           python try-example.py --exercise-demo
           python try-example.py --form direct --exercise-demo
+          python new-product.py --out build/my-product
+          python try-example.py --project build/my-product --checks build/my-product/checks.json --out build/project-checks
       - name: Exercise both complete arrangements
         run: |
           python try-system.py --arrangement external --out build/check-external --check
@@ -73,4 +80,7 @@ jobs:
             build/check-*/checks.json
             build/check-*/discovery.json
             build/check-*/build.log
+            build/product-checks/report.json
+            build/project-checks/report.json
+            build/support-preview.json
           if-no-files-found: ignore

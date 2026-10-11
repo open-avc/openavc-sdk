@@ -35,6 +35,8 @@ starter, selected command checks, resource measurements and diagnostic previews.
 credentials, controls in your own software and the optional full OpenAVC server.
 [Linux firmware](docs/firmware.md) supplies service startup checks, storage layout
 and systemd examples.
+The [adapter API](docs/adapter-api.md) and [product model](docs/product-model.md)
+references describe fields, callback types and value lifetimes.
 [Firmware testing](docs/qualification.md) and [Troubleshooting](docs/troubleshooting.md)
 cover target testing and diagnostics.
 

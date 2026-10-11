@@ -12,7 +12,7 @@ Group=@GROUP@
 WorkingDirectory=@ROOT@/data
 Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=PYTHONUNBUFFERED=1
-Environment=TMPDIR=@ROOT@/run/tmp
+Environment=TMPDIR=@RUNTIME@/tmp
 Environment=LD_LIBRARY_PATH=@ROOT@/program/lib
 ExecStart=@PYTHON@ -m openavc_oem --config @ROOT@/private/openavc.json
 Restart=on-failure
@@ -23,7 +23,7 @@ UMask=0077
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=@ROOT@/data @ROOT@/run
+ReadWritePaths=@ROOT@/data @RUNTIME@
 
 [Install]
 WantedBy=multi-user.target

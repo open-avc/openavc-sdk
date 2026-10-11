@@ -25,6 +25,10 @@ This runs the product without a terminal and checks command/readback, graceful
 shutdown, unavailable feedback while hardware is stopped, a new hardware session
 after restart, and retained settings/data after a management restart. It stops
 its processes and retains a report and private logs under the output directory.
+Checks put the local socket in short temporary storage under `/tmp` and remove
+that storage after a successful shutdown. A failed run retains it for inspection;
+its path is recorded in `staging.json`. Reports and persistent test data remain
+in the selected output directory.
 For the C++ source example, build with `try-example.py --language cpp --build-only`
 and add `--language cpp` to the firmware check. Prebuilt library archives supply C.
 
@@ -60,6 +64,10 @@ installed Python environment. `--identity` accepts an existing unique unit
 identity; otherwise this example generates one and retains it in the configuration.
 Existing output directories are refused. Staging never rotates an existing
 identity or credential.
+`--runtime-dir` selects a separate short runtime path, such as `/run/my-product`.
+It defaults to the staging directory's `run/`. The native Unix-socket path must
+fit Linux's socket-address bound; staging reports an overlong path before writing
+the product files. The automated checks select a short path for you.
 
 | Directory | Contents and lifetime |
 |---|---|

@@ -9,7 +9,7 @@ Type=simple
 User=@USER@
 Group=@GROUP@
 WorkingDirectory=@ROOT@/data
-Environment=OPENAVC_PRODUCT_SOCKET=@ROOT@/run/hardware.sock
+Environment=OPENAVC_PRODUCT_SOCKET=@RUNTIME@/hardware.sock
 Environment=OPENAVC_DEVICE_ID=@IDENTITY@
 Environment=LD_LIBRARY_PATH=@ROOT@/program/lib
 ExecStart=@ROOT@/program/hardware @ROOT@/program/model.json - --daemon
@@ -21,7 +21,7 @@ UMask=0077
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=@ROOT@/data @ROOT@/run
+ReadWritePaths=@ROOT@/data @RUNTIME@
 
 [Install]
 WantedBy=multi-user.target

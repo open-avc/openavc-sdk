@@ -72,7 +72,10 @@ preview diagnostics before sharing them.
 
 | Guide | Use it for |
 |---|---|
+| [Example guide](docs/examples.md) | Choose a runnable example and see its platform and test coverage. |
 | [Hardware integration](docs/hardware-integration.md) | Capabilities, callbacks, readback, channels, asynchronous completion and shutdown. |
+| [Adapter API](docs/adapter-api.md) | C/C++ configuration, function results, thread rules and value lifetimes. |
+| [Product model](docs/product-model.md) | Model fields, channels, parameters, state and canonical OpenAVC metadata. |
 | [Building](docs/building.md) | Workstation prerequisites, firmware toolchains and prebuilt C libraries. |
 | [Product testing tools](docs/product-testing.md) | A separate product starter, command checks, resource measurements and diagnostic previews. |
 | [Product controls](docs/product-controls.md) | Your product's management UI/API, credentials, optional server and firmware updates. |

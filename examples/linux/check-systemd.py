@@ -3,8 +3,10 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import traceback
 import urllib.error
@@ -41,6 +43,10 @@ def check(args):
     args.out = evidence / 'product'
     if os.getuid() == 0 and args.service_user is None:
         args.service_user = 'nobody'
+    temporary_runtime = Path(tempfile.mkdtemp(prefix='oavc-fw-', dir='/tmp')) if not args.runtime_dir else None
+    if temporary_runtime:
+        temporary_runtime.chmod(0o755)
+        args.runtime_dir = temporary_runtime / 'run'
     metadata = stage(args)
     config = read_json(args.out / 'private/openavc.json')
     token = (args.out / 'private/management.token').read_text().strip()
@@ -134,6 +140,8 @@ def check(args):
             except subprocess.CalledProcessError:
                 report['cleanup_warning'] = True
         run('systemctl', 'daemon-reload')
+        if temporary_runtime and report['status'] == 'passed' and not report.get('cleanup_warning'):
+            shutil.rmtree(temporary_runtime)
         (evidence / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
     if report.get('cleanup_warning'):
         raise ValueError('Inspect the example service cleanup before another run.')

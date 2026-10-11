@@ -5,8 +5,10 @@ import os
 from pathlib import Path
 import pwd
 import selectors
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 
@@ -23,6 +25,10 @@ def check(args):
     args.out = evidence / 'product'
     if os.getuid() == 0 and args.service_user is None:
         args.service_user = 'nobody'
+    temporary_runtime = Path(tempfile.mkdtemp(prefix='oavc-fw-', dir='/tmp')) if not args.runtime_dir else None
+    if temporary_runtime:
+        temporary_runtime.chmod(0o755)
+        args.runtime_dir = temporary_runtime / 'run'
     metadata = stage(args)
     account = pwd.getpwnam(metadata['service_user'])
     config = read_json(args.out / 'private/openavc.json')
@@ -77,7 +83,7 @@ def check(args):
             return json.load(response)
 
     environment = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONUNBUFFERED': '1',
-                   'TMPDIR': str(args.out / 'run/tmp'),
+                   'TMPDIR': str(Path(metadata['runtime_directory']) / 'tmp'),
                    'LD_LIBRARY_PATH': str(args.out / 'program/lib')}
     hardware_command = [str(args.out / 'program/hardware'), config['model'], '-', '--daemon']
     hardware_environment = {**environment, 'OPENAVC_PRODUCT_SOCKET': config['bridge_path'],
@@ -142,6 +148,8 @@ def check(args):
                     report['status'] = 'failed'
         for stream in streams:
             stream.close()
+        if temporary_runtime and report['status'] == 'passed':
+            shutil.rmtree(temporary_runtime)
         (evidence / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
     print('Firmware example passed. Report: ' + str(evidence / 'report.json'))
 

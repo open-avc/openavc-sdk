@@ -20,6 +20,11 @@ def stage(args):
     if sys.platform != 'linux':
         raise ValueError('Run this firmware example on Linux.')
     destination = args.out.resolve()
+    runtime = args.runtime_dir.resolve() if args.runtime_dir else destination / 'run'
+    if len(os.fsencode(runtime / 'hardware.sock')) >= 108:
+        raise ValueError('The Linux socket path is too long. Select a short --runtime-dir, such as /run/my-product.')
+    if runtime.exists():
+        raise ValueError('Select a new runtime directory; existing runtime files are not replaced.')
     # Preserve a virtual environment's executable path; resolving its symlink
     # selects the base interpreter and loses the environment's installed packages.
     python = Path(os.path.abspath(args.python))
@@ -30,7 +35,7 @@ def stage(args):
     if os.getuid() not in (0, account.pw_uid):
         raise ValueError('Stage as the service account, or as root when assigning another service account.')
     identity = args.identity or 'product-' + secrets.token_hex(16)
-    for value in (str(destination), str(python), identity, account.pw_name, grp.getgrgid(account.pw_gid).gr_name):
+    for value in (str(destination), str(runtime), str(python), identity, account.pw_name, grp.getgrgid(account.pw_gid).gr_name):
         if not re.fullmatch(r'[A-Za-z0-9_./-]+', value):
             raise ValueError('For these service templates, use paths and names containing letters, numbers, underscore, dot, slash or hyphen.')
     inputs = {'hardware': ROOT / ('build/example-' + args.language),
@@ -45,9 +50,10 @@ def stage(args):
     if len({args.equipment_port, args.management_port, args.server_port}) != 3:
         raise ValueError('Choose different equipment, management and server ports.')
     destination.mkdir(parents=True, exist_ok=False, mode=0o755)
-    for name in ('program', 'private', 'data', 'run', 'systemd'):
+    for name in ('program', 'private', 'data', 'systemd'):
         (destination / name).mkdir(mode=0o755 if name in ('program', 'systemd') else 0o700)
-    (destination / 'run/tmp').mkdir(mode=0o700)
+    runtime.mkdir(mode=0o700, parents=True)
+    (runtime / 'tmp').mkdir(mode=0o700)
     for name, path in inputs.items():
         shutil.copy2(path, destination / 'program' / name)
     shutil.copytree(ROOT / 'licenses', destination / 'program/licenses')
@@ -69,7 +75,7 @@ def stage(args):
     configuration = {'identity': identity, 'data_dir': str(destination / 'data'),
                      'model': str(destination / 'program/model.json'),
                      'device_service': str(destination / 'program/openavc-device-service'),
-                     'bridge_path': str(destination / 'run/hardware.sock'),
+                     'bridge_path': str(runtime / 'hardware.sock'),
                      'certificate': str(private / 'server.pem'), 'ca_file': str(private / 'ca.pem'),
                      'management_token_file': str(private / 'management.token'),
                      'equipment_bind': '127.0.0.1', 'equipment_port': args.equipment_port,
@@ -80,6 +86,7 @@ def stage(args):
             'OPENAVC_MDNS_ADVERTISE': 'false', 'OPENAVC_PORT80_REDIRECT': 'false'})
     (private / 'openavc.json').write_text(json.dumps(configuration, indent=2) + '\n')
     replacements = {'ROOT': str(destination), 'PYTHON': str(python), 'IDENTITY': identity,
+                    'RUNTIME': str(runtime),
                     'USER': account.pw_name, 'GROUP': grp.getgrgid(account.pw_gid).gr_name}
     for name in ('hardware', 'management'):
         unit = (ROOT / 'examples/linux' / (name + '.service.in')).read_text()
@@ -87,10 +94,10 @@ def stage(args):
             unit = unit.replace('@' + key + '@', value)
         (destination / 'systemd' / ('openavc-product-' + name + '.service')).write_text(unit)
     (destination / 'systemd/openavc-product.conf').write_text(
-        f'd {destination}/run 0700 {account.pw_name} {grp.getgrgid(account.pw_gid).gr_name} -\n'
-        f'd {destination}/run/tmp 0700 {account.pw_name} {grp.getgrgid(account.pw_gid).gr_name} -\n')
-    for name in ('private', 'data', 'run'):
-        for path in [destination / name, *(destination / name).rglob('*')]:
+        f'd {runtime} 0700 {account.pw_name} {grp.getgrgid(account.pw_gid).gr_name} -\n'
+        f'd {runtime}/tmp 0700 {account.pw_name} {grp.getgrgid(account.pw_gid).gr_name} -\n')
+    for directory in (destination / 'private', destination / 'data', runtime):
+        for path in [directory, *directory.rglob('*')]:
             if os.getuid() == 0:
                 os.chown(path, account.pw_uid, account.pw_gid)
             path.chmod(0o700 if path.is_dir() else 0o600)
@@ -98,6 +105,7 @@ def stage(args):
         path.chmod(0o555 if path.is_dir() or path.name in ('hardware', 'openavc-device-service') else 0o444)
     (destination / 'program').chmod(0o555)
     metadata = {'format': 1, 'identity': identity, 'service_user': account.pw_name,
+                'runtime_directory': str(runtime),
                 'language': args.language,
                 'python': str(python), 'with_server': args.with_server,
                 'contract': json.loads((ROOT / 'sdk/contract/origin.json').read_text()),
@@ -111,6 +119,7 @@ def parser():
     result = argparse.ArgumentParser(description=__doc__)
     result.add_argument('--out', type=Path, required=True, help='New absolute staging directory')
     result.add_argument('--service-user', help='Existing unprivileged account; defaults to current account')
+    result.add_argument('--runtime-dir', type=Path, help='New short runtime directory; staging defaults to OUT/run, checks use temporary storage')
     result.add_argument('--language', choices=['c', 'cpp'], default='c', help='Built hardware example to stage')
     result.add_argument('--identity', help='Stable unique identity for this unit; generated if omitted')
     result.add_argument('--python', type=Path, default=Path(sys.executable), help='Installed firmware Python environment')

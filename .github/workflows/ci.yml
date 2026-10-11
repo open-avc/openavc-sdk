@@ -92,4 +92,6 @@ jobs:
             build/support-preview.json
             build/firmware-*/report.json
             build/firmware-*/*.log
+            build/extracted/openavc-sdk/build/firmware-*/report.json
+            build/extracted/openavc-sdk/build/firmware-*/*.log
           if-no-files-found: ignore

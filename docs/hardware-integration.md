@@ -3,6 +3,8 @@
 Start with `product.json` and `sample/example.c`. The C++ example exposes the same
 hardware callbacks. Both examples contain an invented amplifier; their stdin
 commands and counters exercise the integration without connecting to equipment.
+The [adapter API reference](adapter-api.md) lists configuration fields, function
+results, thread rules and value lifetimes.
 
 ## Describe the product
 

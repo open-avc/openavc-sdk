@@ -66,6 +66,10 @@ jobs:
         run: |
           python try-system.py --arrangement external --out build/check-external --check
           python try-system.py --arrangement embedded --out build/check-embedded --check
+      - name: Exercise five products and peer recovery
+        run: |
+          python try-system.py --products 5 --arrangement external --out build/check-five-external --check --recovery
+          python try-system.py --products 5 --arrangement embedded --out build/check-five-embedded --check --recovery
       - name: Build and install the offline server bundle
         run: |
           python tools/build_server.py --out build/server-bundle
@@ -87,6 +91,8 @@ jobs:
             build/check-*/checks.json
             build/check-*/discovery.json
             build/check-*/build.log
+            build/check-*/run.json
+            build/check-*/*.log
             build/product-checks/report.json
             build/project-checks/report.json
             build/support-preview.json

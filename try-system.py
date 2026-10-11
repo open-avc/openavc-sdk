@@ -1,4 +1,4 @@
-"""Run two example products and ordinary equipment on an isolated Docker network."""
+"""Run example products and ordinary equipment on an isolated Docker network."""
 import argparse
 import contextlib
 import importlib.util
@@ -28,7 +28,9 @@ def run(args):
     image = 'openavc-sdk-example:local'
     containers = []
     network_created = False
-    layout = {'arrangement': args.arrangement, 'docker': docker, 'network': prefix, 'products': {},
+    layout = {'arrangement': args.arrangement, 'product_count': args.products,
+              'recovery': args.recovery, 'docker': docker, 'network': prefix, 'products': {},
+              'contract': json.loads((ROOT / 'sdk/contract/origin.json').read_text()),
               'containers': containers, 'status': 'starting'}
 
     def save():
@@ -111,6 +113,9 @@ def run(args):
                                    stdout=log, stderr=subprocess.STDOUT)
         if built.returncode:
             raise RuntimeError('The example image did not build. Read ' + str(out / 'build.log'))
+        # Use the built content, even if another example later updates the tag.
+        image = call(['image', 'inspect', '--format', '{{.Id}}', image])
+        layout['image'] = image
         call(['network', 'create', '--internal', '--label', 'openavc.sdk.example=' + prefix, prefix])
         network_created = True
         ordinary = create('ordinary', ['examples/system/ordinary.py'])
@@ -118,11 +123,12 @@ def run(args):
         ready(ordinary)
         addresses = {}
         certificates = []
-        for number in (1, 2):
+        for number in range(1, args.products + 1):
             name = f'product{number}'
             port = args.port + (number - 1) * 2
+            server_included = args.products == 5 or number == 1
             container = create(name, ['examples/system/product.py'], environment={
-                'EXAMPLE_IDENTITY': prefix + '-' + name, 'EXAMPLE_INCLUDE_SERVER': '1' if number == 1 else '0',
+                'EXAMPLE_IDENTITY': prefix + '-' + name, 'EXAMPLE_INCLUDE_SERVER': '1' if server_included else '0',
                 'EXAMPLE_SERVER_PORT': str(port)})
             # docker cp can create /data before the product process starts.
             seed = out / name
@@ -138,7 +144,7 @@ def run(args):
             certificates.append(certificate.read_bytes())
             layout['products'][name] = {'container': container, 'address': address,
                 'management_url': f'http://127.0.0.1:{port + 1}/oem/', 'server_url': f'http://127.0.0.1:{port}',
-                'server_included': number == 1}
+                'server_included': server_included}
         addresses['ordinary'] = call(['inspect', '-f', '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}', ordinary])
         trust = out / 'trust.pem'
         trust.write_bytes(b'\n'.join(certificates))
@@ -161,7 +167,7 @@ def run(args):
             seed.mkdir()
             shutil.copy2(trust, seed / 'trust.pem')
             shutil.copy2(project, seed / 'project.avc')
-            server_url = f'http://127.0.0.1:{args.port + 4}'
+            server_url = f'http://127.0.0.1:{args.port + args.products * 2}'
             controller = create('controller', ['-m', 'openavc.main'], environment={
                 'OPENAVC_DATA_DIR': '/data', 'OPENAVC_PROJECT': '/data/project.avc', 'OPENAVC_BIND': '0.0.0.0',
                 'OPENAVC_ALLOW_ANONYMOUS': 'false', 'OPENAVC_CLOUD_ENABLED': 'false',
@@ -171,9 +177,11 @@ def run(args):
         # Docker does not publish ports from an internal network. Only this
         # HTTP gateway joins the normal bridge; all equipment stays isolated.
         # Preserve Host for the example management page's same-origin check.
-        routes = {8080: first['container'] + ':8080', 8081: first['container'] + ':9081',
-                  8082: layout['products']['product2']['container'] + ':8080',
-                  8083: layout['products']['product2']['container'] + ':9081', 8084: controller + ':8080'}
+        routes = {}
+        for index, product in enumerate(layout['products'].values()):
+            routes[8080 + index * 2] = product['container'] + ':8080'
+            routes[8081 + index * 2] = product['container'] + ':9081'
+        routes[8080 + args.products * 2] = controller + ':8080'
         configuration = ['events {}', 'http {',
             'map $http_upgrade $connection_upgrade { default upgrade; "" close; }',
             'resolver 127.0.0.11 valid=10s;']
@@ -187,7 +195,7 @@ def run(args):
         proxy_config.write_text('\n'.join(configuration) + '\n')
         gateway = prefix + '-gateway'
         parameters = ['create', '--name', gateway, '--network', 'bridge', '--label', 'openavc.sdk.example=' + prefix]
-        for offset in range(5):
+        for offset in range(args.products * 2 + 1):
             parameters += ['--publish', f'127.0.0.1:{args.port + offset}:{8080 + offset}']
         parameters += ['nginx:stable-alpine']
         call(parameters)
@@ -214,7 +222,7 @@ def run(args):
         for name, product in layout['products'].items():
             print(name + ' settings: ' + product['management_url'])
         print(f"Product login: {credentials['username']}\nProduct password: {credentials['password']}")
-        print('The example project already includes both amplifiers and the ordinary TCP device.')
+        print(f'The example project already includes {args.products} amplifiers and the ordinary TCP device.')
         print('Press Ctrl+C to stop this example. Diagnostics will be saved in ' + str(out), flush=True)
         if args.check:
             subprocess.run([sys.executable, str(ROOT / 'examples/system/check.py'), '--run', str(out)], check=True)
@@ -245,13 +253,17 @@ def run(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--arrangement', choices=['external', 'embedded'], default='external')
+    parser.add_argument('--products', type=int, choices=[2, 5], default=2, help='Number of example SDK products. All five include a stopped server; embedded starts only product 1.')
     parser.add_argument('--out', type=Path, default=Path('build/system-example'))
-    parser.add_argument('--port', type=int, default=18080, help='First of five localhost ports used by the example.')
+    parser.add_argument('--port', type=int, default=18080, help='First localhost port; uses two per product plus one for the controller.')
     parser.add_argument('--docker-context', help='Use a named Docker context without changing your active context.')
     parser.add_argument('--check', action='store_true', help='Exercise the sample equipment and stop after verification.')
+    parser.add_argument('--recovery', action='store_true', help='With --check, stop and restart one invented peer and verify recovery.')
     options = parser.parse_args()
-    if not 1024 <= options.port <= 65531:
-        parser.error('--port must be between 1024 and 65531.')
+    if not 1024 <= options.port <= 65535 - options.products * 2:
+        parser.error('--port must leave room for two ports per product and one controller port below 65536.')
+    if options.recovery and not options.check:
+        parser.error('--recovery requires --check.')
     try:
         run(options)
     except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as error:

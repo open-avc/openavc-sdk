@@ -2,6 +2,7 @@
 import asyncio
 import contextlib
 import hmac
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -45,6 +46,11 @@ async def stop(process):
         raise RuntimeError('A supervised process did not finish shutdown. Check product diagnostics.')
 
 class ProductManager:
+    @property
+    def session_cookie(self):
+        # Browsers share cookies across ports in the multi-product example.
+        return "oem_session_" + hashlib.sha256(self.identity.encode()).hexdigest()[:24]
+
     def __init__(self):
         self.data_dir = Path(self.config["data_dir"]).resolve()
         self.data_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -214,7 +220,7 @@ class ProductManager:
             token = secrets.token_urlsafe(32)
             self.sessions.add(token)
             response = web.json_response(self.status())
-            response.set_cookie("oem_session", token, httponly=True, samesite="Strict", path="/oem")
+            response.set_cookie(self.session_cookie, token, httponly=True, samesite="Strict", path="/oem")
             return response
 
     async def launch(self, name, command, **kwargs):
@@ -424,15 +430,15 @@ class ProductManager:
         self.sessions.add(token)
         response = web.json_response(self.status())
         response.set_cookie(
-            "oem_session", token, httponly=True, samesite="Strict", path="/oem"
+            self.session_cookie, token, httponly=True, samesite="Strict", path="/oem"
         )
         return response
 
     async def logout(self, request):
         self.authenticated(request)
-        self.sessions.discard(request.cookies.get('oem_session'))
+        self.sessions.discard(request.cookies.get(self.session_cookie))
         response = web.json_response({'signed_out': True})
-        response.del_cookie('oem_session', path='/oem')
+        response.del_cookie(self.session_cookie, path='/oem')
         return response
 
     async def settings(self, request):
@@ -586,7 +592,7 @@ class ProductManager:
                 and len(request.headers.getall('Authorization', [])) == 1
                 and hmac.compare_digest(request.headers.get('Authorization', '').encode(), expected.encode())):
             return
-        if not self.config.get('example_ui', False) or request.cookies.get('oem_session') not in self.sessions:
+        if not self.config.get('example_ui', False) or request.cookies.get(self.session_cookie) not in self.sessions:
             raise web.HTTPUnauthorized(text='Authenticate through the product management backend.')
         if request.method != 'GET' and request.headers.get('Origin') != f'http://{request.host}':
             raise web.HTTPForbidden(text='Use this product’s management page.')

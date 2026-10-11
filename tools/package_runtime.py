@@ -52,8 +52,9 @@ def package(args):
     (destination / 'sdk/src').mkdir()
     shutil.copy2(ROOT / 'sdk/src/open_adapter.c', destination / 'sdk/src/open_adapter.c')
     for name in ['product.json', 'try-example.py', 'try-system.py', 'doctor.py', 'inspection.py',
-                 'pyproject.toml', '.dockerignore', 'README.md', 'LICENSE']:
+                 'pyproject.toml', '.dockerignore', 'LICENSE']:
         shutil.copy2(ROOT / name, destination / name)
+    shutil.copy2(ROOT / 'tools/supplied-README.md', destination / 'README.md')
     shutil.copy2(ROOT / 'tools/supplied-CMakeLists.txt', destination / 'CMakeLists.txt')
     (destination / 'tools').mkdir()
     shutil.copy2(ROOT / 'tools/build_server.py', destination / 'tools/build_server.py')

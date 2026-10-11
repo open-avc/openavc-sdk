@@ -3,6 +3,8 @@
 #include "adapter.h"
 #include <array>
 #include <chrono>
+#include <csignal>
+#include <openssl/rand.h>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
@@ -15,10 +17,15 @@
 #include <sys/select.h>
 #include <unistd.h>
 
+static volatile std::sig_atomic_t stop_requested;
+static void request_stop(int) { stop_requested = 1; }
+
 class Product {
 public:
     enum class Action { gain, mute, input, increment };
     Product(const char *model, const char *certificate, const char *credential) {
+        if (RAND_bytes(reinterpret_cast<unsigned char *>(&generation_), sizeof(generation_)) != 1 || !generation_)
+            throw std::runtime_error("Could not create a hardware session identity.");
         gain_.fill(-20);
         oavc_adapter_config config{{1, sizeof(oavc_endpoint_config), std::getenv("OPENAVC_DEVICE_ID") ? std::getenv("OPENAVC_DEVICE_ID") : "acme-native", model,
             credential, certificate, nullptr, nullptr, nullptr}, std::getenv("OPENAVC_PRODUCT_SOCKET"), this, readback, post, 1000};
@@ -54,14 +61,16 @@ public:
         apply(operation);
         return outcome();
     }
-    void run() {
+    void run(bool daemon) {
         std::cout << "READY " << oavc_adapter_port(adapter_) << std::endl;
         for (;;) {
+            if (stop_requested) stop();
             pump();
             if (stopping_) {
                 if (oavc_adapter_try_close(adapter_)) { adapter_ = nullptr; break; }
                 close_waited_ = true;
             } else if (!pause_feedback_) oavc_adapter_refresh(adapter_);
+            if (daemon) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); continue; }
             fd_set input; FD_ZERO(&input); FD_SET(STDIN_FILENO, &input);
             timeval wait{0, 1000};
             if (select(STDIN_FILENO + 1, &input, nullptr, nullptr, &wait) <= 0) continue;
@@ -173,7 +182,9 @@ oavc_outcome oavc_hw_increment(void *context, oavc_token token) {
     return static_cast<Product *>(context)->command(token, Product::Action::increment, 0, 0);
 }
 int main(int argc, char **argv) {
-    if (argc != 3 || (!std::getenv("OPENAVC_TOKEN") && !std::getenv("OPENAVC_PRODUCT_SOCKET"))) return 2;
-    try { Product product(argv[1], argv[2], std::getenv("OPENAVC_TOKEN")); product.run(); return 0; }
+    const bool daemon = argc == 4 && std::string(argv[3]) == "--daemon";
+    if ((argc != 3 && !daemon) || (!std::getenv("OPENAVC_TOKEN") && !std::getenv("OPENAVC_PRODUCT_SOCKET"))) return 2;
+    std::signal(SIGTERM, request_stop); std::signal(SIGINT, request_stop);
+    try { Product product(argv[1], argv[2], std::getenv("OPENAVC_TOKEN")); product.run(daemon); return 0; }
     catch (const std::exception& error) { std::cerr << error.what() << std::endl; return 2; }
 }

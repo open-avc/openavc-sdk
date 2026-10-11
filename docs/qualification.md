@@ -16,6 +16,8 @@ alone does not establish compatibility with a firmware image.
 | `try-example.py --checks` / `check-product.py` | Your selected commands, retained outcomes, duplicate request handling and reported state against the generated model. Physical effects need independent verification. |
 | `profile-product.py` | Sampled local process resources and optional data-directory size during a workload you select. |
 | `collect-diagnostics.py` | A preview or explicit export of selected, allowlisted status and measurement summaries. |
+| `examples/linux/check.py` | Unprivileged firmware-example startup, hardware restart, persistence and orderly shutdown. |
+| `examples/linux/check-systemd.py` | Actual example systemd units, filesystem restrictions, restart and cleanup on an isolated systemd host. |
 | `try-system.py --check` | Both SDK products and ordinary TCP equipment work in the selected example arrangement. Use it with the supplied demonstration model. |
 
 After changing the product model or callbacks, use build and inspection checks,

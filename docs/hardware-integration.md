@@ -30,6 +30,7 @@ Use a stable model `id` across firmware updates that describe the same product.
 Supply a separate, stable identity for each physical unit when opening the
 adapter. Do not put a serial number into the shared model ID or distribute one
 physical identity to every product in a firmware image.
+The [firmware guide](firmware.md) shows per-unit configuration and service startup.
 
 Command parameters map to these C types:
 
@@ -93,6 +94,8 @@ Use a nonzero generation that changes when your hardware session is reset, and
 advance the revision when reported state changes. A snapshot replaces the
 previous channel roster, so a removed channel must be absent from the next
 complete snapshot. Return nonzero from `readback` when current state is unavailable.
+The examples choose a new random hardware generation on each process start.
+Retain the separate physical unit identity across those restarts.
 
 State strings are copied by each publisher call. Command arguments remain
 borrowed until the callback returns or its asynchronous operation completes,

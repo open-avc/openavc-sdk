@@ -1,0 +1,182 @@
+# Start OpenAVC in Linux firmware
+
+Your product application owns the hardware. Run it as its own service, with the
+SDK adapter on its hardware event loop. Run the Python product-management service
+alongside it. That service supervises the native device service and the optional
+OpenAVC server. Restarting OpenAVC management must not restart your product's
+audio/video application.
+
+The supplied example uses an invented amplifier and loopback network listeners.
+It demonstrates startup, shutdown, process separation and persistent storage.
+It does not configure a manufacturer's hardware, network or firmware updater.
+
+## Run the firmware example
+
+On Linux, install the [build prerequisites](building.md) and the SDK's Python
+package, then build the example:
+
+```sh
+python3 -m pip install .
+python3 try-example.py --build-only
+python3 examples/linux/check.py --out build/firmware-device
+```
+
+This runs the product without a terminal and checks command/readback, graceful
+shutdown, unavailable feedback while hardware is stopped, a new hardware session
+after restart, and retained settings/data after a management restart. It stops
+its processes and retains a report and private logs under the output directory.
+For the C++ source example, build with `try-example.py --language cpp --build-only`
+and add `--language cpp` to the firmware check. Prebuilt library archives supply C.
+
+With the compatible OpenAVC server installed in the same Python environment,
+also run:
+
+```sh
+python3 examples/linux/check.py --with-server --out build/firmware-server
+```
+
+Use the [offline server bundle](building.md#build-the-optional-server-bundle)
+for the pinned server and web interfaces. The full-server check also starts
+OpenAVC, confirms local hardware reservation and checks that the saved server
+setting is restored after management restarts. It creates no cloud connection.
+
+The check uses the current unprivileged account. When invoked as root in a
+container, it runs the product processes as `nobody`; `--service-user` selects
+another existing account. Use a dedicated service account in firmware. Keep
+the output directory private: its `product/private/` directory contains generated
+example credentials and keys. Programs, config and data are separate; the check
+does not install a host service or modify your existing product.
+
+## Stage files and systemd units
+
+To create the files without starting anything:
+
+```sh
+python3 examples/linux/stage.py --with-server --out /var/tmp/openavc-product-example
+```
+
+Omit `--with-server` for equipment-only firmware. `--python` selects an already
+installed Python environment. `--identity` accepts an existing unique unit
+identity; otherwise this example generates one and retains it in the configuration.
+Existing output directories are refused. Staging never rotates an existing
+identity or credential.
+
+| Directory | Contents and lifetime |
+|---|---|
+| `program/` | Compiled hardware example, device service, generated model and any supplied runtime libraries. Read-only while running; update them together. |
+| `private/` | Unit configuration, product credentials, management credential and test certificate/key. Restrict access to the service account; preserve through ordinary updates. |
+| `data/` | Management settings, OpenAVC configuration/projects, installed drivers/plugins and bounded SDK diagnostic logs. Persistent and writable. |
+| `run/` | Hardware socket and temporary files. Writable; suitable for volatile storage in firmware. Recreate it at boot with the correct ownership. |
+| `systemd/` | Generated hardware/management units and a tmpfiles configuration for the runtime directories. |
+| `staging.json` | Selected identity/account, core contract pin and program-file hashes. |
+
+The staging example keeps these directories under one prefix for inspection.
+Map them into your firmware's program, protected configuration, persistent data
+and runtime partitions. Set the paths in both the management configuration and
+service units. The generated paths are absolute; moving the directory requires
+updating them. For these templates, paths and names use letters, numbers,
+underscore, dot, slash and hyphen.
+
+The hardware unit uses the example's `--daemon` mode. It ignores stdin, processes
+SIGTERM/SIGINT on the product event loop, and drains accepted work before releasing
+the adapter. Replace that command with your application's startup command when
+integrating your hardware. Both C and C++ examples implement this behavior.
+
+The management unit starts after the hardware unit and has its own restart policy.
+Its filesystem view is read-only except for the data and runtime directories.
+Temporary files use `run/tmp`. Both units use an unprivileged account and bounded
+restart attempts. The manager receives SIGTERM first and shuts down its own
+children; systemd's `KillMode=mixed` provides final group cleanup if shutdown fails.
+See the upstream [shutdown reference](https://www.freedesktop.org/software/systemd/man/latest/systemd.kill.html)
+and [execution settings](https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html).
+
+On a disposable Linux host running systemd, test the generated units with:
+
+```sh
+python3 examples/linux/check-systemd.py --with-server --out build/firmware-systemd
+```
+
+This command requires passwordless `sudo` (or root with an unprivileged
+`--service-user`). It refuses existing services with the example's names, links
+its units for this boot only, starts/stops/restarts them, inspects the service's
+mount namespace, and removes its unit links afterward. It needs `systemctl`,
+`systemd-analyze`, `journalctl`, `nsenter` and `findmnt`. It checks the filesystem
+restriction, hardware restart/session change, local server startup, retained
+settings and ordered shutdown. Do not run it on a product already using these
+service names. The direct-process check above does not claim systemd validation.
+
+For a firmware image using systemd, review the generated units, install them and
+the tmpfiles configuration through your image build, and enable the management
+unit. On another supervisor, preserve the same process ownership, startup order,
+readiness, shutdown and storage behavior. The SDK does not require systemd.
+
+## Provision each unit
+
+Keep the model ID shared across units of the same model. Give every physical unit
+its own stable identity, derived from your factory identity or generated once and
+stored in protected persistent configuration. Do not clone the staged `private/`
+directory across products. A project import or administrator reset must not turn
+one unit into another unit's identity.
+
+The example creates separate random product and management credentials and a
+seven-day self-signed certificate for `localhost` and `127.0.0.1`. These are for
+local evaluation. Your product should use its existing credential store through
+the documented callback and its normal certificate provisioning process.
+
+The equipment certificate must cover the network names/addresses used to reach
+the product and `127.0.0.1` for the native connection. The configured `ca_file`
+must trust that chain. Keep the private key and management token out of browser
+responses, projects, shared logs and firmware images distributed to multiple units.
+The full OpenAVC server's browser certificate is managed separately through its
+normal HTTPS settings; the equipment certificate does not configure Programmer HTTPS.
+
+## Certificates and credentials
+
+The product manager reads equipment TLS material and its management credential
+at startup. To replace them, prepare a complete matching certificate/key and
+trust chain, stop management cleanly, replace the protected files using your
+firmware's atomic configuration update, then restart management and verify both
+local hardware and remote equipment access. The hardware application can keep
+running. Do not replace only one file in a certificate/key/trust set while the
+service is starting.
+
+Use the normal product-account controls to revoke an old controller's equipment
+credentials when replacing that controller. Stopping its OpenAVC process alone
+does not prevent someone starting it again with still-valid credentials.
+Product login, management access and the Programmer login are separate; see
+[Product controls](product-controls.md#programmer-login).
+
+## Firmware updates, rollback and reset
+
+Package the adapter, generated model, native service, Python integration and
+optional OpenAVC server as a tested set. Keep their hashes and the SDK/core pin
+with your firmware version. Firmware owns updates; the included OpenAVC server
+directs updates through the product.
+
+Before changing the hardware application or SDK files, stop accepting new control
+work and wait for accepted hardware operations to complete. Then stop management,
+followed by the hardware application when it needs updating. A timeout does not
+prove a physical operation was cancelled. Check the hardware's actual outcome
+before deciding to retry an operation or continue an update.
+
+The example's service stop timeouts are demonstration settings. Measure your
+product's completion and shutdown bounds. The SDK manager currently gives each
+supervised child ten seconds to stop before treating shutdown as failed; do not
+rely on a larger systemd timeout to extend that internal deadline.
+
+Preserve unit identity, private configuration and the full data directory during
+ordinary firmware updates. Take a consistent data backup with management stopped
+before the first start of a new firmware version. A rollback must restore a
+compatible software/data combination; downgrading binaries alone is not evidence
+that a newer project or settings format remains readable. Keep the pre-update
+backup until the product's acceptance checks pass.
+
+Define user reset and factory/service reset separately. A user-project reset
+should preserve the physical unit's identity and firmware hardware mapping.
+Your factory procedure must explicitly handle account revocation, Programmer
+credentials, cloud unpairing when used, and any certificate replacement.
+`POST /oem/repair` repairs SDK settings; it is not a complete product factory reset.
+
+The supplied startup checks do not execute an A/B firmware update, interrupted
+flash write, downgrade or factory reset. Exercise those through your actual
+firmware updater and recovery facilities before shipping.

@@ -33,6 +33,8 @@ starter, selected command checks, resource measurements and diagnostic previews.
 
 [Product controls](docs/product-controls.md) explains network discovery,
 credentials, controls in your own software and the optional full OpenAVC server.
+[Linux firmware](docs/firmware.md) supplies service startup checks, storage layout
+and systemd examples.
 [Firmware testing](docs/qualification.md) and [Troubleshooting](docs/troubleshooting.md)
 cover target testing and diagnostics.
 

@@ -44,6 +44,12 @@ jobs:
           python try-example.py --project build/my-product --checks build/my-product/checks.json --out build/project-checks
           python collect-diagnostics.py --checks build/project-checks/report.json --out build/support-preview.json
           python -m unittest discover -s tests -v
+      - name: Check firmware startup and service supervision
+        run: |
+          python examples/linux/check.py --out build/firmware-device
+          python examples/linux/check.py --language cpp --out build/firmware-cpp
+          python examples/linux/check.py --with-server --out build/firmware-server
+          python examples/linux/check-systemd.py --with-server --out build/firmware-systemd
       - name: Build and check a supplied runtime
         run: |
           python tools/package_runtime.py --out build/package
@@ -55,6 +61,7 @@ jobs:
           python try-example.py --form direct --exercise-demo
           python new-product.py --out build/my-product
           python try-example.py --project build/my-product --checks build/my-product/checks.json --out build/project-checks
+          python examples/linux/check.py --with-server --out build/firmware-server
       - name: Exercise both complete arrangements
         run: |
           python try-system.py --arrangement external --out build/check-external --check
@@ -83,4 +90,6 @@ jobs:
             build/product-checks/report.json
             build/project-checks/report.json
             build/support-preview.json
+            build/firmware-*/report.json
+            build/firmware-*/*.log
           if-no-files-found: ignore

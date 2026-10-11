@@ -3,6 +3,8 @@
 #include "commands.h"
 #include "adapter.h"
 #include <pthread.h>
+#include <openssl/rand.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +24,9 @@ typedef struct {
     double value, gain[4], due;
     uint64_t counter, ticks, revision, generation;
 } product;
+
+static volatile sig_atomic_t stop_requested;
+static void request_stop(int signum) { (void)signum; stop_requested = 1; }
 
 static double now(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return t.tv_sec + t.tv_nsec / 1e9; }
 static void thread_check(product *p) { if (!pthread_equal(pthread_self(), p->owner)) ++p->wrong_threads; }
@@ -87,8 +92,11 @@ static void physical(product *p) {
     fflush(stdout);
 }
 int main(int argc, char **argv) {
-    if (argc != 3 || (!getenv("OPENAVC_TOKEN") && !getenv("OPENAVC_PRODUCT_SOCKET"))) return 2;
-    product p = {0}; p.owner = pthread_self(); p.channels = 2; p.revision = 1; p.generation = 1;
+    int daemon = argc == 4 && !strcmp(argv[3], "--daemon");
+    if ((argc != 3 && !daemon) || (!getenv("OPENAVC_TOKEN") && !getenv("OPENAVC_PRODUCT_SOCKET"))) return 2;
+    product p = {0}; p.owner = pthread_self(); p.channels = 2; p.revision = 1;
+    if (RAND_bytes((unsigned char *)&p.generation, sizeof(p.generation)) != 1 || !p.generation) return 2;
+    signal(SIGTERM, request_stop); signal(SIGINT, request_stop);
     for (unsigned i = 0; i < 4; ++i) p.gain[i] = -20;
     pthread_mutex_init(&p.queue_mutex, NULL);
     oavc_adapter_config config = {{1, sizeof(oavc_endpoint_config), getenv("OPENAVC_DEVICE_ID") ? getenv("OPENAVC_DEVICE_ID") : "acme-native", argv[1],
@@ -100,6 +108,7 @@ int main(int argc, char **argv) {
     printf("READY %u\n", oavc_adapter_port(adapter)); fflush(stdout);
     int closed = 0;
     while (!closed) {
+        if (stop_requested && !p.stop) { oavc_adapter_stop(adapter); p.stop = 1; }
         void (*work)(oavc_token) = NULL; oavc_token token = 0;
         pthread_mutex_lock(&p.queue_mutex);
         work = p.work; token = p.queued; p.work = NULL;
@@ -115,6 +124,7 @@ int main(int argc, char **argv) {
             if (!closed) p.close_waited = 1;
         } else if (!p.pause_feedback) oavc_adapter_refresh(adapter);
         if (closed) break;
+        if (daemon) { struct timespec wait = {0, 1000000}; nanosleep(&wait, NULL); continue; }
         fd_set input; FD_ZERO(&input); FD_SET(STDIN_FILENO, &input);
         struct timeval wait = {0, 1000};
         if (select(STDIN_FILENO + 1, &input, NULL, NULL, &wait) <= 0) continue;

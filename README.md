@@ -76,6 +76,7 @@ preview diagnostics before sharing them.
 | [Building](docs/building.md) | Workstation prerequisites, firmware toolchains and prebuilt C libraries. |
 | [Product testing tools](docs/product-testing.md) | A separate product starter, command checks, resource measurements and diagnostic previews. |
 | [Product controls](docs/product-controls.md) | Your product's management UI/API, credentials, optional server and firmware updates. |
+| [Linux firmware](docs/firmware.md) | Runnable service startup, persistent storage, systemd templates and per-unit provisioning. |
 | [Protocol reference](docs/protocol.md) | Network messages, identity, authentication, outcomes and transport bounds. |
 | [Firmware testing](docs/qualification.md) | Product-specific build, hardware, resource, recovery and cloud acceptance. |
 | [Troubleshooting](docs/troubleshooting.md) | Common failures, diagnostics and next steps. |

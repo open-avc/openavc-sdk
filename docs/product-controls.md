@@ -43,6 +43,8 @@ firmware service supervisor. The SDK starts/stops its native device service and
 the optional OpenAVC server; it does not own the manufacturer's application.
 Give the service account access to the hardware socket, certificates and its
 writable data directory. Keep that directory across firmware updates.
+The [Linux firmware example](firmware.md) supplies runnable startup/storage checks,
+service templates and provisioning guidance.
 
 ## Product configuration
 

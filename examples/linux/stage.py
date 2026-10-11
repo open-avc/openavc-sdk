@@ -48,6 +48,8 @@ def stage(args):
     (destination / 'run/tmp').mkdir(mode=0o700)
     for name, path in inputs.items():
         shutil.copy2(path, destination / 'program' / name)
+    shutil.copytree(ROOT / 'licenses', destination / 'program/licenses')
+    shutil.copy2(ROOT / 'LICENSE', destination / 'program/licenses/openavc-sdk-LICENSE')
     if (ROOT / 'sdk/lib').is_dir():
         shutil.copytree(ROOT / 'sdk/lib', destination / 'program/lib')
     else:

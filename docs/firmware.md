@@ -63,7 +63,7 @@ identity or credential.
 
 | Directory | Contents and lifetime |
 |---|---|
-| `program/` | Compiled hardware example, device service, generated model and any supplied runtime libraries. Read-only while running; update them together. |
+| `program/` | Compiled hardware example, device service, generated model, supplied runtime libraries and license notices. Read-only while running; update them together. |
 | `private/` | Unit configuration, product credentials, management credential and test certificate/key. Restrict access to the service account; preserve through ordinary updates. |
 | `data/` | Management settings, OpenAVC configuration/projects, installed drivers/plugins and bounded SDK diagnostic logs. Persistent and writable. |
 | `run/` | Hardware socket and temporary files. Writable; suitable for volatile storage in firmware. Recreate it at boot with the correct ownership. |

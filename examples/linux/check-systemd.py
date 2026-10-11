@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import time
+import traceback
 import urllib.error
 import urllib.request
 
@@ -84,6 +85,7 @@ def check(args):
         pid = property_value(management, 'MainPID')
         program_options = run('nsenter', '--target', pid, '--mount', 'findmnt', '-n', '-o', 'OPTIONS', '-T', config['model']).strip().split(',')
         data_options = run('nsenter', '--target', pid, '--mount', 'findmnt', '-n', '-o', 'OPTIONS', '-T', config['data_dir']).strip().split(',')
+        report['filesystem_observed'] = {'program': program_options, 'data': data_options}
         assert 'ro' in program_options and 'rw' in data_options
         report['checks'].append('program_read_only_and_data_writable_in_service_namespace')
         run('systemctl', 'stop', hardware)
@@ -116,6 +118,7 @@ def check(args):
         report['status'] = 'passed'
     except BaseException:
         report['status'] = 'failed'
+        report['failure'] = traceback.format_exc()
         raise
     finally:
         for unit in reversed(linked):

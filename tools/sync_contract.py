@@ -3,7 +3,7 @@ import argparse
 import ast
 import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import subprocess
 
 FILES = ["__init__.py", "drivers/__init__.py", "drivers/spec.py",
@@ -57,8 +57,10 @@ def required_files(core, revision):
                 if module.startswith("openavc."):
                     path = module.removeprefix("openavc.").replace(".", "/") + ".py"
                     pending.append(path)
-                    parent = Path(path).parent
-                    while parent != Path("."):
+                    # Repository paths for `git show`, so forward slashes on
+                    # every platform.
+                    parent = PurePosixPath(path).parent
+                    while parent != PurePosixPath("."):
                         pending.append(str(parent / "__init__.py"))
                         parent = parent.parent
                 elif module == "openavc" or module.split(".")[0] not in sys.stdlib_module_names:
@@ -90,8 +92,8 @@ def main():
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(committed)
     for path in (output / "openavc").rglob("*.py"):
-        if str(path.relative_to(output / "openavc")) not in names:
-            changed.append(str(path.relative_to(output)))
+        if path.relative_to(output / "openavc").as_posix() not in names:
+            changed.append(path.relative_to(output).as_posix())
             if not args.check:
                 path.unlink()
     origin = output / "origin.json"
@@ -104,17 +106,17 @@ def main():
               f'#define OAVC_PROTOCOL {json.dumps(constants["PROTOCOL"])}\n'
               f'#define OAVC_MAX_MESSAGE_BYTES {constants["MAX_MESSAGE_BYTES"]}U\n#endif\n')
     target = output.parent / "include/protocol.h"
-    if not target.exists() or target.read_text() != header:
+    if not target.exists() or target.read_text(encoding="utf-8") != header:
         changed.append("sdk/include/protocol.h")
         if not args.check:
-            target.write_text(header)
+            target.write_text(header, encoding="utf-8", newline="\n")
     target = output.parent.parent / 'openavc_oem/_protocol.py'
     generated = ('"""Generated from the pinned OpenAVC equipment protocol."""\n'
                  + '\n'.join(f'{key} = {value!r}' for key, value in constants.items()) + '\n')
-    if not target.exists() or target.read_text() != generated:
+    if not target.exists() or target.read_text(encoding="utf-8") != generated:
         changed.append('openavc_oem/_protocol.py')
         if not args.check:
-            target.write_text(generated)
+            target.write_text(generated, encoding="utf-8", newline="\n")
     wire = ['"""Generated DNS wire helpers from the pinned OpenAVC sources."""',
             'import struct', 'import socket', '']
     record['dns_sources'] = {}
@@ -140,16 +142,16 @@ def main():
         wire.extend(ast.get_source_segment(source, node) + '\n\n' for node in nodes)
     target = output.parent.parent / 'openavc_oem/_dns_wire.py'
     generated = '\n'.join(wire)
-    if not target.exists() or target.read_text() != generated:
+    if not target.exists() or target.read_text(encoding="utf-8") != generated:
         changed.append('openavc_oem/_dns_wire.py')
         if not args.check:
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(generated)
+            target.write_text(generated, encoding="utf-8", newline="\n")
     metadata = json.dumps(record, indent=2) + "\n"
-    if not args.check_upstream and (not origin.is_file() or origin.read_text() != metadata):
+    if not args.check_upstream and (not origin.is_file() or origin.read_text(encoding="utf-8") != metadata):
         changed.append("origin.json")
         if not args.check:
-            origin.write_text(metadata)
+            origin.write_text(metadata, encoding="utf-8", newline="\n")
     print(json.dumps({"files": len(names), "core_head": record["core_head"], "changed": changed}))
     if args.check and changed:
         raise SystemExit(1)

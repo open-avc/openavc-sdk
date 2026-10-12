@@ -1,14 +1,15 @@
-# Add the native SDK to Buildroot
+# Add the SDK to Buildroot
 
 Use the external tree at `examples/linux/buildroot` from a source checkout.
 It builds the native device service and your generated hardware adapter with
 Buildroot's target compiler, OpenSSL and C++ runtime. Keep this SDK checkout and
 your product description with the other versioned inputs of your firmware build.
 
-This package does not include the Python product manager or the optional full
-OpenAVC server. Include those separately as described in
-[Linux firmware](firmware.md) and [building the server bundle](building.md#build-the-optional-server-bundle).
-The native adapter and device service do not require Python on the product.
+Product management is included by default, with Buildroot's Python, aiohttp and
+psutil packages. It provides equipment discovery, product authentication and the
+on/off controls. The native adapter and device service are separate processes.
+The optional full OpenAVC server is packaged separately; see
+[building the server bundle](building.md#build-the-optional-server-bundle).
 
 ## Use your existing firmware configuration
 
@@ -22,7 +23,7 @@ For example, from the SDK checkout, with your Buildroot source and output paths:
 ```sh
 make -C /path/to/buildroot O=/path/to/firmware-output \
   BR2_EXTERNAL="$PWD/examples/linux/buildroot" menuconfig
-make -C /path/to/firmware-output openavc-sdk
+make -C /path/to/firmware-output
 ```
 
 If your firmware already uses an external tree, retain its path in the
@@ -34,6 +35,7 @@ reference configurations use Buildroot 2026.08 and its Bootlin glibc stable
 | Location | Installed files |
 |---|---|
 | Target `/usr/bin/openavc-device-service` | Native equipment service. |
+| Target `/usr/bin/openavc-oem` and Python site-packages | Product-management entry point, Python package and example settings page. |
 | Target `/usr/share/openavc/` | Generated model, model provenance and core contract identity. |
 | Staging `/usr/include/openavc/` | Public adapter headers and your generated `commands.h`. |
 | Staging `/usr/lib/openavc/` | `libadapter.a`, `libopenavc_runtime.a` and `libhttp.a`. |
@@ -48,14 +50,16 @@ your callbacks are C. Use the same toolchain/sysroot for both. See the
 The recipe starts no services, provisions no credentials and creates no unit
 identity. Integrate startup and persistent storage through your product's normal
 firmware facilities using the [firmware guide](firmware.md). When the model or
-SDK source changes, use Buildroot's `openavc-sdk-dirclean` target before rebuilding
-the package so its local source copy is refreshed.
+SDK source changes, use Buildroot's `openavc-sdk-dirclean` and
+`python-openavc-oem-dirclean` targets before rebuilding so their local source
+copies are refreshed. If your firmware packages the Python manager separately,
+disable **include product management**; the native package needs no target Python.
 
 ## Build the reference filesystem
 
 The reference configurations make an evaluation filesystem with the invented
-C/C++ amplifiers and Python for running the supplied checks. They do not contain
-a bootloader, kernel, product-management service or OpenAVC server. Use a Linux
+C/C++ amplifiers, product management and Python. They do not contain
+a bootloader, kernel or OpenAVC server. Use a Linux
 x86-64 build host for the selected Bootlin toolchains.
 
 Install the host prerequisites from the
@@ -80,14 +84,17 @@ The local SDK source is copied using an allowlist; private SDK `build/` output
 is excluded.
 
 The exporter copies the installed example binaries without recompiling, records
-their hashes and includes the reference `rootfs.tar`. It does not run them.
+their hashes and includes the reference `rootfs.tar`, build configuration and
+Buildroot's package/dependency information. It does not run them.
 The [Buildroot workflow](https://github.com/open-avc/openavc-sdk/blob/main/.github/workflows/buildroot.yml)
 shows execution on the matching native CPU in that filesystem, with an isolated
 loopback network and an unprivileged account. The unbooted test filesystem gets
-private basic `/dev` nodes in place of the devtmpfs supplied during normal boot.
-Its checks use the supplied
+private basic `/dev` nodes and its own `/proc` in place of mounts supplied during
+normal boot. Its checks use the supplied
 `try-example.py --run-built` command for C and C++ service forms and the C
-in-process form. Check the workflow result for your selected SDK revision.
+in-process form. They then run the equipment-only firmware startup check against
+the installed Python package: product authentication, hardware restart, retained
+settings and orderly shutdown. Check the workflow result for your selected SDK revision.
 
 Running those files in a Linux container filesystem verifies this package path;
 it does not boot a manufacturer's firmware or exercise its AV hardware and load.

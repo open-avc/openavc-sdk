@@ -43,9 +43,18 @@ def export(output, destination):
     shutil.copy2(build / 'build-target.json', binaries)
     for name in ['try-example.py', 'example_build.py', 'inspection.py', 'product_checks.py']:
         shutil.copy2(ROOT / name, kit / name)
-    for name in ['__init__.py', '_protocol.py']:
-        (kit / 'openavc_oem').mkdir(exist_ok=True)
-        shutil.copy2(ROOT / 'openavc_oem' / name, kit / 'openavc_oem' / name)
+    # Exercise the installed Python package, without a source package in /kit
+    # that could shadow it and make a missing firmware dependency pass.
+    if 'BR2_PACKAGE_PYTHON_OPENAVC_OEM=y\n' not in config:
+        raise ValueError('Enable product management for these complete firmware checks.')
+    (kit / 'examples/linux').mkdir(parents=True)
+    for name in ['check.py', 'stage.py', 'hardware.service.in', 'management.service.in']:
+        shutil.copy2(ROOT / 'examples/linux' / name, kit / 'examples/linux' / name)
+    shutil.copy2(ROOT / 'LICENSE', kit)
+    shutil.copytree(ROOT / 'licenses', kit / 'licenses')
+    # The firmware walkthrough consumes the same installed binaries, through
+    # its standard build/ path. No compilation takes place on the target.
+    (kit / 'build').symlink_to('built', target_is_directory=True)
     (kit / 'sdk/contract').mkdir(parents=True)
     shutil.copy2(ROOT / 'sdk/contract/origin.json', kit / 'sdk/contract/origin.json')
     if digest(target / 'usr/share/openavc/contract/origin.json') != digest(kit / 'sdk/contract/origin.json'):
@@ -65,6 +74,9 @@ def export(output, destination):
         (binaries / f'{language}-{form}-build-result.json').write_text(json.dumps(record, indent=2) + '\n')
     shutil.copy2(output / '.config', destination / 'buildroot.config')
     shutil.copy2(output / 'images/rootfs.tar', destination)
+    packages = json.loads(subprocess.check_output(
+        ['make', '-s', '-C', str(output), 'show-info'], text=True))
+    (destination / 'buildroot-packages.json').write_text(json.dumps(packages, indent=2) + '\n')
     metadata = {'coverage': 'installed_examples_and_reference_rootfs',
                 'target': json.loads((binaries / 'build-target.json').read_text()),
                 'contract': json.loads((kit / 'sdk/contract/origin.json').read_text()),

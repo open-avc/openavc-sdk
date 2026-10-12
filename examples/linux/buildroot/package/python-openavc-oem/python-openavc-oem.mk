@@ -1,0 +1,12 @@
+PYTHON_OPENAVC_OEM_VERSION = local
+PYTHON_OPENAVC_OEM_SITE = $(abspath $(BR2_EXTERNAL_OPENAVC_PATH)/../../..)
+PYTHON_OPENAVC_OEM_SITE_METHOD = local
+PYTHON_OPENAVC_OEM_LICENSE = MIT
+PYTHON_OPENAVC_OEM_LICENSE_FILES = LICENSE
+PYTHON_OPENAVC_OEM_SETUP_TYPE = setuptools
+PYTHON_OPENAVC_OEM_DEPENDENCIES = python-aiohttp python-psutil
+PYTHON_OPENAVC_OEM_OVERRIDE_SRCDIR_RSYNC_EXCLUSIONS = \
+	--include='/pyproject.toml' --include='/LICENSE' \
+	--include='/openavc_oem/***' --exclude='*'
+
+$(eval $(python-package))

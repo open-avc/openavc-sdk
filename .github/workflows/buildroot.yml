@@ -7,6 +7,7 @@ on:
       - 'CMakeLists.txt'
       - 'sdk/**'
       - 'sample/**'
+      - 'openavc_oem/**'
   pull_request:
     paths:
       - '.github/workflows/buildroot.yml'
@@ -14,6 +15,7 @@ on:
       - 'CMakeLists.txt'
       - 'sdk/**'
       - 'sample/**'
+      - 'openavc_oem/**'
   workflow_dispatch:
 
 permissions:
@@ -100,12 +102,16 @@ jobs:
           sudo chown -R 65534:65534 rootfs/kit
       - name: Exercise installed files on their native processor
         run: |
-          sudo unshare --net sh -eu -c '
+          sudo unshare --net --pid --fork --mount --mount-proc="$PWD/rootfs/proc" sh -eu -c '
             ip link set lo up
             for args in "--form service" "--language cpp --form service" "--form direct"; do
               chroot --userspec=65534:65534 "$1" /usr/bin/env -i PATH=/usr/bin:/bin HOME=/tmp \
                 /usr/bin/python3 /kit/try-example.py --run-built /kit/built --exercise-demo $args
             done
+            chroot --userspec=65534:65534 "$1" /usr/bin/python3 -c \
+              "import openavc_oem; assert openavc_oem.__file__.startswith('/usr/lib/python'), openavc_oem.__file__"
+            chroot --userspec=65534:65534 "$1" /usr/bin/env -i PATH=/usr/bin:/bin HOME=/tmp \
+              /usr/bin/python3 /kit/examples/linux/check.py --out /kit/firmware-check
           ' sh "$PWD/rootfs"
       - uses: actions/upload-artifact@v4
         if: always()
@@ -114,5 +120,7 @@ jobs:
           path: |
             rootfs/kit/built/*-result.json
             rootfs/kit/built/*.log
+            rootfs/kit/firmware-check/report.json
+            rootfs/kit/firmware-check/*.log
             exported/export.json
           if-no-files-found: error

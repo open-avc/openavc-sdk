@@ -61,12 +61,18 @@ def check_network_faults(layout, report, *, api, docker, physical, until, record
             time.sleep(1)
         counters = {chain: dropped(chain) for chain in ('INPUT', 'OUTPUT')}
         assert counters['INPUT']['packets'] > 0 and counters['OUTPUT']['packets'] > 0
+        disabled = product_status('product2', 'discovery', False)
+        assert not disabled['discovery'] and not disabled['equipment']['discovery_active']
+        assert disabled['error'] is None
+        enabled = product_status('product2', 'discovery', True)
+        assert enabled['discovery'] and enabled['error'] is None
         before = physical('product2')
         api('/api/devices/manual_network_check/command', {'command': 'increment', 'params': {}})
         assert physical('product2')['counter'] == before['counter'] + 1
         report['observations']['blocked_multicast'] = {'dropped': counters,
             'manual_connection_identity': original_identity, 'tls_verification_enabled': True,
-            'discovery_result_used_for_manual_add': False}
+            'discovery_result_used_for_manual_add': False,
+            'discovery_switches_work_while_filtered': True}
         recorded('Manual equipment setup and control work while kernel rules block product multicast discovery')
     finally:
         if manual_added:

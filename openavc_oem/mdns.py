@@ -88,10 +88,22 @@ class Advertiser:
         if enabled == self.enabled and properties == self.properties:
             return
         if self.enabled:
-            await self.send(0)
+            try:
+                await self.send(0)
+            except OSError as error:
+                self.network_error(error)
         self.enabled, self.properties = enabled, dict(properties)
         if enabled:
-            await self.send(120)
+            try:
+                await self.send(120)
+            except OSError as error:
+                self.network_error(error)
+
+    def network_error(self, error):
+        self.error = str(error)
+        if self.socket:
+            self.socket.close()
+        self.socket = None
 
     async def listen(self):
         while True:
@@ -113,10 +125,7 @@ class Advertiser:
                 if self.enabled and names & wanted:
                     await self.send(120)
             except OSError as error:
-                self.error = str(error)
-                if self.socket:
-                    self.socket.close()
-                self.socket = None
+                self.network_error(error)
 
     async def close(self):
         if self.enabled:

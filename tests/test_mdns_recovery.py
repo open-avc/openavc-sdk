@@ -8,6 +8,32 @@ from openavc_oem.mdns import Advertiser
 
 
 class MulticastRecovery(unittest.IsolatedAsyncioTestCase):
+    async def test_blocked_withdrawal_still_disables_discovery(self):
+        advertiser = Advertiser('example', 9443, [])
+        advertiser.enabled = True
+        original_socket = advertiser.socket = Mock()
+        advertiser.send = AsyncMock(side_effect=PermissionError('network filtering'))
+        await advertiser.set(False, {})
+        self.assertFalse(advertiser.enabled)
+        self.assertFalse(advertiser.active)
+        self.assertIsNone(advertiser.socket)
+        self.assertEqual(advertiser.error, 'network filtering')
+        advertiser.send.assert_awaited_once_with(0)
+        original_socket.close.assert_called_once()
+
+    async def test_blocked_enable_keeps_intent_and_reports_unavailable_discovery(self):
+        advertiser = Advertiser('example', 9443, [])
+        original_socket = advertiser.socket = Mock()
+        advertiser.send = AsyncMock(side_effect=PermissionError('network filtering'))
+        await advertiser.set(True, {'model': 'invented'})
+        self.assertTrue(advertiser.enabled)
+        self.assertEqual(advertiser.properties, {'model': 'invented'})
+        self.assertFalse(advertiser.active)
+        self.assertIsNone(advertiser.socket)
+        self.assertEqual(advertiser.error, 'network filtering')
+        advertiser.send.assert_awaited_once_with(120)
+        original_socket.close.assert_called_once()
+
     async def test_periodic_send_failure_reopens_the_socket_and_keeps_listening(self):
         advertiser = Advertiser('example', 9443, [])
         advertiser.enabled = True

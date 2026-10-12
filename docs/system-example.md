@@ -212,6 +212,7 @@ product address, port and credentials, without a discovery result. An ordinary
 scan generates incoming traffic; kernel counters must confirm dropped packets.
 It then blocks outgoing announcements and requires observed drops there too.
 With both rules active, a command must reach the independent hardware counter once.
+Turning discovery off and back on must also succeed while multicast is blocked.
 Other discovery methods may still identify equipment. The temporary device and
 firewall rules are removed, and the original connection resumes.
 Another scan must then identify the product through mDNS without a product restart.

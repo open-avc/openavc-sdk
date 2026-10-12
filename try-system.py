@@ -5,6 +5,7 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import re
 import secrets
 import shutil
 import subprocess
@@ -25,7 +26,7 @@ def run(args):
     out.chmod(0o700)
     docker = ['docker', *(['--context', args.docker_context] if args.docker_context else [])]
     prefix = 'openavc-example-' + secrets.token_hex(5)
-    image = 'openavc-sdk-example:local'
+    image_file = out / 'build-image.txt'
     containers = []
     network_created = False
     layout = {'arrangement': args.arrangement, 'product_count': args.products,
@@ -110,12 +111,13 @@ def run(args):
         call(['info', '--format', '{{.OSType}}'])
         print('Building the Linux example and the pinned OpenAVC server. The first build downloads dependencies.', flush=True)
         with (out / 'build.log').open('w') as log:
-            built = subprocess.run(docker + ['build', '-t', image, '-f', str(ROOT / 'examples/system/Dockerfile'), str(ROOT)],
+            built = subprocess.run(docker + ['build', '--iidfile', str(image_file), '-f', str(ROOT / 'examples/system/Dockerfile'), str(ROOT)],
                                    stdout=log, stderr=subprocess.STDOUT)
         if built.returncode:
             raise RuntimeError('The example image did not build. Read ' + str(out / 'build.log'))
-        # Use the built content, even if another example later updates the tag.
-        image = call(['image', 'inspect', '--format', '{{.Id}}', image])
+        image = image_file.read_text(encoding='utf-8').strip()
+        if not re.fullmatch(r'sha256:[0-9a-f]{64}', image):
+            raise RuntimeError('Docker did not record a valid example image ID. Read build.log.')
         layout['image'] = image
         call(['network', 'create', '--internal', '--label', 'openavc.sdk.example=' + prefix, prefix])
         network_created = True

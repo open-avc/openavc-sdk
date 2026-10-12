@@ -155,6 +155,7 @@ The additional checks verify these outcomes:
 | Hardware readback unavailable | The endpoint reports unavailable feedback and OpenAVC clears the old values. Current values return when readback recovers. |
 | Hardware cannot accept a command | OpenAVC reports a rejected operation without a hardware write. A later new command succeeds after admission is restored. |
 | One peer loses its network connection | Its hardware keeps operating locally and the controller operates the remaining equipment. Reconnection returns current feedback without restarting the peer or replaying commands. |
+| A peer's IP changes while its configured hostname stays the same | The controller reconnects using the new address, with certificate verification, product identity and panel bindings retained. Refused commands are not replayed. |
 
 `--arrangement external` runs the same applicable checks with a separate server.
 The example injects hardware faults through loopback-only test instrumentation;
@@ -167,8 +168,16 @@ to respect the server's normal request limits. It does not retry commands.
 The network check disconnects amplifier 2 from the private Docker network, changes
 its hardware feedback locally, and reconnects it at the same address. It records
 the unchanged container process, offline reason, reconnect time and hardware
-counters. It does not simulate packet loss, a blocked discovery protocol, a
-changed address or a split network containing competing controllers. Interrupted
+counters. It then uses normal connection settings to select the product's stable
+hostname, disconnects the peer and reconnects it at a different IP. It verifies
+the changed DNS result, unchanged product process/certificate, current feedback,
+preserved panel bindings and one new hardware command. The original address and
+connection settings are restored afterward. This covers a hostname whose DNS
+record follows the product; it does not imply that a saved numeric IP follows a
+device automatically. The product certificate must match the configured hostname.
+
+These checks do not simulate packet loss, a blocked discovery protocol or a
+split network containing competing controllers. Interrupted
 physical operations, mixed protocol versions and controller replacement also
 require their own acceptance tests.
 

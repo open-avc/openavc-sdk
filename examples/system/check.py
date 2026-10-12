@@ -1,6 +1,7 @@
 """Verify the running invented equipment using normal OpenAVC API operations."""
 import argparse
 import base64
+import ipaddress
 import json
 from pathlib import Path
 import secrets
@@ -227,6 +228,68 @@ def check(folder):
                 'container_process_unchanged': True, 'before': before,
                 'isolated': isolated, 'after_reconnect': restored}
             recorded('Network recovery returns current feedback without restarting the peer or replaying commands')
+            # A stable DNS name is already covered by the example certificate.
+            # Move the actual endpoint while keeping that name, credentials,
+            # hardware process and project bindings unchanged.
+            original_connection = api('/api/connections')['connections'].get('product2')
+            api('/api/connections/product2', {**(original_connection or {}), 'host': 'product2', 'port': 9443}, method='PUT')
+            until(lambda: api('/api/devices/product2')['connected'], timeout=90)
+            original_identity = api('/api/devices/product2')['state']['_sdk_identity']
+            original_ui = api('/api/project')['ui']
+            network = json.loads(docker('network', 'inspect', layout['network']))[0]
+            subnet = ipaddress.ip_network(layout['network_subnet'])
+            used = {ipaddress.ip_interface(item['IPv4Address']).ip
+                    for item in network['Containers'].values() if item.get('IPv4Address')}
+            used.update(ipaddress.ip_address(item['Gateway']) for item in network['IPAM']['Config']
+                        if item.get('Gateway') and ':' not in item['Gateway'])
+            changed_address = str(next(address for address in subnet.hosts() if address not in used))
+            before = physical('product2')
+            certificate_code = "import hashlib,pathlib; print(hashlib.sha256(pathlib.Path('/data/server.pem').read_bytes()).hexdigest())"
+            certificate_hash = docker('exec', peer, 'python', '-c', certificate_code)
+
+            def reconnect_at(address):
+                arguments = ['network', 'connect', '--ip', address]
+                for alias in sorted(set(endpoint.get('Aliases') or []) | {'product2'}):
+                    arguments += ['--alias', alias]
+                docker(*arguments, layout['network'], peer)
+
+            docker('network', 'disconnect', layout['network'], peer)
+            try:
+                until(lambda: not api('/api/devices/product2')['connected'], timeout=90)
+                api('/api/devices/product2/command', {'command': 'increment', 'params': {}}, expected=503)
+                physical('product2', 'external -5.5')
+                moved_at = time.monotonic()
+                reconnect_at(changed_address)
+                resolved = docker('exec', layout['controller'], 'python', '-c',
+                                  "import socket; print(socket.gethostbyname('product2'))")
+                assert resolved == changed_address and resolved != endpoint['IPAddress']
+                until(lambda: api('/api/devices/product2')['connected'], timeout=90)
+                changed_device = until(lambda: (item if (item := api('/api/devices/product2'))['state'].get('channel.2.gain') == -5.5 else None))
+                assert changed_device['state']['_sdk_identity'] == original_identity
+                assert api('/api/project')['ui'] == original_ui
+                after = physical('product2')
+                assert after['counter'] == before['counter'] and after['writes'] == before['writes']
+                assert docker('inspect', '-f', '{{.State.Pid}}', peer) == peer_pid
+                assert docker('exec', peer, 'python', '-c', certificate_code) == certificate_hash
+                api('/api/devices/product2/command', {'command': 'increment', 'params': {}})
+                assert physical('product2')['counter'] == before['counter'] + 1
+                report['observations']['changed_address'] = {
+                    'old_address': endpoint['IPAddress'], 'new_address': changed_address,
+                    'configured_hostname': 'product2', 'identity': original_identity,
+                    'reconnect_seconds': round(time.monotonic() - moved_at, 3),
+                    'container_process_unchanged': True, 'certificate_unchanged': True,
+                    'project_ui_unchanged': True, 'before': before, 'after_reconnect': after}
+                recorded('A peer address change behind its configured hostname retains identity, bindings and verified TLS without command replay')
+            finally:
+                current = json.loads(docker('inspect', '-f', '{{json .NetworkSettings.Networks}}', peer))
+                if layout['network'] in current:
+                    docker('network', 'disconnect', layout['network'], peer)
+                reconnect_at(endpoint['IPAddress'])
+                if original_connection is None:
+                    api('/api/connections/product2', method='DELETE')
+                else:
+                    api('/api/connections/product2', original_connection, method='PUT')
+            until(lambda: api('/api/devices/product2')['connected'], timeout=90)
         if layout.get('recovery'):
             peer = 'product2'
             container = layout['products'][peer]['container']

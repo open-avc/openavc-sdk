@@ -83,7 +83,9 @@ The exporter copies the installed example binaries without recompiling, records
 their hashes and includes the reference `rootfs.tar`. It does not run them.
 The [Buildroot workflow](https://github.com/open-avc/openavc-sdk/blob/main/.github/workflows/buildroot.yml)
 shows execution on the matching native CPU in that filesystem, with an isolated
-loopback network and an unprivileged account. Its checks use the supplied
+loopback network and an unprivileged account. The unbooted test filesystem gets
+private basic `/dev` nodes in place of the devtmpfs supplied during normal boot.
+Its checks use the supplied
 `try-example.py --run-built` command for C and C++ service forms and the C
 in-process form. Check the workflow result for your selected SDK revision.
 

@@ -90,6 +90,12 @@ jobs:
               assert hashlib.sha256(path.read_bytes()).hexdigest() == expected, name
           PY
           sudo tar -xf exported/rootfs.tar -C rootfs
+          # A normal boot mounts devtmpfs. This unbooted chroot receives only
+          # its own basic device nodes, never a bind mount of the host's /dev.
+          sudo mknod -m 666 rootfs/dev/null c 1 3
+          sudo mknod -m 666 rootfs/dev/zero c 1 5
+          sudo mknod -m 666 rootfs/dev/random c 1 8
+          sudo mknod -m 666 rootfs/dev/urandom c 1 9
           sudo cp -a exported/kit rootfs/kit
           sudo chown -R 65534:65534 rootfs/kit
       - name: Exercise installed files on their native processor

@@ -58,6 +58,33 @@ Your product supplies the callbacks declared in the generated `commands.h`.
 For a working separate starter, use `new-product.py` and the
 [product testing workflow](product-testing.md).
 
+### Install a native CMake package
+
+For a firmware build that stages libraries before building the product application,
+enable `OPENAVC_INSTALL` while configuring the SDK. Select your product description
+at that step so the installed adapter and generated header match your hardware.
+The Buildroot recipe does this for you. To try a local source install:
+
+```sh
+cmake -S . -B build/native-install -DOPENAVC_INSTALL=ON -DOPENAVC_BUILD_EXAMPLES=OFF
+cmake --build build/native-install --parallel 2
+cmake --install build/native-install --prefix "$PWD/build/native-sdk"
+cmake -S examples/installed -B build/installed-product \
+  -DCMAKE_PREFIX_PATH="$PWD/build/native-sdk" \
+  -DOPENAVC_ADAPTER_SOURCE="$PWD/sample/example.c"
+cmake --build build/installed-product
+```
+
+On macOS, add `-DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)"` to both
+configure commands.
+
+This builds the supplied C product application against the installed libraries.
+For your application, enable C and C++ in its CMake project, call
+`find_package(OpenAVC CONFIG REQUIRED)` and link `OpenAVC::adapter` to its target.
+The package supplies include paths and link dependencies. Keep the installed model
+and adapter from the same build. A cross-build uses your firmware toolchain file
+for both SDK and application; it does not execute target binaries on the build host.
+
 ## Firmware toolchains
 
 For a runnable cross-build, transfer and target-check workflow, see

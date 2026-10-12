@@ -9,7 +9,8 @@ OPENAVC_SDK_SUPPORTS_IN_SOURCE_BUILD = NO
 # Copy source inputs only, never the developer's private build/test directories.
 OPENAVC_SDK_OVERRIDE_SRCDIR_RSYNC_EXCLUSIONS = \
 	--include='/CMakeLists.txt' --include='/LICENSE' --include='/product.json' \
-	--include='/sdk/***' --include='/licenses/***' --include='/sample/***' --exclude='*'
+	--include='/sdk/***' --include='/licenses/***' --include='/sample/***' \
+	--include='/cmake/***' --exclude='*'
 OPENAVC_SDK_CONF_OPTS = \
 	-DOPENAVC_BUILD_EXAMPLES=$(if $(BR2_PACKAGE_OPENAVC_SDK_EXAMPLES),ON,OFF) -DOPENAVC_INSTALL=ON \
 	-DPython3_EXECUTABLE=$(HOST_DIR)/bin/python3

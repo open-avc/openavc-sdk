@@ -41,10 +41,16 @@ reference configurations use Buildroot 2026.08 and its Bootlin glibc stable
 | Staging `/usr/lib/openavc/` | `libadapter.a`, `libopenavc_runtime.a` and `libhttp.a`. |
 | Target `/usr/share/licenses/openavc-sdk/` | SDK and bundled-source notices. |
 
-Your product application implements the generated callbacks and links the
-adapter libraries using the target C++ linker, OpenSSL, threads and the platform
-dynamic-loading library. The C++ linker is needed for the SDK runtime even when
-your callbacks are C. Use the same toolchain/sysroot for both. See the
+Your product application implements the generated callbacks. In its CMake project,
+enable C and C++, then use the installed target:
+
+```cmake
+find_package(OpenAVC CONFIG REQUIRED)
+target_link_libraries(your_product PRIVATE OpenAVC::adapter)
+```
+
+The target supplies the generated header path and native link dependencies.
+Build with your firmware's toolchain/sysroot, as for the SDK package. See the
 [hardware mapping guide](hardware-integration.md).
 
 The recipe starts no services, provisions no credentials and creates no unit

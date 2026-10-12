@@ -4,7 +4,9 @@ on:
     paths:
       - '.github/workflows/buildroot.yml'
       - 'examples/linux/buildroot/**'
+      - 'examples/installed/**'
       - 'CMakeLists.txt'
+      - 'cmake/**'
       - 'sdk/**'
       - 'sample/**'
       - 'openavc_oem/**'
@@ -12,7 +14,9 @@ on:
     paths:
       - '.github/workflows/buildroot.yml'
       - 'examples/linux/buildroot/**'
+      - 'examples/installed/**'
       - 'CMakeLists.txt'
+      - 'cmake/**'
       - 'sdk/**'
       - 'sample/**'
       - 'openavc_oem/**'
@@ -46,6 +50,11 @@ jobs:
         run: |
           make -C build/buildroot-2026.08 O="$PWD/build/firmware" BR2_EXTERNAL="$PWD/examples/linux/buildroot" openavc_${{ matrix.target }}_defconfig
           make -C build/firmware -j2 > build/buildroot.log 2>&1
+          build/firmware/host/bin/cmake -S examples/installed -B build/installed-consumer \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/build/firmware/host/share/buildroot/toolchainfile.cmake" \
+            -DOPENAVC_ADAPTER_SOURCE="$PWD/sample/example.c" > build/installed-consumer.log 2>&1
+          build/firmware/host/bin/cmake --build build/installed-consumer >> build/installed-consumer.log 2>&1
+          sha256sum build/installed-consumer/hardware > build/installed-consumer.sha256
           python3 examples/linux/buildroot/export.py --buildroot-output build/firmware --out build/exported
           tar -czf build/firmware-example.tar.gz -C build/exported .
           sha256sum build/firmware-example.tar.gz > build/firmware-example.tar.gz.sha256
@@ -55,6 +64,8 @@ jobs:
           name: buildroot-${{ matrix.target }}
           path: |
             build/buildroot.log
+            build/installed-consumer.log
+            build/installed-consumer.sha256
             build/firmware/.config
             build/firmware-example.tar.gz
             build/firmware-example.tar.gz.sha256

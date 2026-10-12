@@ -82,7 +82,7 @@ def package(args):
     files = {'sdk/' + name: sha for name, sha in inventory(destination / 'sdk').items()}
     (destination / 'sdk/sha256.json').write_text(json.dumps(files, indent=2) + '\n')
     sources = {}
-    for name in ['sdk', 'sample', 'CMakeLists.txt', 'product.json', 'tools']:
+    for name in ['sdk', 'sample', 'cmake', 'CMakeLists.txt', 'product.json', 'tools']:
         source = ROOT / name
         sources.update({name + '/' + key: value for key, value in inventory(source).items()}
                        if source.is_dir() else {name: digest(source)})

@@ -196,7 +196,9 @@ def check(args):
                 project_backup('create')
             copy_stopped_tree(args.out / 'data', data_before)
             program = args.out / 'program'
-            candidate = evidence / 'program-next'
+            # Keep directory renames within one parent: an unprivileged updater
+            # cannot move a read-only directory's '..' entry to another parent.
+            candidate = args.out / 'program-next'
             shutil.copytree(program, candidate)
             candidate.chmod(0o755)
             (candidate / 'hardware').unlink()
@@ -205,7 +207,7 @@ def check(args):
             candidate.chmod(0o555)
             candidate_sha = hashlib.sha256((candidate / 'hardware').read_bytes()).hexdigest()
             assert candidate_sha != metadata['program_sha256']['program/hardware']
-            program.rename(evidence / 'program-before-update')
+            program.rename(args.out / 'program-before-update')
             candidate.rename(program)
             hardware = launch('hardware-updated', hardware_command, hardware_environment)
             manager = launch('management-updated', manager_command, environment)
@@ -235,8 +237,8 @@ def check(args):
             if args.with_server:
                 project_backup('restore')
             shutil.copy2(data_before / 'firmware-check-marker', marker)
-            program.rename(evidence / 'program-after-update')
-            (evidence / 'program-before-update').rename(program)
+            program.rename(args.out / 'program-after-update')
+            (args.out / 'program-before-update').rename(program)
             hardware = launch('hardware-rollback', hardware_command, hardware_environment)
             manager = launch('management-rollback', manager_command, environment)
             restored = management()

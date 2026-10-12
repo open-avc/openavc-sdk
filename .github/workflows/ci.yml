@@ -120,6 +120,8 @@ jobs:
           python examples/linux/check.py --out build/firmware-device
           python examples/linux/check.py --language cpp --out build/firmware-cpp
           python examples/linux/check.py --with-server --out build/firmware-server
+          python examples/linux/check.py --update --out build/firmware-update-device
+          python examples/linux/check.py --with-server --update --out build/firmware-update-server
           python examples/linux/check-systemd.py --with-server --out build/firmware-systemd
       - name: Build and check a supplied runtime
         run: |

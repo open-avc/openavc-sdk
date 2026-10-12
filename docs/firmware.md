@@ -185,6 +185,45 @@ Your factory procedure must explicitly handle account revocation, Programmer
 credentials, cloud unpairing when used, and any certificate replacement.
 `POST /oem/repair` repairs SDK settings; it is not a complete product factory reset.
 
-The supplied startup checks do not execute an A/B firmware update, interrupted
-flash write, downgrade or factory reset. Exercise those through your actual
-firmware updater and recovery facilities before shipping.
+### Run the application update and rollback example
+
+On an isolated Linux host, use a source checkout and build both hardware examples:
+
+```sh
+python3 try-example.py --language c --build-only
+python3 try-example.py --language cpp --build-only
+python3 examples/linux/check.py --update --out build/firmware-update-device
+python3 examples/linux/check.py --with-server --update --out build/firmware-update-server
+```
+
+These commands create new staging directories and start only their own example
+processes. The prebuilt library archive does not include the C++ source needed
+for this exercise. Run the full-server case with the matching server and SDK
+Python packages installed, as for the startup check above.
+
+The check stops management and hardware before taking a data snapshot. It
+replaces the C hardware application with the separately built C++ application,
+which implements the same product model. It then starts the updated application
+and verifies retained product settings and hardware control. With the server
+included, it also creates an ordinary Programmer account and a persistent project
+variable, and verifies both after the application update.
+
+Next it changes the candidate's data and disables Programmer access, stops both
+processes, and restores the original application and earlier project data.
+The matching core's existing backup functions capture and restore the project
+with its writers stopped. Current product settings and credentials stay in place:
+rollback must not undo an access restriction. The check verifies that Programmer
+remains disabled, then explicitly re-enables it through product management to
+verify the earlier saved variable and working authenticated hardware control.
+The old and candidate directories, process logs and `report.json` remain in the
+chosen output directory. Treat that directory as private: it contains generated
+example credentials and complete data snapshots.
+
+This exercises an orderly application replacement and project rollback with the same
+OpenAVC version and data format. It does not flash firmware, change OS partitions,
+migrate a newer server's data, interrupt an in-flight hardware operation or test
+power loss. The directory-copy/swap sequence and pinned core backup calls are
+demonstrations in stopped, disposable services, not a product firmware updater
+or a portable backup-upload interface. Exercise the complete
+firmware update, interrupted-write recovery, downgrade and factory reset through
+your own updater and recovery facilities before shipping.

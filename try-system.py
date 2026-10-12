@@ -271,7 +271,7 @@ if __name__ == '__main__':
     parser.add_argument('--cloud', action='store_true', help='Allow the selected controller outbound network access for normal optional cloud pairing.')
     parser.add_argument('--check', action='store_true', help='Exercise the sample equipment and stop after verification.')
     parser.add_argument('--recovery', action='store_true', help='With --check, stop/restart an invented peer and the controller, then verify recovery.')
-    parser.add_argument('--faults', action='store_true', help='With --check, exercise trust, access, hardware-feedback and command refusals in the invented products.')
+    parser.add_argument('--faults', action='store_true', help='With --check, exercise trust, access, hardware faults and a peer network outage in the invented products.')
     options = parser.parse_args()
     if not 1024 <= options.port <= 65535 - options.products * 2:
         parser.error('--port must leave room for two ports per product and one controller port below 65536.')

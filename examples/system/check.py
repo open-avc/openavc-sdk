@@ -184,6 +184,49 @@ def check(folder):
             api('/api/devices/product2/command', {'command': 'increment', 'params': {}})
             assert physical('product2')['counter'] == before['counter'] + 1
             recorded('A hardware admission refusal is reported as rejected; a later new command runs once')
+            peer = layout['products']['product2']['container']
+            peer_pid = docker('inspect', '-f', '{{.State.Pid}}', peer)
+            endpoint = json.loads(docker('inspect', '-f', '{{json .NetworkSettings.Networks}}', peer))[layout['network']]
+            before = physical('product2')
+            docker('network', 'disconnect', layout['network'], peer)
+            try:
+                until(lambda: not api('/api/devices/product2')['connected'], timeout=90)
+                offline = api('/api/devices/product2')
+                assert offline['state'].get('offline_reason'), offline
+                api('/api/devices/product2/command', {'command': 'increment', 'params': {}}, expected=503)
+                physical('product2', 'external -6.5')
+                isolated = physical('product2')
+                assert isolated['counter'] == before['counter'] and isolated['writes'] == before['writes']
+                assert isolated['gain2'] == -6.5
+                for name, device in devices.items():
+                    if name == 'product2':
+                        continue
+                    other = physical(name)
+                    api('/api/devices/' + device + '/command', {'command': 'increment', 'params': {}})
+                    assert physical(name)['counter'] == other['counter'] + 1
+                api('/api/devices/ordinary/command', {'command': 'set_level', 'params': {'level': 63}})
+                until(lambda: api('/api/devices/ordinary')['state'].get('level') == 63)
+                recorded('An isolated peer keeps operating locally while the controller operates the other products')
+            finally:
+                reconnect_started = time.monotonic()
+                arguments = ['network', 'connect', '--ip', endpoint['IPAddress']]
+                for alias in endpoint.get('Aliases') or []:
+                    arguments += ['--alias', alias]
+                docker(*arguments, layout['network'], peer)
+            assert docker('inspect', '-f', '{{.State.Pid}}', peer) == peer_pid
+            until(lambda: api('/api/devices/product2')['connected'], timeout=90)
+            until(lambda: api('/api/devices/product2')['state'].get('channel.2.gain') == -6.5)
+            restored = physical('product2')
+            assert restored['counter'] == before['counter'] and restored['writes'] == before['writes']
+            api('/api/devices/product2/command', {'command': 'increment', 'params': {}})
+            assert physical('product2')['counter'] == before['counter'] + 1
+            assert not product_status('product2')['server_running']
+            report['observations']['network_partition'] = {
+                'address': endpoint['IPAddress'], 'offline_reason': offline['state']['offline_reason'],
+                'reconnect_seconds': round(time.monotonic() - reconnect_started, 3),
+                'container_process_unchanged': True, 'before': before,
+                'isolated': isolated, 'after_reconnect': restored}
+            recorded('Network recovery returns current feedback without restarting the peer or replaying commands')
         if layout.get('recovery'):
             peer = 'product2'
             container = layout['products'][peer]['container']

@@ -154,6 +154,7 @@ The additional checks verify these outcomes:
 | Remote control disabled in product settings | Commands are unavailable. Re-enabling it restores the ordinary OpenAVC connection. |
 | Hardware readback unavailable | The endpoint reports unavailable feedback and OpenAVC clears the old values. Current values return when readback recovers. |
 | Hardware cannot accept a command | OpenAVC reports a rejected operation without a hardware write. A later new command succeeds after admission is restored. |
+| One peer loses its network connection | Its hardware keeps operating locally and the controller operates the remaining equipment. Reconnection returns current feedback without restarting the peer or replaying commands. |
 
 `--arrangement external` runs the same applicable checks with a separate server.
 The example injects hardware faults through loopback-only test instrumentation;
@@ -163,9 +164,13 @@ in the selected output directory alongside the recovery evidence.
 The checker spaces its OpenAVC API requests slightly more than a second apart
 to respect the server's normal request limits. It does not retry commands.
 
-Network partitions, interrupted physical operations, mixed protocol versions and
-controller replacement require their own acceptance tests; this option does not
-claim to cover them.
+The network check disconnects amplifier 2 from the private Docker network, changes
+its hardware feedback locally, and reconnects it at the same address. It records
+the unchanged container process, offline reason, reconnect time and hardware
+counters. It does not simulate packet loss, a blocked discovery protocol, a
+changed address or a split network containing competing controllers. Interrupted
+physical operations, mixed protocol versions and controller replacement also
+require their own acceptance tests.
 
 Use `--port 19080` if the default localhost ports 18080 through 18084 are in use.
 The five-product example uses 18080 through 18090 instead. Each product uses two

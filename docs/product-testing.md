@@ -210,6 +210,45 @@ paths, identity, labels, raw errors/logs, project contents, command values and
 process details. No directories or additional files are collected automatically.
 Retain the original reports locally for investigation.
 
+### Include server health and network information
+
+Select the product's `logs/health.jsonl` to include its recorded server health
+observations. On the product itself, add `--network` for local interface status:
+
+```sh
+python3 collect-diagnostics.py --health-log /var/lib/my-product/logs/health.jsonl --network --out runtime-support.json
+```
+
+Replace the path with your product's data directory. The health summary includes
+HTTP status, responsiveness, request duration, time between probes and recognized
+error types. It excludes raw messages. The supervisor records changes, failures,
+slow/delayed checks and a periodic healthy observation; this is not a record of
+every probe. A stopped server has no new observations.
+
+To include rotated segments, repeat `--health-log` in oldest-to-newest order
+(`health.jsonl.2`, `health.jsonl.1`, `health.jsonl`), selecting only files that
+exist. Up to eight files of 16 MiB each are accepted. The last 100 recognized
+observations are retained in the selected order. Each source has a size/hash
+and counts of recognized, unrecognized and unreadable records. An unfinished
+final line is counted and omitted, so collecting during a write does not imply
+a complete history. Keep the original segments locally.
+
+`--network` reads interfaces on **the computer running the collector**. It
+reports link status, MTU, reported link speed, multicast capability when available,
+and IPv4/IPv6, loopback and link-local address counts. Names, addresses, MAC
+addresses and DNS settings are excluded; numbered interfaces identify rows only
+within that snapshot. Missing statistics remain `null`. Run it on your product
+to report the product's network, or inside its container to report that container.
+It sends no traffic and does not test routing, certificate trust, discovery or
+connectivity to another device. Interface information may change during collection.
+
+Without `--out`, the command only prints a preview. Repeating `--network` or
+reading an active log takes a new snapshot; the exported file always matches the
+preview printed by that invocation. Run [the equipment checker](#check-equipment-already-running-on-your-network)
+separately to test the selected equipment connection.
+
+### Identify an offline server bundle
+
 To identify the offline server bundle you built, add its directory:
 
 ```sh

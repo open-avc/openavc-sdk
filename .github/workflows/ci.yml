@@ -135,6 +135,8 @@ jobs:
           python new-product.py --out build/my-product
           python try-example.py --project build/my-product --checks build/my-product/checks.json --out build/project-checks
           python examples/linux/check.py --with-server --out build/firmware-server
+          python collect-diagnostics.py --health-log build/firmware-server/product/data/logs/health.jsonl --network --out build/runtime-support.json
+          python -c 'import json; r=json.load(open("build/runtime-support.json")); assert r["health"]["retained_events"]; assert r["network"]["interfaces"]'
           python -c 'import time; time.sleep(300)' &
           profile_test_pid=$!
           trap 'kill "$profile_test_pid" 2>/dev/null || true' EXIT
@@ -184,6 +186,7 @@ jobs:
             build/firmware-*/report.json
             build/extracted/openavc-sdk/build/resources-*/report.json
             build/extracted/openavc-sdk/build/resource-comparison.json
+            build/extracted/openavc-sdk/build/runtime-support.json
             build/firmware-*/*.log
             build/extracted/openavc-sdk/build/firmware-*/report.json
             build/extracted/openavc-sdk/build/firmware-*/*.log

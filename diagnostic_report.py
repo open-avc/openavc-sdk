@@ -25,7 +25,7 @@ def digest(value):
     return value if type(value) is str and re.fullmatch('[0-9a-f]{64}', value) else None
 
 
-def summarize(status=None, checks=None, resources=None, server_bundle=None):
+def summarize(status=None, checks=None, resources=None, server_bundle=None, health_logs=(), network=False):
     report = {'format': 1, 'collected': [], 'findings': [],
               'omitted': ['credentials', 'keys', 'network addresses', 'paths', 'product identity and labels',
                           'raw errors and logs', 'projects', 'command parameters', 'hardware state values',
@@ -81,6 +81,17 @@ def summarize(status=None, checks=None, resources=None, server_bundle=None):
         from bundle_diagnostics import inspect_bundle
         report['server_bundle'] = inspect_bundle(server_bundle)
         report['collected'].append('offline_server_bundle')
+    if health_logs:
+        from runtime_diagnostics import health_history
+        report['health'] = health_history(health_logs)
+        report['collected'].append('recorded_server_health')
+        if any(source['unreadable_records'] or source['incomplete_final_record']
+               for source in report['health']['sources']):
+            report['findings'].append('Some selected health records could not be read completely. Retain the original logs for local inspection.')
+    if network:
+        from runtime_diagnostics import network_snapshot
+        report['network'] = network_snapshot()
+        report['collected'].append('collector_network_interfaces')
     if not report['collected']:
-        raise ValueError('Select at least one product status, check report, resource report or server bundle.')
+        raise ValueError('Select at least one diagnostic source.')
     return report

@@ -53,7 +53,7 @@ def package(args):
     shutil.copy2(ROOT / 'sdk/src/open_adapter.c', destination / 'sdk/src/open_adapter.c')
     for name in ['product.json', 'try-example.py', 'example_build.py', 'try-system.py', 'doctor.py', 'inspection.py', 'product_checks.py', 'check-product.py',
                  'resource_profile.py', 'profile-product.py', 'profile_comparison.py', 'compare-profiles.py',
-                 'diagnostic_report.py', 'bundle_diagnostics.py', 'collect-diagnostics.py',
+                 'diagnostic_report.py', 'bundle_diagnostics.py', 'runtime_diagnostics.py', 'collect-diagnostics.py',
                  'new-product.py',
                  'pyproject.toml', '.dockerignore', 'LICENSE']:
         shutil.copy2(ROOT / name, destination / name)

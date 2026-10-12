@@ -28,7 +28,10 @@ stored under the configured data directory's
 The complete Docker example saves container logs and product data when it stops;
 those data include example credentials and must be kept private.
 Use [the diagnostic preview](product-testing.md#preview-diagnostics-before-sharing)
-to export selected status and measurement summaries without those private values.
+to export selected status, measurement and server-health summaries without those
+private values. `--health-log` includes recorded failures and timing from selected
+`health.jsonl` segments; `--network` reports interface state on the computer running
+the collector, without addresses. Neither establishes end-to-end connectivity.
 
 The SDK cannot infer whether an OEM hardware operation physically completed after
 its process or device failed. Accurate completion callbacks and independent

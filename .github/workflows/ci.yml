@@ -105,6 +105,7 @@ jobs:
           python tools/sync_contract.py --core /tmp/openavc --check
       - name: Build and exercise C and C++
         run: |
+          python tools/check_docs.py
           python doctor.py --report build/environment.json
           python try-example.py --exercise-demo
           python try-example.py --language cpp --exercise-demo
@@ -128,6 +129,7 @@ jobs:
           python tools/package_runtime.py --out build/package
           mkdir build/extracted
           tar -xzf build/package/openavc-sdk-linux-*.tar.gz -C build/extracted
+          python tools/check_docs.py --root build/extracted/openavc-sdk
           cd build/extracted/openavc-sdk
           python doctor.py --report build/environment.json
           python try-example.py --exercise-demo

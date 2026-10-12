@@ -119,6 +119,20 @@ def run(args):
         layout['image'] = image
         call(['network', 'create', '--internal', '--label', 'openavc.sdk.example=' + prefix, prefix])
         network_created = True
+        if args.faults:
+            # Docker requires an explicit subnet when reconnecting a peer at a
+            # fixed address. Let its allocator choose the available subnet first;
+            # no product exists yet. A concurrent allocation conflict fails setup
+            # instead of choosing an arbitrary host/VPN-overlapping address range.
+            allocated = json.loads(call(['network', 'inspect', prefix]))[0]['IPAM']['Config']
+            subnet = next(item['Subnet'] for item in allocated if ':' not in item['Subnet'])
+            call(['network', 'rm', prefix])
+            network_created = False
+            call(['network', 'create', '--internal', '--subnet', subnet,
+                  '--label', 'openavc.sdk.example=' + prefix, prefix])
+            network_created = True
+            layout['network_subnet'] = subnet
+            save()
         ordinary = create('ordinary', ['examples/system/ordinary.py'])
         call(['start', ordinary])
         ready(ordinary)

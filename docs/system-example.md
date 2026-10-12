@@ -124,6 +124,15 @@ work, feedback includes the changes made while it was stopped, and new commands
 reach every product once. On the product-hosted example, the stop/start uses the
 product management API. On the separate controller, it stops/starts that container.
 
+The checker then gives amplifier 1 a delayed operation. After its hardware
+callback accepts the command and OpenAVC reports that completion is uncertain,
+it forcibly terminates only the selected OpenAVC server. The hardware process
+must complete the operation once. A product-hosted server restarts through the
+SDK supervisor and keeps its hardware reserved; the standalone example container
+is restarted explicitly. After recovery, account access, product identity and
+panel bindings must remain intact, and a fresh command must execute once without
+replaying the earlier operation.
+
 `checks.json` records the image identity, core revision, completed checks,
 offline reason, observed reconnect time and independent example-hardware counters.
 `run.json` records the containers, addresses and topology; `discovery.json` records
@@ -131,8 +140,9 @@ the ordinary discovery result. These files remain with the private example data
 after cleanup. A reconnect time from this Docker exercise is an observation on
 that host, not a firmware timing guarantee.
 
-This exercise covers peer and controller stop/restart. It does not simulate a
-power cut during a physical operation, controller replacement, a network partition,
+This exercise covers peer/controller stop/restart and controller process loss
+after a delayed hardware command was accepted. It does not simulate a power cut
+to the hardware, loss before command acknowledgement, controller replacement, a network partition,
 firmware update or automatic takeover. Use [product testing](product-testing.md)
 for selected checks against your own adapter.
 

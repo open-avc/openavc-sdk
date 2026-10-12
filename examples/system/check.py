@@ -372,6 +372,9 @@ def check(folder):
                 'hardware_after_new_commands': {name: physical(name) for name in devices},
                 'administrator_login_retained': True}
             recorded('The selected controller restarts with its account and project, resynchronizes feedback and controls every product')
+            from controller_crash import check_controller_crash
+            check_controller_crash(layout, report, api=api, docker=docker, physical=physical,
+                                   until=until, recorded=recorded, product_status=product_status)
         if layout['arrangement'] == 'embedded':
             api('/api/devices/local', method='DELETE', expected=409)
             recorded('Product hardware cannot be removed')

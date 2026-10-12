@@ -152,10 +152,10 @@ jobs:
           python try-system.py --products 5 --arrangement embedded --out build/check-five-embedded --check --recovery --faults
       - name: Build and install the offline server bundle
         run: |
-          python tools/build_server.py --out build/server-bundle
+          python build/extracted/openavc-sdk/tools/build_server.py --out build/server-bundle
           python -m venv build/offline-environment
-          build/offline-environment/bin/python -m pip install --no-index --find-links=build/server-bundle/wheels openavc openavc-oem
-          build/offline-environment/bin/python -c "from importlib.resources import files; import openavc_oem; assert files('openavc').joinpath('web/programmer/dist/index.html').is_file()"
+          build/offline-environment/bin/python -m pip install --no-index --find-links=build/server-bundle/wheels --require-hashes -r build/server-bundle/requirements.txt
+          build/offline-environment/bin/python tests/check_server_bundle.py build/server-bundle
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -164,7 +164,9 @@ jobs:
             build/package/*.tar.gz
             build/package/*.sha256
             build/package/build.log
-            build/server-bundle/bundle.json
+            build/server-bundle/*.json
+            build/server-bundle/build-image.txt
+            build/server-bundle/requirements.txt
             build/server-bundle/*.log
             build/*-result.json
             build/host-system-logs/*.log

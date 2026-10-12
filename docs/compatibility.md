@@ -17,6 +17,9 @@ native service, Python environment and web interfaces together in your firmware
 build record. The prebuilt-library and server bundles each supply `bundle.json`
 with artifact hashes and environment information. Preserve those records along
 with your own firmware version, toolchain/sysroot and dependency inventory.
+The server bundle also supplies `python-packages.cdx.json`, a CycloneDX inventory
+of the delivered Python wheel archives. See its [coverage](building.md#build-the-optional-server-bundle)
+before combining it with your complete firmware inventory.
 
 Check the selected revision's [SDK checks](https://github.com/open-avc/openavc-sdk/actions/workflows/ci.yml).
 That workflow builds native ARM64/x86-64 examples and archives, extracts the

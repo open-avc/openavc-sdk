@@ -99,19 +99,36 @@ The tool builds both OpenAVC web interfaces from the pinned core revision, build
 the server and product-management wheels, and collects their Python dependencies.
 It starts no product or hardware integration. The result is under
 `build/server-bundle/wheels`; `bundle.json` records hashes, core revision, Python,
-CPU and libc. `INSTALL.txt` contains the offline installation command:
+CPU, libc and the exact Docker build image ID. Source hashes come from the files
+inside that image. `python-packages.cdx.json` inventories the delivered wheels
+in [CycloneDX 1.6 JSON format](https://cyclonedx.org/specification/overview/),
+including package names, versions, archive hashes and declared metadata.
+Keep both records with your firmware build. `INSTALL.txt` contains the offline
+installation command:
 
 ```sh
-python3 -m pip install --no-index --find-links=wheels openavc openavc-oem
+python3 -m pip install --no-index --find-links=wheels --require-hashes -r requirements.txt
 ```
 
-Run that command from the bundle directory in your firmware staging environment.
+Run that command from the bundle directory in a fresh firmware staging environment.
+The generated `requirements.txt` pins every delivered Python package and enables
+[pip's hash checks](https://pip.pypa.io/en/stable/topics/secure-installs/).
+Keep the requirements file with the trusted bundle; it detects changed archives,
+but does not authenticate the publisher or verify packages already installed.
 Supply Python 3.12 and a Linux CPU/ABI compatible with the recorded wheels. The
 native hardware adapter, device service and OpenSSL are separate firmware
 components. Use an ARM64 Docker engine for an ARM64 bundle and an x86-64 engine
 for an x86-64 bundle. The tool does not qualify a different firmware libc or
 cross-compile a Python interpreter. `--docker-context <name>` selects an engine
 without changing the active Docker context.
+
+The inventory covers Python wheel archives. It does not enumerate native code
+or JavaScript dependencies inside them, the Python interpreter, operating system,
+build tools or other firmware components. Dependency and license declarations
+come from each wheel's metadata and have not been evaluated for your firmware.
+Include those components and your own software in your product's complete bill
+of materials. Build inputs are not fully locked; retaining hashes does not make
+a rebuild identical or authenticate an artifact's publisher.
 
 ## Produce a prebuilt library archive
 

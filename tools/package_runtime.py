@@ -60,7 +60,8 @@ def package(args):
     shutil.copy2(ROOT / 'tools/supplied-README.md', destination / 'README.md')
     shutil.copy2(ROOT / 'tools/supplied-CMakeLists.txt', destination / 'CMakeLists.txt')
     (destination / 'tools').mkdir()
-    shutil.copy2(ROOT / 'tools/build_server.py', destination / 'tools/build_server.py')
+    for name in ['build_server.py', 'server_bundle.py', 'wheel_inventory.py']:
+        shutil.copy2(ROOT / 'tools' / name, destination / 'tools' / name)
     lib = destination / 'sdk/lib'
     lib.mkdir()
     shutil.copy2(build / 'libopenavc_runtime.a', lib / 'libruntime.a')

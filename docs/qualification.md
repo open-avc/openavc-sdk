@@ -15,6 +15,7 @@ alone does not establish compatibility with a firmware image.
 | `new-product.py` | A separate C or C++ product starter; source checkouts also supply a CI build workflow pinned to the SDK revision. |
 | `try-example.py --checks` / `check-product.py` | Your selected commands, retained outcomes, duplicate request handling and reported state against the generated model. Physical effects need independent verification. |
 | `profile-product.py` | Sampled local process resources and optional data-directory size during a workload you select. |
+| `compare-profiles.py` | Differences between completed resource reports, with workload and environment differences identified. |
 | `collect-diagnostics.py` | A preview or explicit export of selected, allowlisted status and measurement summaries. |
 | `examples/linux/check.py` | Unprivileged firmware-example startup, hardware restart, persistence and orderly shutdown. |
 | `examples/linux/check-systemd.py` | Actual example systemd units, filesystem restrictions, restart and cleanup on an isolated systemd host. |
@@ -75,6 +76,8 @@ that rely on product-specific behavior.
 
 Measure startup, peak and sustained memory, CPU, storage growth, descriptor/thread
 counts, command latency and readback age alongside the normal product workload.
+Use the [workload measurement guide](workload-testing.md) to compare configurations,
+record startup separately and retain independent AV observations.
 Test network loss, address changes, unavailable storage and process exits.
 Run an endurance test for the duration appropriate to your product and preserve
 the exact binaries, configuration and independent hardware observations used.

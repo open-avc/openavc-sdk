@@ -150,6 +150,8 @@ This tool supplies measurements, not a universal memory minimum or a performance
 pass/fail threshold. Measure startup separately, compare workloads on the same
 firmware, and include independent AV-quality observations. Command request timings
 are in the product check report; they are not physical hardware latency measurements.
+The [workload measurement guide](workload-testing.md) describes a repeatable
+comparison, startup milestones and the evidence to keep with each firmware build.
 
 ### Compare firmware versions or workloads
 

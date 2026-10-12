@@ -10,6 +10,9 @@ psutil packages. It provides equipment discovery, product authentication and the
 on/off controls. The native adapter and device service are separate processes.
 The optional full OpenAVC server is packaged separately; see
 [building the server bundle](building.md#build-the-optional-server-bundle).
+The reference filesystem uses Python 3.14; the current offline server bundle
+targets Python 3.12. A full-server Buildroot image needs a matching Python/server
+build and its own startup and hardware-control checks.
 
 ## Use your existing firmware configuration
 

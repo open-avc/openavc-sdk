@@ -1,0 +1,55 @@
+"""A failed periodic announcement must not terminate equipment discovery."""
+import asyncio
+from types import SimpleNamespace
+import unittest
+from unittest.mock import AsyncMock, Mock, patch
+
+from openavc_oem.mdns import Advertiser
+
+
+class MulticastRecovery(unittest.IsolatedAsyncioTestCase):
+    async def test_periodic_send_failure_reopens_the_socket_and_keeps_listening(self):
+        advertiser = Advertiser('example', 9443, [])
+        advertiser.enabled = True
+        original_socket, restored_socket = Mock(), Mock()
+        advertiser.socket = original_socket
+        observed = []
+
+        async def refresh():
+            observed.append(advertiser.error)
+            if advertiser.socket is None:
+                advertiser.socket = restored_socket
+                advertiser.error = None
+
+        async def receive(_socket, _limit):
+            raise TimeoutError()
+
+        async def wait(awaitable, _timeout):
+            return await awaitable
+
+        advertiser.refresh_interfaces = refresh
+        advertiser.send = AsyncMock(side_effect=[PermissionError('network filtering'), asyncio.CancelledError()])
+        runtime = SimpleNamespace(get_running_loop=lambda: SimpleNamespace(sock_recvfrom=receive),
+                                  wait_for=wait, sleep=AsyncMock())
+        with patch('openavc_oem.mdns.asyncio', runtime):
+            with self.assertRaises(asyncio.CancelledError):
+                await advertiser.listen()
+        self.assertEqual(advertiser.send.await_count, 2)
+        original_socket.close.assert_called_once()
+        restored_socket.close.assert_not_called()
+        self.assertIn('network filtering', observed)
+        self.assertIsNone(advertiser.error)
+
+    async def test_a_finished_task_is_not_reported_as_active(self):
+        advertiser = Advertiser('example', 9443, [])
+        advertiser.enabled = True
+        advertiser.socket = Mock()
+        self.assertFalse(advertiser.active)
+        advertiser.task = asyncio.create_task(asyncio.sleep(0))
+        self.assertTrue(advertiser.active)
+        await advertiser.task
+        self.assertFalse(advertiser.active)
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -28,7 +28,8 @@ class Advertiser:
 
     @property
     def active(self):
-        return self.enabled and self.socket is not None
+        return (self.enabled and self.socket is not None
+                and self.task is not None and not self.task.done())
 
     def selected_addresses(self):
         if self.requested_addresses is not None:
@@ -99,15 +100,17 @@ class Advertiser:
                     await asyncio.sleep(5)
                     await self.refresh_interfaces()
                     continue
-                packet, _ = await asyncio.wait_for(
-                    asyncio.get_running_loop().sock_recvfrom(self.socket, 9000), 5)
+                try:
+                    packet, _ = await asyncio.wait_for(
+                        asyncio.get_running_loop().sock_recvfrom(self.socket, 9000), 5)
+                except TimeoutError:
+                    await self.refresh_interfaces()
+                    if self.enabled:
+                        await self.send(120)
+                    continue
                 names = {name.rstrip('.').lower() for name, _ in _parse_query_questions(packet)}
                 wanted = {SERVICE.rstrip('.'), (self.name + '.' + SERVICE).rstrip('.'), self.name + '.local'}
                 if self.enabled and names & wanted:
-                    await self.send(120)
-            except TimeoutError:
-                await self.refresh_interfaces()
-                if self.enabled:
                     await self.send(120)
             except OSError as error:
                 self.error = str(error)

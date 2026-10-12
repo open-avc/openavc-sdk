@@ -50,6 +50,8 @@ def export(output, destination):
     (kit / 'examples/linux').mkdir(parents=True)
     for name in ['check.py', 'stage.py', 'hardware.service.in', 'management.service.in']:
         shutil.copy2(ROOT / 'examples/linux' / name, kit / 'examples/linux' / name)
+    (kit / 'examples/linux/buildroot').mkdir()
+    shutil.copy2(Path(__file__).with_name('check-installed.py'), kit / 'examples/linux/buildroot/check-installed.py')
     shutil.copy2(ROOT / 'LICENSE', kit)
     shutil.copytree(ROOT / 'licenses', kit / 'licenses')
     # The firmware walkthrough consumes the same installed binaries, through

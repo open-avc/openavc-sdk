@@ -37,3 +37,12 @@ The SDK cannot infer whether an OEM hardware operation physically completed afte
 its process or device failed. Accurate completion callbacks and independent
 readback are necessary. Test those failures against the actual product before
 making a recovery or reliability claim.
+
+## Report a problem or ask an integration question
+
+Use the [SDK integration form](https://github.com/open-avc/openavc-sdk/issues/new?template=integration.yml).
+Include the guide or command you used, the expected and observed behavior, and
+your SDK revision or archive name. Distinguish the development computer's OS/CPU
+from the product's. You can attach a reviewed diagnostic preview; a report is
+optional for a question. Use an invented model when a reproduction would otherwise
+expose confidential product details.

@@ -50,10 +50,12 @@ jobs:
         run: |
           make -C build/buildroot-2026.08 O="$PWD/build/firmware" BR2_EXTERNAL="$PWD/examples/linux/buildroot" openavc_${{ matrix.target }}_defconfig
           make -C build/firmware -j2 > build/buildroot.log 2>&1
-          build/firmware/host/bin/cmake -S examples/installed -B build/installed-consumer \
+          buildroot_cmake=$(make -s -C build/firmware printvars VARS=BR2_CMAKE | sed -n 's/^BR2_CMAKE=//p')
+          test -x "$buildroot_cmake"
+          "$buildroot_cmake" -S examples/installed -B build/installed-consumer \
             -DCMAKE_TOOLCHAIN_FILE="$PWD/build/firmware/host/share/buildroot/toolchainfile.cmake" \
             -DOPENAVC_ADAPTER_SOURCE="$PWD/sample/example.c" > build/installed-consumer.log 2>&1
-          build/firmware/host/bin/cmake --build build/installed-consumer >> build/installed-consumer.log 2>&1
+          "$buildroot_cmake" --build build/installed-consumer >> build/installed-consumer.log 2>&1
           sha256sum build/installed-consumer/hardware > build/installed-consumer.sha256
           python3 examples/linux/buildroot/export.py --buildroot-output build/firmware --out build/exported
           tar -czf build/firmware-example.tar.gz -C build/exported .
@@ -119,8 +121,7 @@ jobs:
               chroot --userspec=65534:65534 "$1" /usr/bin/env -i PATH=/usr/bin:/bin HOME=/tmp \
                 /usr/bin/python3 /kit/try-example.py --run-built /kit/built --exercise-demo $args
             done
-            chroot --userspec=65534:65534 "$1" /usr/bin/python3 -c \
-              "import openavc_oem; assert openavc_oem.__file__.startswith('/usr/lib/python'), openavc_oem.__file__"
+            chroot --userspec=65534:65534 "$1" /usr/bin/python3 /kit/examples/linux/buildroot/check-installed.py
             chroot --userspec=65534:65534 "$1" /usr/bin/env -i PATH=/usr/bin:/bin HOME=/tmp \
               /usr/bin/python3 /kit/examples/linux/check.py --out /kit/firmware-check
           ' sh "$PWD/rootfs"

@@ -1,0 +1,36 @@
+name: Integration question or problem
+description: Get help with the SDK, a build, hardware mapping or a guide.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the integration step you are working on. Share only information
+        your team can make public. Review a diagnostic preview before attaching it;
+        keep product credentials, private keys and confidential firmware details private.
+  - type: textarea
+    id: question
+    attributes:
+      label: What are you trying to do?
+      description: Describe the question or problem, what you expected, and what happened.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Guide, commands and result
+      description: Link the guide or example and include the relevant command or error. A small invented model that reproduces the problem is useful when the product model is confidential.
+  - type: input
+    id: revision
+    attributes:
+      label: SDK revision or archive
+      description: Use the output of git rev-parse HEAD, or the downloaded archive name. If a server is involved, its pinned revision is in sdk/contract/origin.json.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Development computer and product
+      description: Include the computer OS/CPU and, if known, the product OS/CPU, language and toolchain. Distinguish the development computer from the equipment. Add Python or compiler versions when relevant.
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Optional diagnostic preview
+      description: Attach the selected report from collect-diagnostics.py after reviewing it. See docs/product-testing.md for available inputs. A report is optional when asking a question.

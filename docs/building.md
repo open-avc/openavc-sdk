@@ -63,6 +63,7 @@ For a working separate starter, use `new-product.py` and the
 For a runnable cross-build, transfer and target-check workflow, see
 [Cross-building](cross-building.md). It includes reference ARM64/x86-64 builds
 and commands for your own product toolchain.
+For Buildroot firmware, use the supplied [external package](buildroot.md).
 
 Use your manufacturer's toolchain file and sysroot when compiling for another
 target. Python runs on the build workstation to generate C code; the native

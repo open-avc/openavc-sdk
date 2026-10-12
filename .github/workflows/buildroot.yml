@@ -1,0 +1,112 @@
+name: Buildroot integration
+on:
+  push:
+    paths:
+      - '.github/workflows/buildroot.yml'
+      - 'examples/linux/buildroot/**'
+      - 'CMakeLists.txt'
+      - 'sdk/**'
+      - 'sample/**'
+  pull_request:
+    paths:
+      - '.github/workflows/buildroot.yml'
+      - 'examples/linux/buildroot/**'
+      - 'CMakeLists.txt'
+      - 'sdk/**'
+      - 'sample/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Buildroot build (${{ matrix.target }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [aarch64, x86_64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install host tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bison flex gettext libncurses-dev rsync cpio unzip file wget bc
+      - name: Fetch the selected Buildroot source
+        run: |
+          mkdir -p build
+          curl --fail --location https://buildroot.org/downloads/buildroot-2026.08.tar.xz -o build/buildroot.tar.xz
+          echo '87aaca4164ea9d5c8085854953018263f7963f07c22e73a2a2185cc98c581c34  build/buildroot.tar.xz' | sha256sum -c -
+          tar -xf build/buildroot.tar.xz -C build
+      - name: Build the package and reference filesystem
+        run: |
+          make -C build/buildroot-2026.08 O="$PWD/build/firmware" BR2_EXTERNAL="$PWD/examples/linux/buildroot" openavc_${{ matrix.target }}_defconfig
+          make -C build/firmware -j2 > build/buildroot.log 2>&1
+          python3 examples/linux/buildroot/export.py --buildroot-output build/firmware --out build/exported
+          tar -czf build/firmware-example.tar.gz -C build/exported .
+          sha256sum build/firmware-example.tar.gz > build/firmware-example.tar.gz.sha256
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: buildroot-${{ matrix.target }}
+          path: |
+            build/buildroot.log
+            build/firmware/.config
+            build/firmware-example.tar.gz
+            build/firmware-example.tar.gz.sha256
+            build/exported/export.json
+          if-no-files-found: error
+  run:
+    name: Run Buildroot files (${{ matrix.target }})
+    needs: build
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64
+            runner: ubuntu-24.04-arm
+          - target: x86_64
+            runner: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: buildroot-${{ matrix.target }}
+          path: build
+      - name: Verify and prepare the isolated filesystem
+        run: |
+          sha256sum -c build/firmware-example.tar.gz.sha256
+          mkdir exported rootfs
+          tar -xzf build/firmware-example.tar.gz -C exported
+          python3 - <<'PY'
+          import hashlib, json, pathlib
+          root = pathlib.Path('exported')
+          for name, expected in json.loads((root / 'export.json').read_text())['files'].items():
+              path = (root / name).resolve()
+              assert path.is_relative_to(root.resolve())
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == expected, name
+          PY
+          sudo tar -xf exported/rootfs.tar -C rootfs
+          sudo cp -a exported/kit rootfs/kit
+          sudo chown -R 65534:65534 rootfs/kit
+      - name: Exercise installed files on their native processor
+        run: |
+          sudo unshare --net sh -eu -c '
+            ip link set lo up
+            for args in "--form service" "--language cpp --form service" "--form direct"; do
+              chroot --userspec=65534:65534 "$1" /usr/bin/env -i PATH=/usr/bin:/bin HOME=/tmp \
+                /usr/bin/python3 /kit/try-example.py --run-built /kit/built --exercise-demo $args
+            done
+          ' sh "$PWD/rootfs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: buildroot-run-${{ matrix.target }}
+          path: |
+            rootfs/kit/built/*-result.json
+            rootfs/kit/built/*.log
+            exported/export.json
+          if-no-files-found: error

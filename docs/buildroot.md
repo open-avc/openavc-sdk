@@ -1,0 +1,92 @@
+# Add the native SDK to Buildroot
+
+Use the external tree at `examples/linux/buildroot` from a source checkout.
+It builds the native device service and your generated hardware adapter with
+Buildroot's target compiler, OpenSSL and C++ runtime. Keep this SDK checkout and
+your product description with the other versioned inputs of your firmware build.
+
+This package does not include the Python product manager or the optional full
+OpenAVC server. Include those separately as described in
+[Linux firmware](firmware.md) and [building the server bundle](building.md#build-the-optional-server-bundle).
+The native adapter and device service do not require Python on the product.
+
+## Use your existing firmware configuration
+
+Add the SDK external tree to your existing `BR2_EXTERNAL` list, then enable
+**External options → OpenAVC native hardware integration → openavc-sdk** in
+`menuconfig`. Select your product description using its absolute path. Leave
+**install invented amplifier examples** disabled for a product firmware build.
+
+For example, from the SDK checkout, with your Buildroot source and output paths:
+
+```sh
+make -C /path/to/buildroot O=/path/to/firmware-output \
+  BR2_EXTERNAL="$PWD/examples/linux/buildroot" menuconfig
+make -C /path/to/firmware-output openavc-sdk
+```
+
+If your firmware already uses an external tree, retain its path in the
+space-separated `BR2_EXTERNAL` value. The package requires Linux ARM64 or x86-64,
+C++, threads, shared-library support, GCC 8 or newer and OpenSSL 3. The supplied
+reference configurations use Buildroot 2026.08 and its Bootlin glibc stable
+2025.08-1 toolchains. Qualify a different BSP/toolchain separately.
+
+| Location | Installed files |
+|---|---|
+| Target `/usr/bin/openavc-device-service` | Native equipment service. |
+| Target `/usr/share/openavc/` | Generated model, model provenance and core contract identity. |
+| Staging `/usr/include/openavc/` | Public adapter headers and your generated `commands.h`. |
+| Staging `/usr/lib/openavc/` | `libadapter.a`, `libopenavc_runtime.a` and `libhttp.a`. |
+| Target `/usr/share/licenses/openavc-sdk/` | SDK and bundled-source notices. |
+
+Your product application implements the generated callbacks and links the
+adapter libraries using the target C++ linker, OpenSSL, threads and the platform
+dynamic-loading library. The C++ linker is needed for the SDK runtime even when
+your callbacks are C. Use the same toolchain/sysroot for both. See the
+[hardware mapping guide](hardware-integration.md).
+
+The recipe starts no services, provisions no credentials and creates no unit
+identity. Integrate startup and persistent storage through your product's normal
+firmware facilities using the [firmware guide](firmware.md). When the model or
+SDK source changes, use Buildroot's `openavc-sdk-dirclean` target before rebuilding
+the package so its local source copy is refreshed.
+
+## Build the reference filesystem
+
+The reference configurations make an evaluation filesystem with the invented
+C/C++ amplifiers and Python for running the supplied checks. They do not contain
+a bootloader, kernel, product-management service or OpenAVC server. Use a Linux
+x86-64 build host for the selected Bootlin toolchains.
+
+Install the host prerequisites from the
+[Buildroot manual](https://buildroot.org/downloads/manual/manual.html#requirement).
+From the SDK source directory:
+
+```sh
+mkdir -p build
+curl --fail --location https://buildroot.org/downloads/buildroot-2026.08.tar.xz -o build/buildroot.tar.xz
+echo '87aaca4164ea9d5c8085854953018263f7963f07c22e73a2a2185cc98c581c34  build/buildroot.tar.xz' | sha256sum -c -
+tar -xf build/buildroot.tar.xz -C build
+make -C build/buildroot-2026.08 O="$PWD/build/firmware" \
+  BR2_EXTERNAL="$PWD/examples/linux/buildroot" openavc_aarch64_defconfig
+make -C build/firmware -j2
+python3 examples/linux/buildroot/export.py --buildroot-output build/firmware --out build/exported
+```
+
+Select `openavc_x86_64_defconfig` instead for x86-64, using a separate output
+directory. Initial builds download the selected compiler and package sources.
+Keep Buildroot's `dl/` cache with your build inputs for subsequent offline builds.
+The local SDK source is copied using an allowlist; private SDK `build/` output
+is excluded.
+
+The exporter copies the installed example binaries without recompiling, records
+their hashes and includes the reference `rootfs.tar`. It does not run them.
+The [Buildroot workflow](https://github.com/open-avc/openavc-sdk/blob/main/.github/workflows/buildroot.yml)
+shows execution on the matching native CPU in that filesystem, with an isolated
+loopback network and an unprivileged account. Its checks use the supplied
+`try-example.py --run-built` command for C and C++ service forms and the C
+in-process form. Check the workflow result for your selected SDK revision.
+
+Running those files in a Linux container filesystem verifies this package path;
+it does not boot a manufacturer's firmware or exercise its AV hardware and load.
+Follow [firmware testing](qualification.md) before shipping your product.

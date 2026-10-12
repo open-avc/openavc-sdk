@@ -1,0 +1,1 @@
+source "$BR2_EXTERNAL_OPENAVC_PATH/package/openavc-sdk/Config.in"

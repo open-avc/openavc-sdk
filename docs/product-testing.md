@@ -151,6 +151,43 @@ pass/fail threshold. Measure startup separately, compare workloads on the same
 firmware, and include independent AV-quality observations. Command request timings
 are in the product check report; they are not physical hardware latency measurements.
 
+### Compare firmware versions or workloads
+
+Label each measurement so another engineer can identify the software and activity
+behind the numbers. Add `--artifact` for each firmware file or executable whose
+identity you want recorded:
+
+```sh
+python3 profile-product.py --pid 1234 --duration 60 --interval 1 --label firmware-a --workload "normal audio routing" --artifact /opt/my-product/hardware --out build/resources-a
+```
+
+Replace the PID and artifact with your product's values. The report records the
+label, declared workload and each selected file's name, size and SHA-256. Hashing
+finishes before measurement starts. These identify the files you supplied; they
+do not prove which executable or libraries the process loaded. Process arguments
+and environment are still excluded. Labels and file names stay in your private
+measurement report and are excluded from the diagnostic summary.
+
+Run a second measurement with the intended software or workload, then compare:
+
+```sh
+python3 compare-profiles.py --baseline build/resources-a/report.json --candidate build/resources-b/report.json --out build/resource-comparison.json
+```
+
+The command prints the comparison and optionally saves it to a new file. It needs
+only Python's standard library. Both reports must be completed measurements from
+the resource profiler. The output includes each input's hash, declared context,
+observed peaks, absolute differences and percentage changes. Percentage change
+from a zero baseline is unavailable. Missing metrics and incomplete storage scans
+remain unavailable; they are never counted as zero.
+
+Check `notes` for differences in the reported host, requested duration, sampling
+interval or declared workload, missing artifact identities, or the same report
+selected twice. Matching metadata alone cannot establish equal hardware, equal
+workload or unchanged AV quality. Compare repeatable workloads on the same target
+and retain your independent audio/video observations. Sampling still has the
+limitations described above; a lower observed peak is not a reliability result.
+
 ## Preview diagnostics before sharing
 
 In product management, use **Download diagnostics** to save current product

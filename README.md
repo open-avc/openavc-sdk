@@ -83,7 +83,7 @@ preview diagnostics before sharing them.
 | [Building](docs/building.md) | Workstation prerequisites, firmware toolchains and prebuilt C libraries. |
 | [Cross-building](docs/cross-building.md) | Build for another processor and test the transferred binaries without recompiling them. |
 | [Compatibility and updates](docs/compatibility.md) | Select matching SDK/server revisions, qualify an update and retain build evidence. |
-| [Product testing tools](docs/product-testing.md) | A separate product starter, command checks, resource measurements and diagnostic previews. |
+| [Product testing tools](docs/product-testing.md) | A separate product starter, command checks, resource measurements/comparisons and diagnostic previews. |
 | [Product controls](docs/product-controls.md) | Your product's management UI/API, credentials, optional server and firmware updates. |
 | [Linux firmware](docs/firmware.md) | Runnable service startup, persistent storage, systemd templates and per-unit provisioning. |
 | [OpenAVC Cloud](docs/cloud.md) | Optional pairing, remote access, product permissions and firmware testing. |

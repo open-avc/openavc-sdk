@@ -133,6 +133,15 @@ jobs:
           python new-product.py --out build/my-product
           python try-example.py --project build/my-product --checks build/my-product/checks.json --out build/project-checks
           python examples/linux/check.py --with-server --out build/firmware-server
+          python -c 'import time; time.sleep(300)' &
+          profile_test_pid=$!
+          trap 'kill "$profile_test_pid" 2>/dev/null || true' EXIT
+          python profile-product.py --pid "$profile_test_pid" --duration 0.2 --interval 0.1 --label first --workload idle --artifact sdk/bin/openavc-device-service --out build/resources-a
+          python profile-product.py --pid "$profile_test_pid" --duration 0.2 --interval 0.1 --label second --workload idle --artifact sdk/bin/openavc-device-service --out build/resources-b
+          python compare-profiles.py --baseline build/resources-a/report.json --candidate build/resources-b/report.json --out build/resource-comparison.json
+          kill "$profile_test_pid"
+          wait "$profile_test_pid" || true
+          trap - EXIT
       - name: Exercise both complete arrangements
         run: |
           python try-system.py --arrangement external --out build/check-external --check --cloud
@@ -168,6 +177,8 @@ jobs:
             build/project-checks/report.json
             build/support-preview.json
             build/firmware-*/report.json
+            build/extracted/openavc-sdk/build/resources-*/report.json
+            build/extracted/openavc-sdk/build/resource-comparison.json
             build/firmware-*/*.log
             build/extracted/openavc-sdk/build/firmware-*/report.json
             build/extracted/openavc-sdk/build/firmware-*/*.log

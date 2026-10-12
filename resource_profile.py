@@ -1,10 +1,12 @@
 """Measure selected local processes without collecting arguments or environment."""
 import json
+import hashlib
 from datetime import datetime, timezone
 import math
 import os
 from pathlib import Path
 import platform
+import stat
 import time
 
 import psutil
@@ -32,7 +34,22 @@ def storage(directory):
     return {'bytes': size, 'files': files, 'complete': complete}
 
 
-def profile(pids, output, duration=60, interval=1, data_directory=None):
+def artifact_identity(filename):
+    path = Path(filename)
+    if not stat.S_ISREG(path.stat().st_mode):
+        raise ValueError('Select regular files for --artifact.')
+    with path.open('rb') as stream:
+        before = os.fstat(stream.fileno())
+        if not stat.S_ISREG(before.st_mode):
+            raise ValueError('Select regular files for --artifact.')
+        digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+        after = os.fstat(stream.fileno())
+    if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (after.st_size, after.st_mtime_ns, after.st_ctime_ns):
+        raise ValueError('An artifact changed while it was being read. Select a stable firmware file.')
+    return {'name': path.name, 'bytes': after.st_size, 'sha256': digest}
+
+
+def profile(pids, output, duration=60, interval=1, data_directory=None, *, label='', workload='', artifacts=()):
     if not all(type(value) in (int, float) and math.isfinite(value) and value > 0 for value in (duration, interval)):
         raise ValueError('Duration and interval must be positive finite seconds.')
     if duration / interval > 1000000:
@@ -41,6 +58,11 @@ def profile(pids, output, duration=60, interval=1, data_directory=None):
         raise ValueError('Select one or more local process IDs with --pid.')
     if data_directory is not None and not Path(data_directory).is_dir():
         raise ValueError('The selected data directory does not exist.')
+    if any(type(value) is not str or len(value) > 1024 for value in (label, workload)):
+        raise ValueError('Use at most 1024 characters for each measurement label and workload.')
+    context = {'label': label, 'workload': workload,
+               'artifacts': [artifact_identity(path) for path in artifacts],
+               'artifact_observation': 'provided_files_before_measurement'}
     roots = {pid: psutil.Process(pid) for pid in set(pids)}
     identities = {pid: process.create_time() for pid, process in roots.items()}
     output = Path(output)
@@ -49,7 +71,8 @@ def profile(pids, output, duration=60, interval=1, data_directory=None):
     report = {'format': 1, 'status': 'running', 'duration_requested_seconds': duration,
               'started_at': datetime.now(timezone.utc).isoformat(),
               'interval_seconds': interval, 'root_processes': identities, 'samples': 0,
-              'host': {'system': platform.system(), 'machine': platform.machine(),
+              'context': context,
+              'host': {'system': platform.system(), 'release': platform.release(), 'machine': platform.machine(),
                        'logical_cpus': psutil.cpu_count(), 'memory_bytes': psutil.virtual_memory().total},
               'peak': {}, 'coverage': 'selected_local_processes_and_observed_descendants',
               'cpu_percent_basis': '100_percent_is_one_logical_cpu',

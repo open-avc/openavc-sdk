@@ -158,6 +158,7 @@ jobs:
           python -m venv build/offline-environment
           build/offline-environment/bin/python -m pip install --no-index --find-links=build/server-bundle/wheels --require-hashes -r build/server-bundle/requirements.txt
           build/offline-environment/bin/python tests/check_server_bundle.py build/server-bundle
+          python build/extracted/openavc-sdk/collect-diagnostics.py --server-bundle build/server-bundle --out build/server-bundle-support.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

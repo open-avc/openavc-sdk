@@ -210,6 +210,21 @@ paths, identity, labels, raw errors/logs, project contents, command values and
 process details. No directories or additional files are collected automatically.
 Retain the original reports locally for investigation.
 
+To identify the offline server bundle you built, add its directory:
+
+```sh
+python3 collect-diagnostics.py --server-bundle build/server-bundle --out bundle-support.json
+```
+
+This checks every delivered wheel, the package inventory and installation
+requirements against `bundle.json`. Missing, extra or changed wheel files are
+refused. The preview includes package versions, build Python/processor, recorded
+core commit and build image, plus the bundle metadata hash. It excludes filenames,
+source paths and free-form package metadata. Unrecognized version/build fields
+appear as `null`. Hashes identify the selected files; they do not authenticate
+their publisher or establish which software is installed on a product. Keep the
+bundle record from your trusted build with the firmware's release records.
+
 ## What a passing report establishes
 
 The product checker exercises the selected protocol operations and reported state.

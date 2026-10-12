@@ -103,7 +103,10 @@ CPU, libc and the exact Docker build image ID. Source hashes come from the files
 inside that image. `python-packages.cdx.json` inventories the delivered wheels
 in [CycloneDX 1.6 JSON format](https://cyclonedx.org/specification/overview/),
 including package names, versions, archive hashes and declared metadata.
-Keep both records with your firmware build. `INSTALL.txt` contains the offline
+Keep both records with your firmware build. To check the files and preview a
+summary for support, use `python3 collect-diagnostics.py --server-bundle build/server-bundle`
+from the SDK directory. See [diagnostic previews](product-testing.md#preview-diagnostics-before-sharing)
+for export controls and the verification scope. `INSTALL.txt` contains the offline
 installation command:
 
 ```sh

@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from zipfile import ZipFile
 
 from diagnostic_report import summarize
 from resource_profile import profile
@@ -120,6 +121,59 @@ class ProductReports(unittest.TestCase):
         self.assertIsNone(result['product']['server'])
         self.assertIs(result['product']['panel'], True)
         self.assertEqual(result['checks']['status'], 'unknown')
+
+    def test_bundle_identity_uses_checked_bytes_and_excludes_private_metadata(self):
+        bundle = self.work / 'private-product-build'
+        wheels = bundle / 'wheels'
+        wheels.mkdir(parents=True)
+        private = 'PRIVATE_PASSWORD_SENTINEL'
+        paths = []
+        for name, package, release in [('openavc', 'openavc', '0.37.0'), ('openavc_oem', 'openavc-oem', '0.1.0')]:
+            path = wheels / f'{name}-{release}-py3-none-any.whl'
+            with ZipFile(path, 'w') as archive:
+                archive.writestr(f'{name}-{release}.dist-info/METADATA',
+                                 f'Metadata-Version: 2.1\nName: {package}\nVersion: {release}\nSummary: {private}\n')
+            paths.append(path)
+        for name in ['python-packages.cdx.json', 'requirements.txt']:
+            (bundle / name).write_text(private)
+        metadata = {'core': {'core_head': 'a' * 40, 'repository': private},
+                    'runtime': {'system': 'Linux', 'machine': 'aarch64', 'python': '3.12.15', 'label': private},
+                    'build_image_id': 'sha256:' + 'b' * 64,
+                    'sdk_sources': {private: 'c' * 64},
+                    'wheels': {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in paths},
+                    'inventories': {name: hashlib.sha256((bundle / name).read_bytes()).hexdigest()
+                                    for name in ['python-packages.cdx.json', 'requirements.txt']}}
+        record = bundle / 'bundle.json'
+        record.write_text(json.dumps(metadata))
+        args = [sys.executable, str(ROOT / 'collect-diagnostics.py'), '--server-bundle', str(bundle)]
+        preview = subprocess.run(args, capture_output=True, text=True, timeout=5)
+        self.assertEqual(preview.returncode, 0, preview.stderr)
+        self.assertNotIn(private, preview.stdout)
+        self.assertNotIn(str(bundle), preview.stdout)
+        summary = json.loads(preview.stdout)['server_bundle']
+        self.assertEqual(summary['bundle_metadata_sha256'], hashlib.sha256(record.read_bytes()).hexdigest())
+        self.assertEqual(summary['package_versions'], {'openavc': '0.37.0', 'openavc-oem': '0.1.0'})
+        self.assertFalse(summary['installed_runtime_verified'])
+        self.assertFalse(summary['publisher_signature_verified'])
+        exported = self.work / 'support.json'
+        result = subprocess.run([*args, '--out', str(exported)], capture_output=True, text=True, timeout=5)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(preview.stdout, exported.read_text())
+        original = paths[0].read_bytes()
+        paths[0].write_bytes(original + b'changed')
+        refused = self.work / 'refused.json'
+        result = subprocess.run([*args, '--out', str(refused)], capture_output=True, text=True, timeout=5)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(refused.exists())
+        paths[0].write_bytes(original)
+        extra = wheels / 'extra-1.0-py3-none-any.whl'
+        extra.write_bytes(original)
+        with self.assertRaises(ValueError):
+            summarize(server_bundle=bundle)
+        extra.unlink()
+        (bundle / 'requirements.txt').unlink()
+        with self.assertRaises(OSError):
+            summarize(server_bundle=bundle)
 
 
 if __name__ == '__main__':

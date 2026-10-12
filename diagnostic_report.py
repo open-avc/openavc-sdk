@@ -25,7 +25,7 @@ def digest(value):
     return value if type(value) is str and re.fullmatch('[0-9a-f]{64}', value) else None
 
 
-def summarize(status=None, checks=None, resources=None):
+def summarize(status=None, checks=None, resources=None, server_bundle=None):
     report = {'format': 1, 'collected': [], 'findings': [],
               'omitted': ['credentials', 'keys', 'network addresses', 'paths', 'product identity and labels',
                           'raw errors and logs', 'projects', 'command parameters', 'hardware state values',
@@ -77,6 +77,10 @@ def summarize(status=None, checks=None, resources=None):
                                                  for key in ('rss_bytes', 'cpu_percent', 'threads', 'descriptors')}}
         if source.get('status') != 'complete':
             report['findings'].append('Resource measurement did not finish. Inspect the private report and process supervisor.')
+    if server_bundle is not None:
+        from bundle_diagnostics import inspect_bundle
+        report['server_bundle'] = inspect_bundle(server_bundle)
+        report['collected'].append('offline_server_bundle')
     if not report['collected']:
-        raise ValueError('Select at least one product status, check report or resource report.')
+        raise ValueError('Select at least one product status, check report, resource report or server bundle.')
     return report

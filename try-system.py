@@ -31,6 +31,7 @@ def run(args):
     network_created = False
     layout = {'arrangement': args.arrangement, 'product_count': args.products,
               'recovery': args.recovery, 'faults': args.faults, 'cloud_access': args.cloud,
+              'network_faults': args.network_faults,
               'docker': docker, 'network': prefix, 'products': {},
               'contract': json.loads((ROOT / 'sdk/contract/origin.json').read_text()),
               'containers': containers, 'status': 'starting'}
@@ -119,6 +120,13 @@ def run(args):
         if not re.fullmatch(r'sha256:[0-9a-f]{64}', image):
             raise RuntimeError('Docker did not record a valid example image ID. Read build.log.')
         layout['image'] = image
+        if args.network_faults:
+            network_image = out / 'network-tools-image.txt'
+            with (out / 'network-tools-build.log').open('w') as log:
+                subprocess.run(docker + ['build', '--iidfile', str(network_image), '-f',
+                    str(ROOT / 'examples/system/network-tools.Dockerfile'), str(ROOT)],
+                    check=True, stdout=log, stderr=subprocess.STDOUT)
+            layout['network_tools_image'] = network_image.read_text().strip()
         call(['network', 'create', '--internal', '--label', 'openavc.sdk.example=' + prefix, prefix])
         network_created = True
         if args.faults:
@@ -288,6 +296,7 @@ if __name__ == '__main__':
     parser.add_argument('--check', action='store_true', help='Exercise the sample equipment and stop after verification.')
     parser.add_argument('--recovery', action='store_true', help='With --check, stop/restart an invented peer and the controller, then verify recovery.')
     parser.add_argument('--faults', action='store_true', help='With --check, exercise trust, access, hardware faults and a peer network outage in the invented products.')
+    parser.add_argument('--network-faults', action='store_true', help='With --check, block multicast and drop packets in one example container; needs Docker NET_ADMIN support.')
     options = parser.parse_args()
     if not 1024 <= options.port <= 65535 - options.products * 2:
         parser.error('--port must leave room for two ports per product and one controller port below 65536.')
@@ -295,6 +304,8 @@ if __name__ == '__main__':
         parser.error('--recovery requires --check.')
     if options.faults and not options.check:
         parser.error('--faults requires --check.')
+    if options.network_faults and not options.check:
+        parser.error('--network-faults requires --check.')
     try:
         run(options)
     except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as error:

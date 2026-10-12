@@ -21,6 +21,7 @@ def check(folder):
     authorization = 'Basic ' + base64.b64encode((account['username'] + ':' + account['password']).encode()).decode()
     report = {'status': 'running', 'arrangement': layout['arrangement'],
               'recovery': layout.get('recovery', False), 'faults': layout.get('faults', False),
+              'network_faults': layout.get('network_faults', False),
               'product_count': len(layout['products']), 'image': layout['image'],
               'core_head': layout['contract']['core_head'], 'checks': [], 'observations': {}}
     request_interval = 1.1
@@ -44,7 +45,7 @@ def check(folder):
         code += 'print(json.dumps(state))'
         return json.loads(docker('exec', layout['products'][name]['container'], 'python', '-c', code))
 
-    def api(path, data=None, method=None, expected=200):
+    def api(path, data=None, method=None, expected=200, *, headers=None, include_headers=False):
         nonlocal next_request
         # All these requests pass through the example's gateway. Pace the
         # observer below even the normal 60/minute API budget; the controller's
@@ -54,7 +55,7 @@ def check(folder):
         report['observations']['controller_requests']['count'] += 1
         request = urllib.request.Request(layout['server_url'] + path,
             data=json.dumps(data).encode() if data is not None else None, method=method,
-            headers={'Content-Type': 'application/json', 'Authorization': authorization})
+            headers={'Content-Type': 'application/json', 'Authorization': authorization, **(headers or {})})
         try:
             response = opener.open(request, timeout=100)
         except urllib.error.HTTPError as error:
@@ -63,7 +64,8 @@ def check(folder):
             raw = response.read()
             if response.status != expected:
                 raise AssertionError(f'{path}: expected {expected}, received {response.status}: {raw.decode()}')
-            return json.loads(raw)
+            body = json.loads(raw)
+            return (body, response.headers) if include_headers else body
 
     def until(callback, timeout=15):
         deadline = time.monotonic() + timeout
@@ -134,6 +136,10 @@ def check(folder):
         api('/api/devices/ordinary/command', {'command': 'set_level', 'params': {'level': 42}})
         until(lambda: api('/api/devices/ordinary')['state'].get('level') == 42)
         recorded('The same server controls ordinary non-SDK equipment')
+        if layout.get('network_faults'):
+            from network_faults import check_network_faults
+            check_network_faults(layout, report, api=api, docker=docker, physical=physical,
+                                 until=until, recorded=recorded, product_status=product_status)
         if layout.get('faults'):
             before = physical('product2')
             assert equipment_probe('--wrong-trust') == {'tls_refused': True}
@@ -236,13 +242,16 @@ def check(folder):
             until(lambda: api('/api/devices/product2')['connected'], timeout=90)
             original_identity = api('/api/devices/product2')['state']['_sdk_identity']
             original_ui = api('/api/project')['ui']
-            network = json.loads(docker('network', 'inspect', layout['network']))[0]
-            subnet = ipaddress.ip_network(layout['network_subnet'])
-            used = {ipaddress.ip_interface(item['IPv4Address']).ip
-                    for item in network['Containers'].values() if item.get('IPv4Address')}
-            used.update(ipaddress.ip_address(item['Gateway']) for item in network['IPAM']['Config']
-                        if item.get('Gateway') and ':' not in item['Gateway'])
-            changed_address = str(next(address for address in subnet.hosts() if address not in used))
+            # Ask Docker's allocator; newer engines can omit the bridge's
+            # reserved address from IPAM inspection on an internal network.
+            # This isolated network has no other container creator during the
+            # probe/reconnect interval. A collision still fails the exercise.
+            changed_address = docker('run', '--rm', '--network', layout['network'],
+                '--label', 'openavc.sdk.example=' + layout['network'], '--cap-drop', 'ALL',
+                '--security-opt', 'no-new-privileges', layout['image'], '-c',
+                "import socket; print(socket.gethostbyname(socket.gethostname()))")
+            assert ipaddress.ip_address(changed_address) in ipaddress.ip_network(layout['network_subnet'])
+            assert changed_address != endpoint['IPAddress']
             before = physical('product2')
             certificate_code = "import hashlib,pathlib; print(hashlib.sha256(pathlib.Path('/data/server.pem').read_bytes()).hexdigest())"
             certificate_hash = docker('exec', peer, 'python', '-c', certificate_code)
@@ -282,7 +291,7 @@ def check(folder):
                 recorded('A peer address change behind its configured hostname retains identity, bindings and verified TLS without command replay')
             finally:
                 current = json.loads(docker('inspect', '-f', '{{json .NetworkSettings.Networks}}', peer))
-                if layout['network'] in current:
+                if current.get(layout['network'], {}).get('EndpointID'):
                     docker('network', 'disconnect', layout['network'], peer)
                 reconnect_at(endpoint['IPAddress'])
                 if original_connection is None:

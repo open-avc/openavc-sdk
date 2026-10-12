@@ -181,6 +181,47 @@ split network containing competing controllers. Interrupted
 physical operations, mixed protocol versions and controller replacement also
 require their own acceptance tests.
 
+## Exercise multicast filtering and packet loss
+
+Use the separate network check with either arrangement:
+
+```sh
+python3 try-system.py --products 5 --arrangement embedded --out build/network-check --check --network-faults
+```
+
+This builds an additional container containing Linux network tools. Docker must
+allow `NET_ADMIN` in a helper container sharing the example peer's network
+namespace. The product containers retain their normal restricted capabilities;
+the helper changes only amplifier 2's private network rules. The launcher removes
+the example containers afterward. These tools are not required on your firmware.
+
+The multicast check blocks amplifier 2's mDNS packets while its discovery setting
+remains enabled. It temporarily pauses the original
+connection and adds a device through the normal project-save API using the
+product address, port and credentials, without a discovery result. An ordinary
+scan generates incoming traffic; kernel counters must confirm dropped packets.
+It then blocks outgoing announcements and requires observed drops there too.
+With both rules active, a command must reach the independent hardware counter once.
+Other discovery methods may still identify equipment. The temporary device and
+firewall rules are removed, and the original connection resumes.
+Another scan must then identify the product through mDNS without a product restart.
+
+The packet-loss check drops every fifth outbound TCP packet from amplifier 2's
+equipment port for at least 15 seconds. It changes hardware feedback locally,
+records controller connection/readback observations and operates the ordinary
+TCP device. After removing the rule, current feedback must return and one new
+command must execute once. Kernel packet counters prove the loss was applied;
+hardware counters check that prior commands were not replayed. No new hardware
+command is sent to the affected peer during loss. Interrupted command completion,
+other loss patterns and latency/reordering require separate checks.
+
+`checks.json` retains the drop counters and observations; `run.json` identifies
+the helper image. Combine `--network-faults` with `--faults --recovery` to run all
+supplied failure exercises. These are isolated examples, not firmware timing or
+network-scale guarantees.
+
+## Ports and cleanup
+
 Use `--port 19080` if the default localhost ports 18080 through 18084 are in use.
 The five-product example uses 18080 through 18090 instead. Each product uses two
 ports and the separate controller uses the final port.

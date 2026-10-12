@@ -154,8 +154,8 @@ jobs:
           python try-system.py --arrangement embedded --out build/check-embedded --check --cloud
       - name: Exercise five products, recovery and faults
         run: |
-          python try-system.py --products 5 --arrangement external --out build/check-five-external --check --recovery --faults
-          python try-system.py --products 5 --arrangement embedded --out build/check-five-embedded --check --recovery --faults
+          python try-system.py --products 5 --arrangement external --out build/check-five-external --check --recovery --faults --network-faults
+          python try-system.py --products 5 --arrangement embedded --out build/check-five-embedded --check --recovery --faults --network-faults
       - name: Build and install the offline server bundle
         run: |
           python build/extracted/openavc-sdk/tools/build_server.py --out build/server-bundle

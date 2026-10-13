@@ -239,8 +239,16 @@ python3 tools/package_runtime.py --out build/package
 
 The output contains a C-only example package, an archive and its SHA-256 file.
 `bundle.json` records the build host, libc, canonical contract revision, source
-hashes and redistributed runtime origins. Libraries include their license
-notices. Use a new output directory for each build.
+hashes and redistributed runtime origins, including their installed binary/source
+package versions and architecture. `native-build.json` records the actual C/C++
+compiler and CMake versions/hashes, selected compiler/linker settings, OpenSSL
+link-input hashes and Linux distribution. It is included in the archive's file
+inventory. Libraries include their license notices. Use a new output directory
+for each build.
+
+Keep these records with your firmware build. Package versions identify this
+builder's inputs; they do not select a compatible ABI for another firmware or
+lock future host-package updates. Test the transferred libraries on your target.
 
 Extract that archive into a clean directory and run its `doctor.py` and
 `try-example.py` commands before distributing it. The doctor checks archive

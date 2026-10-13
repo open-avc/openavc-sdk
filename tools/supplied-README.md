@@ -15,7 +15,9 @@ python3 try-example.py --exercise-demo
 The doctor verifies the supplied files and compiles a link check. The example
 uses invented hardware; it does not connect to AV equipment. See
 [Building](docs/building.md) for prerequisites and target compatibility.
-`bundle.json` records the CPU, libc, upstream contract and file hashes.
+`bundle.json` records the CPU, libc, upstream contract, file hashes and versions
+of redistributed runtime libraries. `native-build.json` identifies the compiler,
+CMake and selected link inputs. Keep both with your firmware build record.
 
 Use the OpenAVC revision recorded in
 [`sdk/contract/origin.json`](sdk/contract/origin.json) with this preview, including

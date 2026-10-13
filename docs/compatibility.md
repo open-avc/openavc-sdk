@@ -17,6 +17,9 @@ native service, Python environment and web interfaces together in your firmware
 build record. The prebuilt-library and server bundles each supply `bundle.json`
 with artifact hashes and environment information. Preserve those records along
 with your own firmware version, toolchain/sysroot and dependency inventory.
+The prebuilt-library archive also supplies `native-build.json` with compiler,
+CMake and link-input details; `bundle.json`'s `runtime_origins` entries identify the installed
+binary/source packages supplying the redistributed libraries.
 The server bundle also supplies `python-packages.cdx.json`, a CycloneDX inventory
 of the delivered Python wheel archives. See its [coverage](building.md#build-the-optional-server-bundle)
 before combining it with your complete firmware inventory.

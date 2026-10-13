@@ -1,6 +1,6 @@
 // Observe emitted modules without modifying the browser bundles.
 import {createHash} from 'node:crypto';
-import {mkdirSync, readFileSync, readdirSync, writeFileSync} from 'node:fs';
+import {existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 
 export const digest = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -12,14 +12,32 @@ function packageRecord(folder, output) {
     throw new Error('Package identity is missing: ' + folder);
   }
   const notices = [];
-  for (const entry of readdirSync(folder, {withFileTypes: true})) {
-    if (!entry.isFile() || !/^(licen[cs]e|copying|copyright|notice|third.?party)/i.test(entry.name)) continue;
-    const content = readFileSync(path.join(folder, entry.name));
+  function retain(source, kind) {
+    const content = readFileSync(path.join(folder, source));
     const sha256 = digest(content);
     const file = sha256 + '.txt';
     mkdirSync(path.join(output, 'notices'), {recursive: true});
     writeFileSync(path.join(output, 'notices', file), content);
-    notices.push({source: entry.name, file: 'notices/' + file, sha256});
+    notices.push({source, kind, file: 'notices/' + file, sha256});
+  }
+  for (const entry of readdirSync(folder, {withFileTypes: true})) {
+    if (!entry.isFile() || !/^(licen[cs]e|copying|copyright|notice|third.?party)/i.test(entry.name)) continue;
+    retain(entry.name, 'notice');
+  }
+  // Some publishers put their notice in the entry source rather than a
+  // separate file. Preserve that source unchanged for review, without
+  // interpreting its comments or synthesizing a license declaration.
+  if (!notices.length) {
+    for (const source of [metadata.module, metadata.main]) {
+      if (typeof source !== 'string') continue;
+      const selected = path.resolve(folder, source);
+      if (!existsSync(selected) || !statSync(selected).isFile()) continue;
+      if (!realpathSync(selected).startsWith(realpathSync(folder) + path.sep)) {
+        throw new Error('Package entry is outside its directory: ' + folder);
+      }
+      retain(source, 'entry_source');
+      break;
+    }
   }
   return {name: metadata.name, version: metadata.version, declared_license: metadata.license,
           metadata_sha256: digest(bytes), notices};

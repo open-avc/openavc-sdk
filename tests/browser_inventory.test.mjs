@@ -43,4 +43,15 @@ test('emitted modules identify their package and preserve original notices', t =
   writeFileSync(path.join(folder, 'package.json'), '{}');
   writeFileSync(target, '<svg/>');
   assert.throws(() => copiedAsset(source, target, folder, output), /identity is missing/);
+  rmSync(path.join(folder, 'LICENSE'));
+  writeFileSync(path.join(folder, 'entry.mjs'), '// Publisher notice\nexport default 1;\n');
+  writeFileSync(path.join(folder, 'package.json'), JSON.stringify({name: '@example/widgets', version: '3.2.1', module: 'entry.mjs'}));
+  const retained = copiedAsset(source, target, folder, output).package.notices;
+  assert.equal(retained.length, 1);
+  assert.equal(retained[0].source, 'entry.mjs');
+  assert.equal(retained[0].kind, 'entry_source');
+  assert.equal(readFileSync(path.join(output, retained[0].file), 'utf8'), '// Publisher notice\nexport default 1;\n');
+  writeFileSync(path.join(root, 'outside.mjs'), '// Not part of this package.\n');
+  writeFileSync(path.join(folder, 'package.json'), JSON.stringify({name: '@example/widgets', version: '3.2.1', module: '../../../outside.mjs'}));
+  assert.throws(() => copiedAsset(source, target, folder, output), /outside its directory/);
 });

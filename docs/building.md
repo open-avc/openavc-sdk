@@ -186,7 +186,10 @@ of the builder's installed system packages. `build-inputs/browser-builds/` recor
 packages that contributed to the compiled Programmer and Simulator, including
 their workers, with hashes checked against the emitted files. It also records
 the panel icon sprite's source and preserves the contributing packages' supplied
-root license/notice files. These build records supplement the lockfiles;
+root license/notice files. Where a package supplies no separate notice file,
+its declared entry source is retained unchanged for review when available.
+The records distinguish notice files from source files; neither is a license
+review. These build records supplement the lockfiles;
 they do not establish attribution for every copied asset or nested component.
 To check the files and preview a
 summary for support, use `python3 collect-diagnostics.py --server-bundle build/server-bundle`

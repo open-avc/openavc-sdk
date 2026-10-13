@@ -1,0 +1,174 @@
+name: Yocto integration
+on:
+  push:
+    paths:
+      - '.github/workflows/yocto.yml'
+      - 'examples/linux/yocto/**'
+      - 'examples/linux/firmware_export.py'
+      - 'examples/linux/buildroot/check-installed.py'
+      - 'examples/installed/**'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'sdk/**'
+      - 'sample/**'
+      - 'openavc_oem/**'
+      - 'pyproject.toml'
+  pull_request:
+    paths:
+      - '.github/workflows/yocto.yml'
+      - 'examples/linux/yocto/**'
+      - 'examples/linux/firmware_export.py'
+      - 'examples/linux/buildroot/check-installed.py'
+      - 'examples/installed/**'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'sdk/**'
+      - 'sample/**'
+      - 'openavc_oem/**'
+      - 'pyproject.toml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Yocto build (${{ matrix.machine }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        machine: [qemuarm64, qemux86-64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare the disposable build host
+        run: |
+          # These preinstalled tools are unused by this job. Free their space
+          # on this disposable runner before building the target filesystem.
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo apt-get update
+          sudo apt-get install -y build-essential chrpath cpio debianutils diffstat file gawk git iputils-ping libacl1 locales python3 python3-git python3-jinja2 python3-pexpect python3-subunit python3-websockets socat texinfo unzip wget xz-utils zstd
+          sudo locale-gen en_US.UTF-8
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          mkdir -p build
+          df -h > build/host-resources.txt
+          free -h >> build/host-resources.txt
+          nproc >> build/host-resources.txt
+          test "$(df --output=avail -BG . | tail -1 | tr -dc '0-9')" -ge 30
+      - name: Prepare the pinned reference build
+        env:
+          MACHINE: ${{ matrix.machine }}
+        run: python3 examples/linux/yocto/setup.py --out build/yocto --machine "$MACHINE" --sdk-revision "$GITHUB_SHA" > build/yocto-setup.log 2>&1
+      - name: Build packages and the reference filesystem
+        env:
+          LANG: en_US.UTF-8
+        run: |
+          sdk_checkout="$PWD"
+          source build/yocto/layers/openembedded-core/oe-init-build-env "$PWD/build/yocto/build" "$PWD/build/yocto/layers/bitbake"
+          bitbake openavc-sdk openavc-example-image > "$sdk_checkout/build/yocto-build.log" 2>&1
+          image_root=$(bitbake-getvar -r openavc-example-image --value IMAGE_ROOTFS)
+          image_dir=$(bitbake-getvar -r openavc-example-image --value DEPLOY_DIR_IMAGE)
+          image_link=$(bitbake-getvar -r openavc-example-image --value IMAGE_LINK_NAME)
+          python3 "$sdk_checkout/examples/linux/yocto/export.py" \
+            --rootfs "$image_root" --image "$image_dir/$image_link.tar" \
+            --generated "$image_dir/openavc-sdk" --configuration "$BUILDDIR/conf" \
+            --out "$sdk_checkout/build/exported"
+          cp "$image_dir/$image_link.manifest" "$sdk_checkout/build/yocto-packages.txt"
+          tar -czf "$sdk_checkout/build/firmware-example.tar.gz" -C "$sdk_checkout/build/exported" .
+          cd "$sdk_checkout"
+          sha256sum build/firmware-example.tar.gz > build/firmware-example.tar.gz.sha256
+      - name: Retain task logs and final resource usage
+        if: always()
+        run: |
+          df -h >> build/host-resources.txt
+          free -h >> build/host-resources.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          import tarfile
+          with tarfile.open('build/yocto-task-logs.tar.gz', 'w:gz') as archive:
+              for path in Path('build/yocto/build/tmp/work').rglob('temp/log.do_*'):
+                  if path.is_file() and not path.is_symlink():
+                      archive.add(path, arcname=str(path))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: yocto-${{ matrix.machine }}
+          path: |
+            build/host-resources.txt
+            build/yocto-*.log
+            build/yocto-task-logs.tar.gz
+            build/yocto-packages.txt
+            build/yocto/build/conf/
+            build/firmware-example.tar.gz
+            build/firmware-example.tar.gz.sha256
+            build/exported/export.json
+          if-no-files-found: error
+  run:
+    name: Run Yocto files (${{ matrix.machine }})
+    needs: build
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - machine: qemuarm64
+            runner: ubuntu-24.04-arm
+          - machine: qemux86-64
+            runner: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: yocto-${{ matrix.machine }}
+          path: build
+      - name: Verify and prepare the isolated filesystem
+        run: |
+          sha256sum -c build/firmware-example.tar.gz.sha256
+          mkdir exported rootfs
+          tar -xzf build/firmware-example.tar.gz -C exported
+          python3 - <<'PY'
+          import hashlib, json, pathlib
+          root = pathlib.Path('exported')
+          for name, expected in json.loads((root / 'export.json').read_text())['files'].items():
+              path = (root / name).resolve()
+              assert path.is_relative_to(root.resolve())
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == expected, name
+          PY
+          sudo tar -xf exported/rootfs.tar -C rootfs
+          sudo mkdir -p rootfs/dev rootfs/proc rootfs/tmp
+          sudo chmod 1777 rootfs/tmp
+          for entry in null:1:3 zero:1:5 random:1:8 urandom:1:9; do
+            IFS=: read -r name major minor <<< "$entry"
+            test -e "rootfs/dev/$name" || sudo mknod -m 666 "rootfs/dev/$name" c "$major" "$minor"
+          done
+          sudo cp -a exported/kit rootfs/kit
+          sudo chown -R 65534:65534 rootfs/kit
+      - name: Exercise installed files on their native processor
+        run: |
+          sudo unshare --net --pid --fork --mount --mount-proc="$PWD/rootfs/proc" sh -eu -c '
+            ip link set lo up
+            for args in "--form service" "--language cpp --form service" "--form direct"; do
+              chroot --userspec=65534:65534 "$1" /usr/bin/env -i PATH=/usr/bin:/bin HOME=/tmp \
+                /usr/bin/python3 /kit/try-example.py --run-built /kit/built --exercise-demo $args
+            done
+            chroot --userspec=65534:65534 "$1" /usr/bin/env -i PATH=/usr/bin:/bin HOME=/tmp \
+              /usr/bin/python3 /kit/try-example.py --run-built /kit/installed-consumer --exercise-demo
+            chroot --userspec=65534:65534 "$1" /usr/bin/python3 /kit/examples/linux/buildroot/check-installed.py
+            chroot --userspec=65534:65534 "$1" /usr/bin/env -i PATH=/usr/bin:/bin HOME=/tmp \
+              /usr/bin/python3 /kit/examples/linux/check.py --out /kit/firmware-check
+          ' sh "$PWD/rootfs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: yocto-run-${{ matrix.machine }}
+          path: |
+            rootfs/kit/built/*-result.json
+            rootfs/kit/built/*.log
+            rootfs/kit/installed-consumer/*-result.json
+            rootfs/kit/installed-consumer/*.log
+            rootfs/kit/firmware-check/report.json
+            rootfs/kit/firmware-check/*.log
+            exported/export.json
+          if-no-files-found: error

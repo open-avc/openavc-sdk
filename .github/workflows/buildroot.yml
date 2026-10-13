@@ -4,6 +4,7 @@ on:
     paths:
       - '.github/workflows/buildroot.yml'
       - 'examples/linux/buildroot/**'
+      - 'examples/linux/firmware_export.py'
       - 'examples/installed/**'
       - 'CMakeLists.txt'
       - 'cmake/**'
@@ -14,6 +15,7 @@ on:
     paths:
       - '.github/workflows/buildroot.yml'
       - 'examples/linux/buildroot/**'
+      - 'examples/linux/firmware_export.py'
       - 'examples/installed/**'
       - 'CMakeLists.txt'
       - 'cmake/**'

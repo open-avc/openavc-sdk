@@ -110,6 +110,72 @@ class ProductChecks(unittest.TestCase):
         self.assertEqual(equipment.polls, 2)
         self.assertEqual(equipment.posts, 2)
 
+    def test_refusal_option_is_checked_before_contacting_equipment(self):
+        plan = copy.deepcopy(PLAN)
+        plan['checks'][0]['check_refusals'] = 'true'
+        equipment = FaultEquipment(None)
+        with self.assertRaisesRegex(CheckFailed, 'check_refusals'):
+            run_checks(equipment, MODEL, self.output, plan)
+        self.assertEqual(equipment.posts, 0)
+        self.assertEqual(equipment.reads, 0)
+
+    def test_refused_operations_precede_valid_work_and_preserve_evidence(self):
+        class RefusingEquipment(FaultEquipment):
+            def __init__(self, fault):
+                super().__init__(fault)
+                self.refusals = []
+                self.extra_count = 0
+
+            def request(self, path, body=None, authenticated=True):
+                if body is not None:
+                    error, status = None, None
+                    if not authenticated:
+                        error, status = 'unauthorized', 401
+                    elif body['session'] != 'session':
+                        error, status = 'session_changed', 409
+                    elif body['id'] == 0:
+                        error, status = 'invalid_request', 422
+                    elif body['command'] != 'step':
+                        error, status = 'unknown_command', 422
+                    elif body['params']:
+                        error, status = 'invalid_parameter', 422
+                    if error:
+                        self.refusals.append(copy.deepcopy(body))
+                        if self.fault == 'lost_response':
+                            raise CheckFailed('Response lost.')
+                        if self.fault == 'writes_on_refusal':
+                            self.extra_count += 1
+                        if self.fault == 'wrong_reason':
+                            return status, {'error': 'hardware_failed'}
+                        return status, {'error': error}
+                status, value = super().request(path, body, authenticated)
+                if type(value) is dict and 'state' in value:
+                    value['state']['count'] += self.extra_count
+                return status, value
+
+        plan = copy.deepcopy(PLAN)
+        plan['checks'][0]['check_refusals'] = True
+        for fault in (None, 'lost_response', 'writes_on_refusal', 'wrong_reason'):
+            with self.subTest(fault=fault):
+                equipment = RefusingEquipment(fault)
+                output = self.output / str(fault)
+                if fault:
+                    with self.assertRaises(CheckFailed):
+                        run_checks(equipment, MODEL, output, plan)
+                    self.assertEqual(equipment.posts, 0)
+                else:
+                    run_checks(equipment, MODEL, output, plan)
+                    self.assertEqual(equipment.posts, 2)
+                    self.assertEqual(len(equipment.refusals), 5)
+                report = json.loads((output / 'report.json').read_text())
+                self.assertEqual(report['status'], 'failed' if fault else 'passed')
+                self.assertEqual(len(report['refusals']), len(equipment.refusals))
+                self.assertEqual(report['refusals'][0]['request'], equipment.refusals[0])
+                if fault == 'writes_on_refusal':
+                    self.assertEqual(report['refusals'][0]['observed'], [1])
+                if not fault:
+                    self.assertTrue(all(item['status'] == 'passed' for item in report['refusals']))
+
 
 if __name__ == '__main__':
     unittest.main()

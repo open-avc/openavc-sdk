@@ -148,13 +148,19 @@ def check(args):
         state = management()
         assert not state['server'] and state['equipment']['remote_access_active']
         report['checks'].append('remote_equipment_started_without_terminal')
-        result, outcome = client.request('/v1/command', {'session': first['session'], 'id': 1, 'command': 'increment', 'params': {}})
-        assert result == 200 and outcome['outcome'] == 'completed'
+        with (evidence / 'product-checks.log').open('w') as log:
+            subprocess.run([str(args.python), str(ROOT / 'check-product.py'),
+                            '--url', 'https://127.0.0.1:' + str(args.equipment_port),
+                            '--credentials', str(args.out / 'private/product-credentials.json'),
+                            '--ca-file', config['ca_file'], '--model', config['model'],
+                            '--checks', str(ROOT / 'sample/checks.json'),
+                            '--out', str(evidence / 'product-checks')],
+                           check=True, stdout=log, stderr=subprocess.STDOUT)
         wait_for(lambda: client.request('/v1/snapshot')[1]['state']['counter'] == 1)
-        report['checks'].append('hardware_command_and_readback')
+        report['checks'].append('product_checker_refusals_commands_and_readback')
         stopped = stop(hardware)
         (evidence / 'hardware-first-stop.log').write_bytes(stopped)
-        assert b'CLOSED' in stopped and b'STATE 1 1 0 ' in stopped
+        assert b'CLOSED' in stopped and b'STATE 2 2 0 ' in stopped
         wait_for(lambda: client.request('/v1/snapshot')[0] == 503)
         report['checks'].append('graceful_hardware_stop_and_unavailable_readback')
         hardware = launch('hardware-2', hardware_command, hardware_environment)

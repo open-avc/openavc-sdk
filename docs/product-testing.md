@@ -47,7 +47,7 @@ those binaries without compiling again.
 
 ## Select commands and expected state
 
-`--inspect` sends no commands. `--checks` executes exactly the commands in your
+`--inspect` sends no commands. `--checks` tests the commands in your
 check file, in order. Select operations that are safe on your test hardware.
 The entire check file is validated before any command is sent.
 
@@ -80,6 +80,7 @@ The entire check file is validated before any command is sent.
 | `outcome` | Optional `completed` (default), `rejected` or `failed`. |
 | `timeout` | Seconds allowed for command completion and, separately, matching feedback. Default 10; greater than zero, up to 300. Requests also have a five-second network timeout. |
 | `observe_for` | Seconds to continue checking state after the duplicate request. Default 0.5; from 0.1 to 30. |
+| `check_refusals` | Optional boolean, default `false`. Before this command, submit invalid copies and verify refusal with unchanged selected state. |
 
 The checker verifies the description against the generated model, authentication,
 typed state, channel IDs, generation/revision and change readback. For each selected
@@ -87,6 +88,18 @@ command it waits for a terminal outcome and matching feedback. It then deliberat
 sends the **same request ID and body** again and checks the retained outcome and
 state. A counter with `delta: 1` can detect a reported extra execution; a gain
 value alone cannot prove that the physical write occurred only once.
+
+Set `check_refusals: true` on a selected command to check requests without
+authentication, with a different equipment session, with request ID zero, with
+an undeclared command and with an undeclared parameter. Each request must be
+refused before the valid command is sent. The checker observes the state selected
+in `expect` for `observe_for` seconds after each refusal; it must remain at its
+pre-command value. Use an execution counter where available. These requests
+deliberately exercise rejection paths: run them on test hardware where an
+incorrectly accepted operation is safe, and verify physical effects independently.
+They do not change product settings, restart the product or qualify every invalid
+input, firmware version or access policy. The report's `refusals` list records
+each request before dispatch and retains the failed step if the run stops.
 
 State expectations must remain stable during the observation interval. If your
 product changes state independently, select suitable state or control that activity

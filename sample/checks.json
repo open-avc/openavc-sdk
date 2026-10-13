@@ -5,6 +5,7 @@
       "name": "Increment once",
       "command": "increment",
       "params": {},
+      "check_refusals": true,
       "expect": [{"state": "counter", "delta": 1}]
     },
     {

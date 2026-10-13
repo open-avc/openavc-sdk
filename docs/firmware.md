@@ -26,6 +26,11 @@ This runs the product without a terminal and checks command/readback, graceful
 shutdown, unavailable feedback while hardware is stopped, a new hardware session
 after restart, and retained settings/data after a management restart. It stops
 its processes and retains a report and private logs under the output directory.
+The public product checker observes both hardware unavailability and management
+connection loss, then verifies recovery without sending commands. Its reports
+are under `product-hardware-reconnect/` and `product-management-reconnect/`.
+Use [reconnect observation](product-testing.md#observe-connection-loss-and-recovery)
+to perform the same check against your product.
 Checks put the local socket in short temporary storage under `/tmp` and remove
 that storage after a successful shutdown. A failed run retains it for inspection;
 its path is recorded in `staging.json`. Reports and persistent test data remain

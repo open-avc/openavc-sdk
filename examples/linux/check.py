@@ -119,6 +119,32 @@ def check(args):
     hardware_environment = {**environment, 'OPENAVC_PRODUCT_SOCKET': config['bridge_path'],
                             'OPENAVC_DEVICE_ID': config['identity']}
     manager_command = [str(args.python), '-m', 'openavc_oem', '--config', str(args.out / 'private/openavc.json')]
+    def observe_reconnect(name):
+        log = (evidence / (name + '.log')).open('w')
+        streams.append(log)
+        process = subprocess.Popen([str(args.python), str(ROOT / 'check-product.py'),
+            '--url', 'https://127.0.0.1:' + str(args.equipment_port),
+            '--credentials', str(args.out / 'private/product-credentials.json'),
+            '--ca-file', config['ca_file'], '--model', config['model'],
+            '--reconnect', '45', '--out', str(evidence / name)],
+            stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT)
+        processes.append(process)
+        def observed(expected):
+            if process.poll() is not None:
+                raise ValueError('Reconnect observer stopped early. Read ' + name + '.log.')
+            report_path = evidence / name / 'report.json'
+            return report_path.exists() and read_json(report_path).get('reconnect', {}).get('status') == expected
+        wait_for(lambda: observed('waiting_for_disconnect'))
+        return process, observed
+
+    def recovered(process, name):
+        if process.wait(timeout=50) != 0:
+            raise ValueError('Reconnect observation failed. Read ' + name + '.log.')
+        result = read_json(evidence / name / 'report.json')
+        assert result['status'] == 'passed' and not result['commands'] and not result['refusals']
+        assert result['identity'] == config['identity']
+        report['checks'].append(name)
+
     def project_backup(action):
         # Use the matching core's existing project backup scope with all fixture
         # writers stopped. Do not restore credentials, cloud identity or settings
@@ -158,16 +184,24 @@ def check(args):
                            check=True, stdout=log, stderr=subprocess.STDOUT)
         wait_for(lambda: client.request('/v1/snapshot')[1]['state']['counter'] == 1)
         report['checks'].append('product_checker_refusals_commands_and_readback')
+        observer, observed = observe_reconnect('product-hardware-reconnect')
         stopped = stop(hardware)
         (evidence / 'hardware-first-stop.log').write_bytes(stopped)
         assert b'CLOSED' in stopped and b'STATE 2 2 0 ' in stopped
         wait_for(lambda: client.request('/v1/snapshot')[0] == 503)
         report['checks'].append('graceful_hardware_stop_and_unavailable_readback')
+        wait_for(lambda: observed('waiting_for_recovery'))
         hardware = launch('hardware-2', hardware_command, hardware_environment)
         second = wait_for(available)
         assert first['session'] != second['session']
         assert client.request('/v1/snapshot')[1]['state']['counter'] == 0
         report['checks'].append('hardware_restart_changes_session_without_replay')
+        recovered(observer, 'product-hardware-reconnect')
+        observer, observed = observe_reconnect('product-management-reconnect')
+        stop(manager)
+        wait_for(lambda: observed('waiting_for_recovery'))
+        manager = launch('management-reconnect', manager_command, environment)
+        recovered(observer, 'product-management-reconnect')
         if args.with_server:
             state = management({'revision': state['revision'], 'field': 'server', 'enabled': True})
             assert state['server_running'] and state['equipment']['reserved_locally']

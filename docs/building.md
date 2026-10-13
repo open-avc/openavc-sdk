@@ -249,15 +249,30 @@ or JavaScript dependencies inside them, the Python interpreter, operating system
 build tools or other firmware components. Dependency and license declarations
 come from each wheel's metadata and have not been evaluated for your firmware.
 Include those components and your own software in your product's complete bill
-of materials. The server and reference cross-build select system packages from
+of materials. The server, native Docker build and reference cross-build select system packages from
 fixed snapshots; update those selections through the [maintenance workflow](compatibility.md).
-The native-library builder uses its host toolchain. These records do not establish
+The direct native-library builder uses its host toolchain. These records do not establish
 byte-identical rebuilds or authenticate an artifact's publisher.
 
 ## Produce a prebuilt library archive
 
-On a native Linux Debian/Ubuntu build host with Clang, libc++, libc++abi,
-libunwind and OpenSSL development packages installed:
+From the SDK source checkout, use Python 3.12+ and a Linux Docker engine:
+
+```sh
+python3 tools/build_native.py --out build/package
+```
+
+The engine must run on the processor you are building for: ARM64 or x86-64.
+`--docker-context <name>` selects an engine without changing the active context.
+The builder uses its pinned Python image and dated Debian package sources, then
+compiles and packages as an unprivileged user with networking disabled. It starts
+no hardware. `image-build.log`, `package-build.log` and `build.log` retain results.
+The archive includes the selected image ID, repository records, signed release
+metadata and installed package versions. Test the extracted files on your target;
+matching processors do not establish firmware ABI compatibility.
+
+To use the build computer's toolchain directly instead, install Clang, libc++,
+libc++abi, libunwind and OpenSSL development packages on a Debian/Ubuntu host:
 
 ```sh
 python3 tools/package_runtime.py --out build/package
@@ -273,8 +288,9 @@ inventory. Libraries include their license notices. Use a new output directory
 for each build.
 
 Keep these records with your firmware build. Package versions identify this
-builder's inputs; they do not select a compatible ABI for another firmware or
-lock future host-package updates. Test the transferred libraries on your target.
+builder's inputs; they do not select a compatible ABI for another firmware.
+The direct host build does not lock future host-package updates. Test the
+transferred libraries on your target.
 
 Extract that archive into a clean directory and run its `doctor.py` and
 `try-example.py` commands before distributing it. The doctor checks archive

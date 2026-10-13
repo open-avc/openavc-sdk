@@ -20,6 +20,8 @@ with your own firmware version, toolchain/sysroot and dependency inventory.
 The prebuilt-library archive also supplies `native-build.json` with compiler,
 CMake and link-input details; `bundle.json`'s `runtime_origins` entries identify the installed
 binary/source packages supplying the redistributed libraries.
+Archives built through `tools/build_native.py` also include `build-inputs/` and
+the selected Docker image ID. The direct host build records the host's tools instead.
 The server bundle also supplies `python-packages.cdx.json`, a CycloneDX inventory
 of the delivered Python wheel archives. See its [coverage](building.md#build-the-optional-server-bundle)
 before combining it with your complete firmware inventory.
@@ -84,8 +86,8 @@ upgrade or product-specific acceptance for a new firmware release.
 
 The example/server builder uses the committed Python dependency locks in
 `tools/requirements-server.txt` and `tools/requirements-build.txt`, plus the
-base-image digests in the server and cross-build Dockerfiles. `tools/debian.sources`
-selects dated Debian archives for both builders; package signatures remain
+base-image digests in the server, native-library and cross-build Dockerfiles. `tools/debian.sources`
+selects dated Debian archives for these builders; package signatures remain
 required. Check for dependency and security updates when selecting a new firmware
 build, and deliberately update and qualify these pins together. The reference
 build does not automatically adopt newer system packages.

@@ -134,7 +134,7 @@ jobs:
           python examples/linux/check-systemd.py --with-server --out build/firmware-systemd
       - name: Build and check a supplied runtime
         run: |
-          python tools/package_runtime.py --out build/package
+          python tools/build_native.py --out build/package
           mkdir build/extracted
           tar -xzf build/package/openavc-sdk-linux-*.tar.gz -C build/extracted
           python tools/check_docs.py --root build/extracted/openavc-sdk
@@ -184,6 +184,9 @@ jobs:
             build/package/*.tar.gz
             build/package/*.sha256
             build/package/build.log
+            build/package/image-build.log
+            build/package/package-build.log
+            build/package/build-image.txt
             build/server-bundle/*.json
             build/server-bundle/*.tar.gz
             build/server-bundle/*.sha256

@@ -18,6 +18,7 @@ uses invented hardware; it does not connect to AV equipment. See
 `bundle.json` records the CPU, libc, upstream contract, file hashes and versions
 of redistributed runtime libraries. `native-build.json` identifies the compiler,
 CMake and selected link inputs. Keep both with your firmware build record.
+Docker-built archives also retain the selected image ID and `build-inputs/`.
 
 Use the OpenAVC revision recorded in
 [`sdk/contract/origin.json`](sdk/contract/origin.json) with this preview, including

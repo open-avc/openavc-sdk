@@ -6,6 +6,7 @@ import json
 import os
 import platform
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tarfile
@@ -69,6 +70,8 @@ def native_build_record(build):
 
 
 def package(args):
+    if args.build_image and not re.fullmatch(r'sha256:[0-9a-f]{64}', args.build_image):
+        raise ValueError('Use a complete Docker image ID for --build-image.')
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=False)
     build = out / 'runtime-build'
@@ -129,6 +132,8 @@ def package(args):
             origins[name] = {**origin, 'sha256': digest(source), 'copyright': 'licenses/' + owner + '.copyright'}
         shutil.copy2('/usr/share/common-licenses/Apache-2.0', destination / 'licenses/Apache-2.0.txt')
     (destination / 'native-build.json').write_text(json.dumps(native_build_record(build), indent=2) + '\n')
+    if args.build_image:
+        shutil.copytree('/opt/native-build-inputs', destination / 'build-inputs')
     files = {'sdk/' + name: sha for name, sha in inventory(destination / 'sdk').items()}
     (destination / 'sdk/sha256.json').write_text(json.dumps(files, indent=2) + '\n')
     sources = {}
@@ -141,6 +146,8 @@ def package(args):
                 'libc': list(platform.libc_ver()), 'runtime_origins': origins,
                 'contract': json.loads((ROOT / 'sdk/contract/origin.json').read_text()),
                 'source_files': sources, 'files': inventory(destination)}
+    if args.build_image:
+        metadata['build_image_id'] = args.build_image
     (destination / 'bundle.json').write_text(json.dumps(metadata, indent=2) + '\n')
     artifact = out / ('openavc-sdk-' + system.lower() + '-' + platform.machine() + '.tar.gz')
     with tarfile.open(artifact, 'w:gz') as archive:
@@ -153,4 +160,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out', type=Path, required=True, help='New output directory')
     parser.add_argument('--openssl', type=Path)
+    parser.add_argument('--build-image', help='Image identity supplied by tools/build_native.py')
     package(parser.parse_args())

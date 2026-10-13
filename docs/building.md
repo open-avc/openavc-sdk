@@ -182,7 +182,13 @@ no documents. Use them with your software composition tools; their content,
 completeness and publisher signatures have not been verified.
 Keep both records and `build-inputs/` with your firmware build. That directory
 contains the Python locks, web dependency lockfiles, Dockerfile and an inventory
-of the builder's installed system packages. To check the files and preview a
+of the builder's installed system packages. `build-inputs/browser-builds/` records
+packages that contributed to the compiled Programmer and Simulator, including
+their workers, with hashes checked against the emitted files. It also records
+the panel icon sprite's source and preserves the contributing packages' supplied
+root license/notice files. These build records supplement the lockfiles;
+they do not establish attribution for every copied asset or nested component.
+To check the files and preview a
 summary for support, use `python3 collect-diagnostics.py --server-bundle build/server-bundle`
 from the SDK directory. See [diagnostic previews](product-testing.md#preview-diagnostics-before-sharing)
 for export controls and the verification scope. `INSTALL.txt` contains the offline

@@ -116,6 +116,7 @@ jobs:
           python try-example.py --project build/my-product --checks build/my-product/checks.json --out build/project-checks
           python collect-diagnostics.py --checks build/project-checks/report.json --out build/support-preview.json
           python -m unittest discover -s tests -v
+          node --test tests/browser_inventory.test.mjs
       - name: Check setup with the operating system's Python
         run: |
           /usr/bin/python3 -m venv build/python

@@ -61,6 +61,7 @@ def package(args):
     shutil.copy2(ROOT / 'tools/supplied-CMakeLists.txt', destination / 'CMakeLists.txt')
     (destination / 'tools').mkdir()
     for name in ['build_server.py', 'server_bundle.py', 'wheel_inventory.py',
+                 'build_browser.mjs', 'browser_inventory.mjs',
                  'requirements-server.txt', 'requirements-build.txt']:
         shutil.copy2(ROOT / 'tools' / name, destination / 'tools' / name)
     lib = destination / 'sdk/lib'

@@ -80,7 +80,13 @@ upgrade or product-specific acceptance for a new firmware release.
 
 The example/server builder uses the committed Python dependency locks in
 `tools/requirements-server.txt` and `tools/requirements-build.txt`, plus the
-base-image digests in `examples/system/Dockerfile`. When updating the SDK's core
+base-image digests in the server and cross-build Dockerfiles. `tools/debian.sources`
+selects dated Debian archives for both builders; package signatures remain
+required. Check for dependency and security updates when selecting a new firmware
+build, and deliberately update and qualify these pins together. The reference
+build does not automatically adopt newer system packages.
+
+When updating the SDK's core
 pin, review these inputs together. Downloaded wheels must match their recorded
 hashes, and the installed combination must pass `pip check`. Qualify changed
 inputs through both native Linux package jobs before distributing a new bundle.

@@ -167,7 +167,9 @@ python3 tools/build_server.py --out build/server-bundle
 The tool builds both OpenAVC web interfaces from the pinned core revision and
 builds the server and product-management wheels. It uses the supplied Python
 dependency versions and wheel hashes for Linux ARM64/x86-64 with Python 3.12.
-The Python build tools and Docker base images are pinned too. Downloads occur
+The Python build tools and Docker base images are pinned too. System packages
+come from the dated Debian archives in [`tools/debian.sources`](../tools/debian.sources).
+Downloads occur
 during image preparation; wheel assembly then runs with networking disabled.
 It starts no product or hardware integration. The result is under
 `build/server-bundle/wheels`, with a checksummed `openavc-server-linux-<cpu>.tar.gz`
@@ -184,7 +186,9 @@ no documents. Use them with your software composition tools; their content,
 completeness and publisher signatures have not been verified.
 Keep both records and `build-inputs/` with your firmware build. That directory
 contains the Python locks, web dependency lockfiles, Dockerfile and an inventory
-of the builder's installed system packages. `build-inputs/browser-builds/` records
+of the builder's installed system packages. `build-inputs/system-inputs/` retains
+the selected Debian repositories and their signed release metadata.
+`build-inputs/browser-builds/` records
 packages that contributed to the compiled Programmer and Simulator, including
 their workers, with hashes checked against the emitted files. It also records
 the panel icon sprite's source and preserves the contributing packages' supplied
@@ -225,8 +229,8 @@ or JavaScript dependencies inside them, the Python interpreter, operating system
 build tools or other firmware components. Dependency and license declarations
 come from each wheel's metadata and have not been evaluated for your firmware.
 Include those components and your own software in your product's complete bill
-of materials. Debian packages installed while preparing the builder still come
-from its configured repositories; their versions are recorded, not locked.
+of materials. The server and reference cross-build select system packages from
+fixed snapshots; update those selections through the [maintenance workflow](compatibility.md).
 The native-library builder uses its host toolchain. These records do not establish
 byte-identical rebuilds or authenticate an artifact's publisher.
 

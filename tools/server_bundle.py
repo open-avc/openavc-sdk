@@ -38,6 +38,7 @@ def build(output):
     for name in ['requirements-server.txt', 'requirements-build.txt']:
         shutil.copy2(sdk / 'tools' / name, inputs / name)
     shutil.copy2(sdk / 'examples/system/Dockerfile', inputs / 'Dockerfile')
+    shutil.copytree('/opt/system-inputs', inputs / 'system-inputs')
     for interface in ['programmer', 'simulator']:
         shutil.copy2(core / f'openavc/web/{interface}/package-lock.json',
                      inputs / f'{interface}-package-lock.json')
@@ -49,7 +50,7 @@ def build(output):
     for name in ['openavc_oem', 'examples/system', 'sdk/contract', 'pyproject.toml',
                  'tools/build_server.py', 'tools/server_bundle.py', 'tools/wheel_inventory.py',
                  'tools/build_browser.mjs', 'tools/browser_inventory.mjs',
-                 'tools/requirements-server.txt', 'tools/requirements-build.txt']:
+                 'tools/requirements-server.txt', 'tools/requirements-build.txt', 'tools/debian.sources']:
         source = sdk / name
         for path in sorted(source.rglob('*')) if source.is_dir() else [source]:
             if path.is_file() and '__pycache__' not in path.parts:

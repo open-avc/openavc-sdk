@@ -108,7 +108,7 @@ def package(args):
     (destination / 'tools').mkdir()
     for name in ['build_server.py', 'server_bundle.py', 'wheel_inventory.py',
                  'build_browser.mjs', 'browser_inventory.mjs',
-                 'requirements-server.txt', 'requirements-build.txt']:
+                 'requirements-server.txt', 'requirements-build.txt', 'debian.sources']:
         shutil.copy2(ROOT / 'tools' / name, destination / 'tools' / name)
     lib = destination / 'sdk/lib'
     lib.mkdir()

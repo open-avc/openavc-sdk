@@ -12,7 +12,12 @@ RUN npm --prefix openavc/web/programmer ci && \
 RUN rm -rf .git openavc/web/programmer/node_modules openavc/web/simulator/node_modules
 
 FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258 AS server-runtime
-RUN apt-get update && apt-get install -y --no-install-recommends cmake build-essential libssl-dev openssl iputils-ping && rm -rf /var/lib/apt/lists/*
+COPY tools/debian.sources /etc/apt/sources.list.d/debian.sources
+RUN apt-get update && apt-get install -y --no-install-recommends cmake build-essential libssl-dev openssl iputils-ping && \
+    mkdir -p /opt/system-inputs && \
+    cp /etc/apt/sources.list.d/debian.sources /opt/system-inputs/ && \
+    cp /var/lib/apt/lists/*_InRelease /opt/system-inputs/ && \
+    rm -rf /var/lib/apt/lists/*
 COPY tools/requirements-server.txt tools/requirements-build.txt /opt/build-inputs/
 RUN python -m pip download --only-binary=:all: --require-hashes \
     -r /opt/build-inputs/requirements-server.txt -d /opt/server-wheels && \

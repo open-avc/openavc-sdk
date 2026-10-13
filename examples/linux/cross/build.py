@@ -43,6 +43,7 @@ for name in ['example-c', 'example-cpp', 'openavc-device-service']:
     (output / (name + '-elf.txt')).write_text(binary_reports[name])
 shutil.copy2('/opt/build-packages.txt', output)
 shutil.copy2('/opt/target-packages.sha256', output)
+shutil.copytree('/opt/system-inputs', output / 'system-inputs')
 metadata = {'format': 1, 'coverage': 'cross_compilation_only',
             'build_host': {'system': platform.system(), 'machine': platform.machine()},
             'target': {'system': 'Linux', 'machine': processor, 'reference': 'Debian 12'},

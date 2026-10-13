@@ -1,6 +1,7 @@
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258
 ARG TARGET
 ENV OPENAVC_CROSS_TARGET=${TARGET}
+COPY tools/debian.sources /etc/apt/sources.list.d/debian.sources
 RUN set -eu; \
     case "$TARGET" in \
       arm64) arch=arm64; compiler=aarch64-linux-gnu ;; \
@@ -20,6 +21,9 @@ RUN set -eu; \
     for package in ./*.deb; do dpkg-deb -x "$package" /opt/sysroot; done; \
     dpkg-query -W > /opt/build-packages.txt; \
     sha256sum ./*.deb > /opt/target-packages.sha256; \
+    mkdir -p /opt/system-inputs; \
+    cp /etc/apt/sources.list.d/debian.sources /opt/system-inputs/; \
+    cp /var/lib/apt/lists/*_InRelease /opt/system-inputs/; \
     rm -rf /var/lib/apt/lists/* /tmp/sdk-target-packages
 WORKDIR /opt/sdk
 COPY . .

@@ -16,7 +16,9 @@ python3 tools/build_target.py --target arm64 --out build/arm64-target
 
 Choose `--target x86_64` and a different output directory for x86-64.
 `--docker-context <name>` selects an engine without changing your active context.
-The first build downloads its toolchain and target development packages.
+The first build downloads its toolchain and target development packages from
+the dated Debian archives selected in [`tools/debian.sources`](../tools/debian.sources).
+The container's Python base image is selected by its digest.
 
 The container runs on the build computer's processor. It builds the invented
 C and C++ adapters, generated model and Linux device service against a Debian 12
@@ -30,11 +32,12 @@ The output contains:
 - `cross-build.json`, identifying the build computer, target, compiler and core contract.
 - ELF reports showing each binary's CPU, loader and dynamic-library dependencies.
 - Compiler-package versions, target-package hashes and build logs.
+- `system-inputs/`, containing the selected repositories and their signed release metadata.
 - `toolchain-check.json`, the prerequisite check for the selected compiler and sysroot.
 
 This is a reference development environment, not a universal firmware binary.
-Dependencies are fetched from the configured package repositories; the recipe
-does not promise identical rebuilds from locked release inputs.
+Keep these inputs with the output. Fixed package sources do not by themselves
+guarantee byte-identical binaries or compatibility with another firmware image.
 
 ## Run the transferred output
 

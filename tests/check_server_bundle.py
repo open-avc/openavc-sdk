@@ -48,6 +48,12 @@ for name, entry in index['wheels'].items():
             assert hashlib.sha256(copied).hexdigest() == document['sha256']
 for name, sha in record['build_inputs'].items():
     assert hashlib.sha256((bundle / 'build-inputs' / name).read_bytes()).hexdigest() == sha
+system_inputs = bundle / 'build-inputs/system-inputs'
+assert (system_inputs / 'debian.sources').read_bytes() == (
+    Path(__file__).resolve().parents[1] / 'tools/debian.sources').read_bytes()
+releases = list(system_inputs.glob('*_InRelease'))
+assert len(releases) == 3
+assert all(path.read_bytes().startswith(b'-----BEGIN PGP SIGNED MESSAGE-----') for path in releases)
 locked = {}
 for line in (bundle / 'build-inputs/requirements-server.txt').read_text().splitlines():
     if not line or line.startswith('#'):

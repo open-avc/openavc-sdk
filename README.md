@@ -21,6 +21,8 @@ another OpenAVC server controls the equipment.
 This is an engineering preview. The SDK uses the maintained OpenAVC server
 and its device capability definitions.
 Use the [firmware testing guide](docs/qualification.md) before shipping it in firmware.
+Matching prebuilt libraries and an offline server archive are available from
+successful [package builds](docs/building.md#build-the-optional-server-bundle).
 
 ## Try the complete system
 

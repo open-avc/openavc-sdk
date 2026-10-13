@@ -159,11 +159,14 @@ jobs:
       - name: Build and install the offline server bundle
         run: |
           python build/extracted/openavc-sdk/tools/build_server.py --out build/server-bundle
+          (cd "$GITHUB_WORKSPACE/build/server-bundle" && sha256sum -c openavc-server-linux-*.tar.gz.sha256)
+          mkdir build/server-extracted
+          tar -xzf build/server-bundle/openavc-server-linux-*.tar.gz -C build/server-extracted
           python -m venv build/offline-environment
-          build/offline-environment/bin/python -m pip install --no-index --find-links=build/server-bundle/wheels --require-hashes -r build/server-bundle/requirements.txt
+          build/offline-environment/bin/python -m pip install --no-index --find-links=build/server-extracted/openavc-server/wheels --require-hashes -r build/server-extracted/openavc-server/requirements.txt
           build/offline-environment/bin/python -m pip check
-          build/offline-environment/bin/python tests/check_server_bundle.py build/server-bundle
-          python build/extracted/openavc-sdk/collect-diagnostics.py --server-bundle build/server-bundle --out build/server-bundle-support.json
+          build/offline-environment/bin/python tests/check_server_bundle.py build/server-extracted/openavc-server
+          python build/extracted/openavc-sdk/collect-diagnostics.py --server-bundle build/server-extracted/openavc-server --out build/server-bundle-support.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -173,6 +176,8 @@ jobs:
             build/package/*.sha256
             build/package/build.log
             build/server-bundle/*.json
+            build/server-bundle/*.tar.gz
+            build/server-bundle/*.sha256
             build/server-bundle/build-image.txt
             build/server-bundle/requirements.txt
             build/server-bundle/build-inputs/*

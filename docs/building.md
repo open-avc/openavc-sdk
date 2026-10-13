@@ -117,6 +117,26 @@ before selecting firmware resources.
 
 ## Build the optional server bundle
 
+You can also use the matching prebuilt server archive from a successful
+[SDK checks run](https://github.com/open-avc/openavc-sdk/actions/workflows/ci.yml).
+Select the run for your SDK commit, then download `sdk-ubuntu-24.04-arm` for
+ARM64 or `sdk-ubuntu-24.04` for x86-64. GitHub requires sign-in to download workflow
+artifacts. Each artifact contains a `server-bundle/` directory with
+`openavc-server-linux-<cpu>.tar.gz` and its SHA-256 file. These are engineering
+preview builds with limited artifact retention; keep your selected archive.
+
+On Linux, from that directory, verify and extract it into a new directory:
+
+```sh
+sha256sum -c openavc-server-linux-*.tar.gz.sha256
+mkdir extracted
+tar -xzf openavc-server-linux-*.tar.gz -C extracted
+```
+
+Use the archive for your processor. Follow `extracted/openavc-server/INSTALL.txt`
+to install in a fresh compatible firmware staging environment. Keep the native
+SDK library archive from the same run. Neither archive provisions a physical unit.
+
 With Python 3.12 or newer and a running Linux Docker engine:
 
 ```sh
@@ -129,7 +149,8 @@ dependency versions and wheel hashes for Linux ARM64/x86-64 with Python 3.12.
 The Python build tools and Docker base images are pinned too. Downloads occur
 during image preparation; wheel assembly then runs with networking disabled.
 It starts no product or hardware integration. The result is under
-`build/server-bundle/wheels`; `bundle.json` records hashes, core revision, Python,
+`build/server-bundle/wheels`, with a checksummed `openavc-server-linux-<cpu>.tar.gz`
+for transfer. `bundle.json` records hashes, core revision, Python,
 CPU, libc and the exact Docker build image ID. Source hashes come from the files
 inside that image. `python-packages.cdx.json` inventories the delivered wheels
 in [CycloneDX 1.6 JSON format](https://cyclonedx.org/specification/overview/),

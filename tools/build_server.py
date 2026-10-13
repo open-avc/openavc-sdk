@@ -1,6 +1,7 @@
 """Build an offline Python wheel bundle for the optional Linux OpenAVC server."""
 import argparse
 import contextlib
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -8,8 +9,24 @@ import secrets
 import shutil
 import subprocess
 import sys
+import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def archive_bundle(output):
+    runtime = json.loads((output / 'runtime.json').read_text(encoding='utf-8'))
+    if runtime['system'] != 'Linux' or runtime['machine'] not in {'aarch64', 'x86_64'}:
+        raise ValueError('Server archives require a Linux ARM64 or x86-64 build.')
+    artifact = output / ('openavc-server-linux-' + runtime['machine'] + '.tar.gz')
+    with tarfile.open(artifact, 'x:gz') as archive:
+        for name in ['INSTALL.txt', 'bundle.json', 'runtime.json', 'python-packages.cdx.json',
+                     'requirements.txt', 'build-image.txt', 'build-inputs', 'wheels']:
+            archive.add(output / name, arcname='openavc-server/' + name)
+    with artifact.open('rb') as stream:
+        sha = hashlib.file_digest(stream, 'sha256').hexdigest()
+    artifact.with_suffix('.gz.sha256').write_text(sha + '  ' + artifact.name + '\n', encoding='utf-8')
+    return artifact
 
 
 def build(args):
@@ -60,6 +77,7 @@ def build(args):
         'firmware or nested native/JavaScript dependencies. Hashes are not signatures.\n', encoding='utf-8')
     print('Server bundle: ' + str(output))
     print('Offline installation instructions: ' + str(output / 'INSTALL.txt'))
+    print('Archive: ' + str(archive_bundle(output)))
 
 
 if __name__ == '__main__':

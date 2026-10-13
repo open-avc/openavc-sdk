@@ -36,7 +36,8 @@ x86-64 and ARM64. It builds C/C++ service examples and the C in-process example,
 tests an independently changed model/adapter, creates a separate product project,
 builds and extracts the prebuilt libraries, runs the firmware/service checks and
 both complete system arrangements, then builds and installs the offline server.
-Reports and package hashes are retained as workflow artifacts.
+Reports, prebuilt library/server archives and their hashes are retained as
+workflow artifacts. The offline server check installs from the extracted archive.
 Separate jobs cross-build each processor from the other, transfer the archives
 and exercise their unchanged binaries on native runners.
 

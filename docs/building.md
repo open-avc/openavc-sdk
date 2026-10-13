@@ -158,6 +158,26 @@ Use the archive for your processor. Follow `extracted/openavc-server/INSTALL.txt
 to install in a fresh compatible firmware staging environment. Keep the native
 SDK library archive from the same run. Neither archive provisions a physical unit.
 
+For downloads from the official repository, select a build whose **Verify package
+provenance** job passed. Its `package-provenance` artifact contains signed build
+records for both native libraries and server archives. Older builds, pull-request
+builds and locally produced archives do not have these records.
+
+With the [GitHub CLI](https://cli.github.com/) installed and signed in, verify each
+downloaded archive from your matching SDK source checkout:
+
+```sh
+gh attestation verify /path/to/openavc-server-linux-aarch64.tar.gz \
+  --repo open-avc/openavc-sdk \
+  --signer-workflow open-avc/openavc-sdk/.github/workflows/ci.yml \
+  --source-digest "$(git rev-parse HEAD)" --deny-self-hosted-runners
+```
+
+Use the actual archive path and check out the SDK commit selected for your firmware.
+Repeat for the native library archive. Verification checks the archive's hash,
+signing identity, workflow and SDK revision. It does not qualify firmware, verify
+all upstream dependencies or provide a complete software inventory.
+
 With Python 3.12 or newer and a running Linux Docker engine:
 
 ```sh

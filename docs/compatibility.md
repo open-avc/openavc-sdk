@@ -29,6 +29,10 @@ That workflow builds native ARM64/x86-64 examples and archives, extracts the
 libraries, runs product and firmware checks, exercises the complete systems and
 installs the server bundle offline. Read the run for your actual commit.
 
+Official package builds also provide [verifiable build records](building.md#build-the-optional-server-bundle).
+Retain the archive, signed record and SDK revision together. These records identify
+the producing workflow and source revision; they do not sign your complete firmware.
+
 The hashes identify the produced files; they do not provide a firmware signature,
 a complete software bill of materials or a reproducible-build guarantee. Apply
 your product's signing and dependency-management process before distribution.

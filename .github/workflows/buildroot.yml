@@ -137,6 +137,16 @@ jobs:
             chroot --userspec=65534:65534 "$1" /usr/bin/env -i PATH=/usr/bin:/bin HOME=/tmp \
               /usr/bin/python3 /kit/examples/linux/check.py --out /kit/firmware-check
           ' sh "$PWD/rootfs"
+      - name: Collect product reports from the test account
+        if: always()
+        run: |
+          for name in product-checks product-hardware-reconnect product-management-reconnect; do
+            report="rootfs/kit/firmware-check/$name/report.json"
+            if sudo test -f "$report"; then
+              mkdir -p "build/product-reports/$name"
+              sudo install -o "$(id -u)" -g "$(id -g)" -m 0600 "$report" "build/product-reports/$name/report.json"
+            fi
+          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -145,7 +155,7 @@ jobs:
             rootfs/kit/built/*-result.json
             rootfs/kit/built/*.log
             rootfs/kit/firmware-check/report.json
-            rootfs/kit/firmware-check/product-*/report.json
+            build/product-reports/*/report.json
             rootfs/kit/firmware-check/*.log
             exported/export.json
           if-no-files-found: error

@@ -201,6 +201,11 @@ jobs:
             build/check-*/build.log
             build/check-*/run.json
             build/check-*/*.log
+            build/check-*/*-data/hardware.log
+            build/check-*/*-data/openavc/logs/*.log
+            build/check-*/*-data/openavc/logs/*.jsonl
+            build/check-*/*-data/openavc/server/logs/*.log*
+            build/check-*/*-data/openavc/server/logs/*.jsonl
             build/product-checks/report.json
             build/project-checks/report.json
             build/support-preview.json

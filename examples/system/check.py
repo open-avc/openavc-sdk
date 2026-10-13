@@ -402,6 +402,14 @@ def check(folder):
         print('System example passed. Evidence: ' + str(folder / 'checks.json'), flush=True)
     except BaseException as error:
         report.update(status='failed', error=str(error))
+        try:
+            report['observations']['failure_devices'] = [
+                {'id': device['id'], 'connected': device['connected'],
+                 'offline_reason': device.get('state', {}).get('offline_reason'),
+                 'offline_detail': device.get('state', {}).get('offline_detail')}
+                for device in api('/api/devices')['devices']]
+        except Exception as diagnostic_error:
+            report['observations']['failure_devices_error'] = str(diagnostic_error)
         raise
     finally:
         (folder / 'checks.json').write_text(json.dumps(report, indent=2) + '\n')

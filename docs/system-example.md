@@ -74,6 +74,10 @@ Each check creates a fresh OpenAVC administrator account, verifies commands
 against independent hardware counters, checks front-panel-style feedback, runs
 normal Discovery and adds discovered equipment through the ordinary Add API.
 It stops the example afterward and saves `checks.json`, `discovery.json` and logs.
+On failure, `checks.json` preserves the original error and attempts to record each
+device's connection status and offline reason. Product process logs are under
+each saved `*-data/openavc/logs/` directory. Hosted checks include those logs in
+the downloadable artifact.
 Do not use the demonstration checker as a command test for a modified product.
 
 ## Five products, one controller

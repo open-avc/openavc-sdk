@@ -75,6 +75,14 @@ core pin, publish a release or update your firmware. A passing upstream check
 is an early compatibility signal; it does not replace package, UI, AV-load,
 upgrade or product-specific acceptance for a new firmware release.
 
+The example/server builder uses the committed Python dependency locks in
+`tools/requirements-server.txt` and `tools/requirements-build.txt`, plus the
+base-image digests in `examples/system/Dockerfile`. When updating the SDK's core
+pin, review these inputs together. Downloaded wheels must match their recorded
+hashes, and the installed combination must pass `pip check`. Qualify changed
+inputs through both native Linux package jobs before distributing a new bundle.
+Do not remove the hash checks to get past a dependency mismatch.
+
 From an SDK source checkout, compare a local OpenAVC checkout without changing
 the SDK:
 

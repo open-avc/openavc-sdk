@@ -1,0 +1,4 @@
+# Build backends only; not included in the installed server bundle.
+setuptools==82.0.1 --hash=sha256:a59e362652f08dcd477c78bb6e7bd9d80a7995bc73ce773050228a348ce2e5bb
+uv_build==0.11.33 --hash=sha256:0757cd5359d98a83aea5463f43299be0c61bcd035cd0628cfee782fed8037f63 --hash=sha256:9dd92f812965010d4109c2a34e07b9405ca17d2783d15cb2bb0e024a2f9f407d --hash=sha256:c94b83e51e14d4c786e4d1611788ab6c545c0d9e7ba6ae50b32e1cb67a5c4578
+wheel==0.48.0 --hash=sha256:3217dcc807155e45db462d7ef2431f5ddda0d7273b700d05a67b271ceb1287ab

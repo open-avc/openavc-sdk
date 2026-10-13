@@ -123,15 +123,20 @@ With Python 3.12 or newer and a running Linux Docker engine:
 python3 tools/build_server.py --out build/server-bundle
 ```
 
-The tool builds both OpenAVC web interfaces from the pinned core revision, builds
-the server and product-management wheels, and collects their Python dependencies.
+The tool builds both OpenAVC web interfaces from the pinned core revision and
+builds the server and product-management wheels. It uses the supplied Python
+dependency versions and wheel hashes for Linux ARM64/x86-64 with Python 3.12.
+The Python build tools and Docker base images are pinned too. Downloads occur
+during image preparation; wheel assembly then runs with networking disabled.
 It starts no product or hardware integration. The result is under
 `build/server-bundle/wheels`; `bundle.json` records hashes, core revision, Python,
 CPU, libc and the exact Docker build image ID. Source hashes come from the files
 inside that image. `python-packages.cdx.json` inventories the delivered wheels
 in [CycloneDX 1.6 JSON format](https://cyclonedx.org/specification/overview/),
 including package names, versions, archive hashes and declared metadata.
-Keep both records with your firmware build. To check the files and preview a
+Keep both records and `build-inputs/` with your firmware build. That directory
+contains the Python locks, web dependency lockfiles, Dockerfile and an inventory
+of the builder's installed system packages. To check the files and preview a
 summary for support, use `python3 collect-diagnostics.py --server-bundle build/server-bundle`
 from the SDK directory. See [diagnostic previews](product-testing.md#preview-diagnostics-before-sharing)
 for export controls and the verification scope. `INSTALL.txt` contains the offline
@@ -158,8 +163,10 @@ or JavaScript dependencies inside them, the Python interpreter, operating system
 build tools or other firmware components. Dependency and license declarations
 come from each wheel's metadata and have not been evaluated for your firmware.
 Include those components and your own software in your product's complete bill
-of materials. Build inputs are not fully locked; retaining hashes does not make
-a rebuild identical or authenticate an artifact's publisher.
+of materials. Debian packages installed while preparing the builder still come
+from its configured repositories; their versions are recorded, not locked.
+The native-library builder uses its host toolchain. These records do not establish
+byte-identical rebuilds or authenticate an artifact's publisher.
 
 ## Produce a prebuilt library archive
 

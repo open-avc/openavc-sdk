@@ -1,4 +1,4 @@
-FROM node:22-bookworm AS server
+FROM node:22-bookworm@sha256:0e5f906573693feaa1e21057ebdcfdb5bd5021f050b2dc7c9deceb629c7da2a8 AS server
 ENV NODE_OPTIONS=--max-old-space-size=3072
 WORKDIR /source
 COPY sdk/contract/origin.json /tmp/origin.json
@@ -8,12 +8,19 @@ RUN npm --prefix openavc/web/programmer ci && npm --prefix openavc/web/programme
     npm --prefix openavc/web/simulator ci && npm --prefix openavc/web/simulator run build
 RUN rm -rf .git openavc/web/programmer/node_modules openavc/web/simulator/node_modules
 
-FROM python:3.12-slim-bookworm AS server-runtime
+FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258 AS server-runtime
 RUN apt-get update && apt-get install -y --no-install-recommends cmake build-essential libssl-dev openssl iputils-ping && rm -rf /var/lib/apt/lists/*
+COPY tools/requirements-server.txt tools/requirements-build.txt /opt/build-inputs/
+RUN python -m pip download --only-binary=:all: --require-hashes \
+    -r /opt/build-inputs/requirements-server.txt -d /opt/server-wheels && \
+    python -m pip install --no-index --find-links=/opt/server-wheels --require-hashes \
+    -r /opt/build-inputs/requirements-server.txt && \
+    python -m pip install --only-binary=:all: --require-hashes \
+    -r /opt/build-inputs/requirements-build.txt -r /opt/build-inputs/requirements-server.txt
 COPY --from=server /source /opt/openavc
-RUN python -m pip install --no-cache-dir /opt/openavc
+RUN python -m pip install --no-index --no-deps --no-build-isolation /opt/openavc && python -m pip check
 COPY . /opt/sdk
-RUN python -m pip install --no-cache-dir /opt/sdk
+RUN python -m pip install --no-index --no-deps --no-build-isolation /opt/sdk && python -m pip check
 WORKDIR /opt/sdk
 ENV PYTHONUNBUFFERED=1
 ENTRYPOINT ["python"]

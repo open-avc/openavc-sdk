@@ -28,7 +28,8 @@ def build(args):
         raise ValueError('Docker did not record a valid build image ID. Read build.log.')
     name = 'openavc-server-build-' + secrets.token_hex(6)
     try:
-        subprocess.run(docker + ['create', '--name', name, image, '/opt/sdk/tools/server_bundle.py', '/output'],
+        subprocess.run(docker + ['create', '--name', name, '--network', 'none', image,
+                                '/opt/sdk/tools/server_bundle.py', '/output'],
                        check=True, stdout=subprocess.DEVNULL)
         with (output / 'wheel-build.log').open('w') as log:
             subprocess.run(docker + ['start', '--attach', name], check=True, stdout=log, stderr=subprocess.STDOUT)

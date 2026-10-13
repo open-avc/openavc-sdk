@@ -195,7 +195,9 @@ Access requires management authentication. `POST /oem/repair` repairs damaged or
 interrupted settings by
 disabling all OpenAVC permissions and retaining the damaged settings for
 inspection. Show this only when `settings_valid` is false. It does not erase
-the OpenAVC project or change the physical unit's identity.
+the OpenAVC project or change the physical unit's identity. The
+[settings recovery example](firmware.md#run-the-settings-recovery-example)
+exercises this operation and the required explicit access choices afterward.
 
 ## Updates and recovery
 

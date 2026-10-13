@@ -19,6 +19,7 @@ alone does not establish compatibility with a firmware image.
 | `collect-diagnostics.py` | A preview or explicit export of selected status/measurement summaries, recorded server-health events, local network-interface state and a checksummed offline server-bundle identity. |
 | `examples/linux/check.py` | Unprivileged firmware-example startup, hardware restart, persistence and orderly shutdown. |
 | `examples/linux/check.py --update` | Orderly C-to-C++ example application replacement and rollback with stopped-process data snapshots; uses a source checkout and the same server/data format. |
+| `examples/linux/check.py --storage-recovery` | Refused control and authenticated repair after damaged settings or a retained save marker; preserves identity, credentials and existing server data. Uses disposable example files, not physical power loss. |
 | `examples/linux/check-systemd.py` | Actual example systemd units, filesystem restrictions, restart and cleanup on an isolated systemd host. |
 | `try-system.py --check` | Both SDK products and ordinary TCP equipment work in the selected example arrangement. Use it with the supplied demonstration model. |
 

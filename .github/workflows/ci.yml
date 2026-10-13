@@ -126,9 +126,9 @@ jobs:
           python3 examples/linux/check.py --out build/firmware-system-python
       - name: Check firmware startup and service supervision
         run: |
-          python examples/linux/check.py --out build/firmware-device
+          python examples/linux/check.py --storage-recovery --out build/firmware-device
           python examples/linux/check.py --language cpp --out build/firmware-cpp
-          python examples/linux/check.py --with-server --out build/firmware-server
+          python examples/linux/check.py --with-server --storage-recovery --out build/firmware-server
           python examples/linux/check.py --update --out build/firmware-update-device
           python examples/linux/check.py --with-server --update --out build/firmware-update-server
           python examples/linux/check-systemd.py --with-server --out build/firmware-systemd
@@ -144,7 +144,7 @@ jobs:
           python try-example.py --form direct --exercise-demo
           python new-product.py --out build/my-product
           python try-example.py --project build/my-product --checks build/my-product/checks.json --out build/project-checks
-          python examples/linux/check.py --with-server --out build/firmware-server
+          python examples/linux/check.py --with-server --storage-recovery --out build/firmware-server
           python collect-diagnostics.py --health-log build/firmware-server/product/data/logs/health.jsonl --network --out build/runtime-support.json
           python -c 'import json; r=json.load(open("build/runtime-support.json")); assert r["health"]["retained_events"]; assert r["network"]["interfaces"]'
           python -c 'import time; time.sleep(300)' &

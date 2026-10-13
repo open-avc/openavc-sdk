@@ -26,7 +26,7 @@ def run(command):
         return {"command": list(map(str, command)), "returncode": None, "error": str(error)}
 
 
-def inspect(form, openssl):
+def inspect(form, openssl, toolchain=None):
     rows = []
     root_package = Path(__file__).resolve().parent
     bundle_path = root_package / 'bundle.json'
@@ -49,6 +49,11 @@ def inspect(form, openssl):
         "Use the Linux development environment described in the example README. No build-host path is validated here for this OS.")
     add("Delivery form", form == "direct" or sys.platform == "linux", form,
         "Use the direct example on macOS, or run the service example in the documented Linux environment.")
+    if toolchain:
+        add('Firmware toolchain file', toolchain.is_file(), str(toolchain),
+            'Pass the CMake toolchain file supplied by your firmware team.')
+        add('Firmware toolchain source build', not supplied, delivery,
+            'Use an SDK source checkout to check another firmware toolchain. Prebuilt libraries need their matching ABI.')
     if supplied:
         expected = bundle['runtime_host']
         add('Prebuilt library platform', expected == {'system': platform.system(), 'machine': platform.machine()},
@@ -68,6 +73,8 @@ def inspect(form, openssl):
                 "openssl": "Install the OpenSSL command-line tool used by the example."}
     if supplied:
         del remedies['c++']
+    if toolchain:
+        remedies = {'cmake': remedies['cmake']}
     for name in remedies:
         executable = shutil.which(name)
         if executable:
@@ -92,7 +99,8 @@ def inspect(form, openssl):
                 "find_package(Threads REQUIRED)\nfind_package(OpenSSL 3 REQUIRED)\n"
                 "add_executable(environment-check check.c " + ('main.c' if supplied else 'check.cpp') + ")\n"
                 "target_compile_features(environment-check PRIVATE c_std_11" + ('' if supplied else ' cxx_std_17') + ")\n"
-                "target_link_libraries(environment-check PRIVATE Threads::Threads OpenSSL::SSL OpenSSL::Crypto)\n")
+                "target_link_libraries(environment-check PRIVATE Threads::Threads OpenSSL::SSL OpenSSL::Crypto)\n"
+                'file(WRITE "${CMAKE_BINARY_DIR}/target.txt" "${CMAKE_SYSTEM_NAME}\\n${CMAKE_SYSTEM_PROCESSOR}\\n${CMAKE_CROSSCOMPILING}\\n${CMAKE_C_COMPILER}\\n${CMAKE_CXX_COMPILER}\\n${CMAKE_SYSROOT}\\n")\n')
             if supplied:
                 cmake += (
                     'target_include_directories(environment-check PRIVATE "${SDK}/include")\n'
@@ -117,24 +125,30 @@ def inspect(form, openssl):
                 "work.join(); return result.value_or(1); }\n")
             configure = run([tools["cmake"]["executable"], "-S", str(root), "-B", str(root / "build"),
                 "-DPython3_EXECUTABLE=" + sys.executable,
+                *(['-DCMAKE_TOOLCHAIN_FILE=' + str(toolchain)] if toolchain else []),
                 *(['-DSDK=' + str(root_package / 'sdk')] if supplied else []),
                 *(["-DOPENSSL_ROOT_DIR=" + str(openssl)] if openssl else [])])
             probe = {"status": "failed", "configure": configure}
             if configure["returncode"] == 0:
+                probe['target'] = dict(zip(('system', 'processor', 'cross_compiling', 'c_compiler', 'cxx_compiler', 'sysroot'),
+                                          (root / 'build/target.txt').read_text().splitlines(), strict=True))
                 built = run([tools["cmake"]["executable"], "--build", str(root / "build"), "--parallel", "1"])
                 probe["build"] = built
                 if built["returncode"] == 0:
                     probe["status"] = "passed"
             add("C11, supplied SDK, threads and OpenSSL 3 development files" if supplied else "C11/C++17, threads and OpenSSL 3 development files",
                 probe["status"] == "passed", probe["status"],
-                ("Read the configure/build output in this report. Use the matching prebuilt libraries and C compiler; install OpenSSL 3 development files."
+                ("Read the configure/build output in this report. Load your firmware build environment and correct the toolchain's compiler, sysroot, target threads and OpenSSL 3 development files."
+                 if toolchain else "Read the configure/build output in this report. Use the matching prebuilt libraries and C compiler; install OpenSSL 3 development files."
                  if supplied else "Read the configure/build output in this report. On Ubuntu install build-essential and libssl-dev; on Homebrew pass --openssl /opt/homebrew/opt/openssl@3."))
     passed = all(row["status"] == "passed" for row in rows)
     return {"format": 1, "status": "prerequisites-verified" if passed else "needs-attention",
             "doctor_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             "host": {"os": platform.system(), "machine": platform.machine(), "python": platform.python_version()},
             "delivery": delivery, "form": form, "checks": rows, "tools": tools, "compile_probe": probe,
-            "scope": "Development-host prerequisites only. No product code or compiled probe was executed. Target firmware, cross-toolchains, hardware behavior and resource capacity are not qualified.",
+            "toolchain": {'path': str(toolchain), 'sha256': hashlib.sha256(toolchain.read_bytes()).hexdigest()}
+                         if toolchain and toolchain.is_file() else None,
+            "scope": "Build prerequisites and selected compiler/link inputs only. No product code or compiled probe was executed. A successful cross-build does not qualify target execution, firmware, hardware behavior or resource capacity.",
             "privacy": "Contains local tool paths and compiler output. Nothing is uploaded."}
 
 
@@ -142,6 +156,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--form", choices=["direct", "service"])
     parser.add_argument("--openssl", type=Path)
+    parser.add_argument('--toolchain', type=Path, help='Firmware CMake toolchain file; source checkout only, compile/link without target execution')
     parser.add_argument("--report", type=Path, help="New JSON report path; defaults to a unique file in the current directory")
     args = parser.parse_args()
     if args.report is None:
@@ -156,7 +171,8 @@ def main():
         return 2
     with destination:
         try:
-            result = inspect(args.form, args.openssl.resolve() if args.openssl else None)
+            result = inspect(args.form, args.openssl.resolve() if args.openssl else None,
+                             args.toolchain.resolve() if args.toolchain else None)
         except Exception as error:
             result = {"format": 1, "status": "error", "checks": [], "error": str(error),
                       "scope": "The environment check did not finish. Prerequisites have not been verified."}

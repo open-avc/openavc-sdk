@@ -16,6 +16,9 @@ environment = {**os.environ, 'OPENAVC_TARGET_PROCESSOR': processor,
                'OPENAVC_TARGET_TRIPLE': triple, 'OPENAVC_TARGET_SYSROOT': '/opt/sysroot'}
 output = Path('/output')
 output.mkdir()
+subprocess.run([sys.executable, str(ROOT / 'doctor.py'), '--toolchain',
+                str(Path(__file__).with_name('toolchain.cmake')),
+                '--report', str(output / 'toolchain-check.json')], env=environment, check=True)
 build = ROOT / 'build-cross'
 for language, form in [('c', 'service'), ('cpp', 'service'), ('c', 'direct')]:
     subprocess.run([sys.executable, str(ROOT / 'try-example.py'), '--build-only',

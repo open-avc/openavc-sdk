@@ -30,6 +30,7 @@ The output contains:
 - `cross-build.json`, identifying the build computer, target, compiler and core contract.
 - ELF reports showing each binary's CPU, loader and dynamic-library dependencies.
 - Compiler-package versions, target-package hashes and build logs.
+- `toolchain-check.json`, the prerequisite check for the selected compiler and sysroot.
 
 This is a reference development environment, not a universal firmware binary.
 Dependencies are fetched from the configured package repositories; the recipe
@@ -76,6 +77,20 @@ The SDK uses CMake's normal [Linux toolchain mechanism](https://cmake.org/cmake/
 Your toolchain selects the target processor, C/C++ compilers and sysroot.
 Build-time programs such as Python must come from the build computer; target
 headers and libraries must come from the firmware toolchain.
+
+Check that environment before building your adapter:
+
+```sh
+python3 doctor.py --toolchain /path/to/vendor-toolchain.cmake --report build/toolchain-check.json
+```
+
+Run this in an SDK source checkout with your firmware build environment loaded.
+The doctor compiles and links a disposable C11/C++17, threads and OpenSSL 3 probe
+using the selected toolchain. It records the toolchain file hash, selected
+compilers, target and configuration/build output. It executes no target binary
+and does not check the complete SDK or product firmware. Included toolchain files,
+environment settings and sysroot contents remain part of your build records.
+Use the report to correct missing target headers, libraries or compiler settings.
 
 After creating a separate product with `new-product.py`, build its adapter:
 

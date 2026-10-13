@@ -8,12 +8,13 @@ alone does not establish compatibility with a firmware image.
 
 | Tool | What it checks |
 |---|---|
-| `doctor.py` | Build-host prerequisites and a compiled dependency/link check. It does not qualify a remote target or measure AV workload headroom. |
+| `doctor.py` | Build-host prerequisites and a compiled dependency/link check. `--toolchain` checks a selected firmware toolchain from source. Neither executes a target binary or measures AV workload headroom. |
 | `try-example.py --build-only` | Your model and adapter compile. It starts no hardware. |
 | `try-example.py --inspect` | The launched example integration reports the generated model and current readback. It sends no hardware commands. |
 | `try-example.py --exercise-demo` | Commands, independent feedback and delayed completion for the unchanged invented amplifier. |
 | `new-product.py` | A separate C or C++ product starter; source checkouts also supply a CI build workflow pinned to the SDK revision. |
 | `try-example.py --checks` / `check-product.py` | Your selected commands, retained outcomes, duplicate request handling and reported state against the generated model. Optional `check_refusals` verifies selected invalid requests and unchanged feedback. Physical effects need independent verification. |
+| `check-product.py --reconnect` | An interruption you arrange, then the same product returning with compatible capabilities, authentication and current readback. Sends no commands; does not test a controller's recovery or AV continuity. |
 | `profile-product.py` | Sampled local process resources and optional data-directory size during a workload you select. |
 | `compare-profiles.py` | Differences between completed resource reports, with workload and environment differences identified. |
 | `collect-diagnostics.py` | A preview or explicit export of selected status/measurement summaries, recorded server-health events, local network-interface state and a checksummed offline server-bundle identity. |

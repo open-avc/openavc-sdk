@@ -135,6 +135,33 @@ For a local native endpoint, the credential file can instead contain
 not a new installer connection step. Ordinary OpenAVC uses its normal Discovery/Add
 workflow and product credentials.
 
+## Observe connection loss and recovery
+
+Use a test product with its remote equipment interface enabled. Start this
+read-only observer, then wait for **Baseline passed** before interrupting its
+network connection or restarting your product application:
+
+```sh
+python3 check-product.py --url https://product.example:9443 --credentials credentials.json --ca-file product-ca.pem --model build/generated/model.json --reconnect 120 --out build/reconnect-check
+```
+
+Restore the connection within the selected window. The observer must see a
+connection failure or HTTP 503, followed by the same product identity and model
+with current state, working authentication and change readback. A new equipment
+session after restart is allowed. It fails on a different product, changed
+capabilities or protocol, unauthorized access, invalid state, no observed
+interruption or no recovery. TLS certificate verification failures stop the
+check; they do not count as an expected outage.
+
+The window is 1–3600 seconds. Each request has a five-second timeout, and final
+readback checks can finish after the window. Keep the interruption long enough for the observer to
+detect it. This option sends no hardware commands and cannot be combined with
+`--checks`. It does not restart the product, change network settings, follow a
+changed address or test an OpenAVC server's reconnection. Arrange the interruption
+in your test setup. The report saves the observed transition times and old/new
+sessions. Verify AV continuity separately; a successful return does not establish
+that hardware work continued correctly during the outage.
+
 ## Measure resources on the target
 
 Run the profiler on the same host as the product processes. Select their process

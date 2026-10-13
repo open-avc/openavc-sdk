@@ -11,13 +11,18 @@ if __name__ == '__main__':
     parser.add_argument('--credentials', type=Path, required=True, help='Private JSON file with username/password or local token')
     parser.add_argument('--ca-file', type=Path, help='CA certificate when not in system trust')
     parser.add_argument('--model', type=Path, required=True, help='Generated model.json from your build')
-    parser.add_argument('--checks', type=Path, help='Explicit command/readback checks; omitted means read-only')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--checks', type=Path, help='Explicit command/readback checks; omitted means read-only')
+    mode.add_argument('--reconnect', type=float, metavar='SECONDS',
+                      help='Observe an interruption you arrange and the same product returning; sends no commands')
     parser.add_argument('--out', type=Path, required=True, help='New private evidence directory')
     args = parser.parse_args()
     try:
         client = Client(args.url, read_json(args.credentials), args.ca_file)
         result = run_checks(client, read_json(args.model), args.out,
-                            read_json(args.checks) if args.checks else None)
+                            read_json(args.checks) if args.checks else None, reconnect=args.reconnect,
+                            ready=lambda: print('Baseline passed. Interrupt and restore the test equipment connection now. '
+                                                'Waiting without sending commands.', flush=True))
     except CheckFailed as error:
         parser.exit(1, str(error) + '\nRead report.json if created.\n')
     except Exception:

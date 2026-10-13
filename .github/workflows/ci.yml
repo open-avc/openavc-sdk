@@ -201,12 +201,12 @@ jobs:
             build/project-checks/report.json
             build/support-preview.json
             build/firmware-*/report.json
-            build/firmware-*/product-checks/report.json
+            build/firmware-*/product-*/report.json
             build/extracted/openavc-sdk/build/resources-*/report.json
             build/extracted/openavc-sdk/build/resource-comparison.json
             build/extracted/openavc-sdk/build/runtime-support.json
             build/firmware-*/*.log
             build/extracted/openavc-sdk/build/firmware-*/report.json
-            build/extracted/openavc-sdk/build/firmware-*/product-checks/report.json
+            build/extracted/openavc-sdk/build/firmware-*/product-*/report.json
             build/extracted/openavc-sdk/build/firmware-*/*.log
           if-no-files-found: ignore

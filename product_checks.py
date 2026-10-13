@@ -26,6 +26,10 @@ class CheckFailed(ValueError):
     """A reported contract, command or feedback check did not pass."""
 
 
+class ConnectionUnavailable(CheckFailed):
+    """A request could not reach the equipment or obtain its response."""
+
+
 def require(condition, message):
     if not condition:
         raise CheckFailed(message)
@@ -109,8 +113,9 @@ class Client:
                 return status, None
             return status, decode(raw)
         except (urllib.error.URLError, TimeoutError, OSError) as error:
-            raise CheckFailed('Equipment connection failed. Check address, TLS trust and connectivity; '
-                              'an interrupted command must not be replayed.') from error
+            failure = CheckFailed if isinstance(getattr(error, 'reason', error), ssl.SSLCertVerificationError) else ConnectionUnavailable
+            raise failure('Equipment connection failed. Check address, TLS trust and connectivity; '
+                          'an interrupted command must not be replayed.') from error
         finally:
             self.timings.append({'method': 'GET' if body is None else 'POST',
                                  'path': path.split('?')[0],
@@ -239,10 +244,14 @@ def prepare_cases(plan, model):
     return plan['checks']
 
 
-def run_checks(client, model, output, plan=None):
+def run_checks(client, model, output, plan=None, *, reconnect=None, ready=None):
     """Run once; save intent before every POST and retain evidence on failure."""
     require(type(model) is dict and type(model.get('id')) is str, 'Supply the generated model.json from your build.')
     cases = prepare_cases(plan, model) if plan is not None else []
+    if reconnect is not None:
+        require(type(reconnect) in (int, float) and math.isfinite(reconnect) and 1 <= reconnect <= 3600,
+                'Reconnect observation must be between 1 and 3600 seconds.')
+        require(not cases, 'Run reconnect observation separately from command checks.')
     output = Path(output)
     output.mkdir(parents=True, exist_ok=False, mode=0o700)
     report = {'format': 1, 'status': 'running', 'protocol': PROTOCOL,
@@ -329,6 +338,57 @@ def run_checks(client, model, output, plan=None):
         require(status == 200, f'Change request returned HTTP {status}.')
         current = readback(changed)
         passed('change_readback')
+        if reconnect is not None:
+            observation = {'status': 'waiting_for_disconnect', 'timeout': reconnect,
+                           'initial_session': description['session']}
+            report['reconnect'] = observation
+            save()
+            if ready:
+                ready()
+            started = time.monotonic()
+            deadline = started + reconnect
+            unavailable = False
+            while True:
+                require(time.monotonic() < deadline,
+                        'Equipment did not recover within the observation window.' if unavailable
+                        else 'No unavailable response was observed. Repeat with a longer interruption.')
+                try:
+                    status, candidate = client.request('/v1/description')
+                    if status == 503:
+                        raise ConnectionUnavailable('Equipment reported unavailable.')
+                    require(status == 200 and type(candidate) is dict,
+                            f'Description request returned HTTP {status} during reconnect observation.')
+                    require(candidate.get('identity') == description['identity'],
+                            'A different product answered after connection loss. Check the address and product identity.')
+                    require(candidate.get('protocol') == PROTOCOL and candidate.get('capabilities') == model,
+                            'Equipment protocol or capabilities changed. Use the matching SDK and generated model.')
+                    require(type(candidate.get('session')) is str and candidate['session'], 'Equipment session is missing.')
+                    status, candidate_state = client.request('/v1/snapshot')
+                    if status == 503:
+                        raise ConnectionUnavailable('Hardware readback reported unavailable.')
+                    require(status == 200, f'Readback request returned HTTP {status} during reconnect observation.')
+                    candidate_state = snapshot(candidate_state, candidate)
+                    if unavailable:
+                        description = candidate
+                        previous = None
+                        current = readback(candidate_state)
+                        status, _ = client.request('/v1/description', authenticated=False)
+                        require(status in (401, 403), 'Recovered equipment is accessible without authentication.')
+                        query = urllib.parse.urlencode({'generation': current['generation'], 'revision': current['revision']})
+                        status, changed = client.request('/v1/changes?' + query)
+                        require(status == 200, f'Recovered change request returned HTTP {status}.')
+                        current = readback(changed)
+                        observation.update(status='passed', recovered_after_seconds=time.monotonic() - started,
+                                           final_session=candidate['session'])
+                        passed('same_product_recovered_without_commands')
+                        break
+                    current = readback(candidate_state)
+                except ConnectionUnavailable:
+                    if not unavailable:
+                        unavailable = True
+                        observation.update(status='waiting_for_recovery', unavailable_after_seconds=time.monotonic() - started)
+                        save()
+                time.sleep(min(.25, max(0, deadline - time.monotonic())))
         for identifier, case in enumerate(cases, 1):
             before = readback()
             targets = [item.get('equals') if 'equals' in item

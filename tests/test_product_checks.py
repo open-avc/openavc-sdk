@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from product_checks import CheckFailed, PROTOCOL, run_checks
+from product_checks import CheckFailed, ConnectionUnavailable, PROTOCOL, run_checks
 
 
 MODEL = {'id': 'test_counter', 'commands': {'step': {'params': {}}},
@@ -116,6 +116,59 @@ class ProductChecks(unittest.TestCase):
         equipment = FaultEquipment(None)
         with self.assertRaisesRegex(CheckFailed, 'check_refusals'):
             run_checks(equipment, MODEL, self.output, plan)
+        self.assertEqual(equipment.posts, 0)
+        self.assertEqual(equipment.reads, 0)
+
+    def test_reconnect_is_read_only_and_requires_the_same_compatible_product(self):
+        class RecoveringEquipment(FaultEquipment):
+            watching = False
+            interrupted = False
+
+            def request(self, path, body=None, authenticated=True):
+                if self.watching and authenticated and path == '/v1/description':
+                    if not self.interrupted and self.fault != 'no_outage':
+                        self.interrupted = True
+                        if self.fault == 'socket_loss':
+                            raise ConnectionUnavailable('Connection refused.')
+                        return 503, {'error': 'unavailable'}
+                    if self.fault == 'authorization':
+                        return 403, {'error': 'forbidden'}
+                status, value = super().request(path, body, authenticated)
+                if self.interrupted and type(value) is dict:
+                    value = copy.deepcopy(value)
+                    value['session'] = 'restarted'
+                    if 'generation' in value:
+                        value.update(generation='new-generation', revision=0)
+                    if self.fault == 'identity':
+                        value['identity'] = 'replacement-unit'
+                    elif self.fault == 'protocol':
+                        value['protocol'] = 'unsupported'
+                    elif self.fault == 'model' and 'capabilities' in value:
+                        value['capabilities']['id'] = 'another-model'
+                    elif self.fault == 'readback' and 'quality' in value:
+                        value['quality'] = 'unknown'
+                return status, value
+
+        for fault in ('http_unavailable', 'socket_loss', 'identity', 'protocol', 'model', 'readback', 'authorization', 'no_outage'):
+            with self.subTest(fault=fault):
+                equipment = RecoveringEquipment(fault)
+                output = self.output / fault
+                def ready():
+                    equipment.watching = True
+                if fault in ('http_unavailable', 'socket_loss'):
+                    result = run_checks(equipment, MODEL, output, reconnect=1, ready=ready)
+                    self.assertEqual(result['reconnect']['final_session'], 'restarted')
+                    self.assertEqual(result['status'], 'passed')
+                else:
+                    with self.assertRaises(CheckFailed):
+                        run_checks(equipment, MODEL, output, reconnect=1, ready=ready)
+                    self.assertEqual(json.loads((output / 'report.json').read_text())['status'], 'failed')
+                self.assertEqual(equipment.posts, 0)
+
+    def test_reconnect_cannot_run_a_command_plan(self):
+        equipment = FaultEquipment(None)
+        with self.assertRaisesRegex(CheckFailed, 'separately'):
+            run_checks(equipment, MODEL, self.output, PLAN, reconnect=1)
         self.assertEqual(equipment.posts, 0)
         self.assertEqual(equipment.reads, 0)
 

@@ -145,7 +145,7 @@ jobs:
             rootfs/kit/built/*-result.json
             rootfs/kit/built/*.log
             rootfs/kit/firmware-check/report.json
-            rootfs/kit/firmware-check/product-checks/report.json
+            rootfs/kit/firmware-check/product-*/report.json
             rootfs/kit/firmware-check/*.log
             exported/export.json
           if-no-files-found: error

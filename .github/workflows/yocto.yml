@@ -201,7 +201,7 @@ jobs:
             rootfs/kit/installed-consumer/*-result.json
             rootfs/kit/installed-consumer/*.log
             rootfs/kit/firmware-check/report.json
-            rootfs/kit/firmware-check/product-checks/report.json
+            rootfs/kit/firmware-check/product-*/report.json
             rootfs/kit/firmware-check/*.log
             exported/export.json
           if-no-files-found: error

@@ -74,13 +74,10 @@ jobs:
         id: cache
         uses: actions/cache/restore@v4
         with:
-          path: |
-            build/yocto/build/downloads
-            build/yocto/build/sstate-cache
-          key: yocto-${{ matrix.machine }}-${{ hashFiles('examples/linux/yocto/setup.py') }}-${{ github.run_id }}
-          restore-keys: |
-            yocto-${{ matrix.machine }}-${{ hashFiles('examples/linux/yocto/setup.py') }}-
+          path: build/yocto/build/sstate-cache
+          key: yocto-sstate-${{ matrix.machine }}-${{ hashFiles('examples/linux/yocto/setup.py') }}
       - name: Build packages and the reference filesystem
+        id: firmware
         env:
           LANG: en_US.UTF-8
         run: |
@@ -116,12 +113,10 @@ jobs:
                       archive.add(path, arcname=str(path))
           PY
       - name: Save completed build work
-        if: always() && steps.cache.outcome == 'success'
+        if: always() && steps.firmware.outcome == 'success' && steps.cache.outcome == 'success' && steps.cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: |
-            build/yocto/build/downloads
-            build/yocto/build/sstate-cache
+          path: build/yocto/build/sstate-cache
           key: ${{ steps.cache.outputs.cache-primary-key }}
       - uses: actions/upload-artifact@v4
         if: always()

@@ -174,6 +174,12 @@ CPU, libc and the exact Docker build image ID. Source hashes come from the files
 inside that image. `python-packages.cdx.json` inventories the delivered wheels
 in [CycloneDX 1.6 JSON format](https://cyclonedx.org/specification/overview/),
 including package names, versions, archive hashes and declared metadata.
+`publisher-sboms/index.json` identifies any component inventories supplied inside
+the wheels in the [standard SBOM location](https://packaging.python.org/en/latest/specifications/binary-distribution-format/#the-dist-info-sboms-directory).
+The original documents are copied unchanged alongside that index. It records
+each source wheel, archive member and document hash, including wheels that supply
+no documents. Use them with your software composition tools; their content,
+completeness and publisher signatures have not been verified.
 Keep both records and `build-inputs/` with your firmware build. That directory
 contains the Python locks, web dependency lockfiles, Dockerfile and an inventory
 of the builder's installed system packages. To check the files and preview a
@@ -203,7 +209,7 @@ for an x86-64 bundle. The tool does not qualify a different firmware libc or
 cross-compile a Python interpreter. `--docker-context <name>` selects an engine
 without changing the active Docker context.
 
-The inventory covers Python wheel archives. It does not enumerate native code
+The generated CycloneDX inventory covers Python wheel archives. It does not enumerate native code
 or JavaScript dependencies inside them, the Python interpreter, operating system,
 build tools or other firmware components. Dependency and license declarations
 come from each wheel's metadata and have not been evaluated for your firmware.

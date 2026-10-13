@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import sys
 
-from wheel_inventory import digest, install_requirements, inventory
+from wheel_inventory import digest, install_requirements, inventory, publisher_sboms
 
 
 def write_json(path, value):
@@ -30,6 +30,8 @@ def build(output):
     write_json(output / 'runtime.json', runtime)
     bom = inventory(wheels)
     write_json(output / 'python-packages.cdx.json', bom)
+    supplied = publisher_sboms(wheels, output / 'publisher-sboms')
+    write_json(output / 'publisher-sboms/index.json', supplied)
     (output / 'requirements.txt').write_text(install_requirements(bom), encoding='utf-8')
     inputs = output / 'build-inputs'
     inputs.mkdir()
@@ -53,6 +55,7 @@ def build(output):
     metadata = {'core': json.loads((sdk / 'sdk/contract/origin.json').read_text(encoding='utf-8')),
                 'runtime': runtime,
                 'wheels': {path.name: digest(path) for path in wheels},
+                'publisher_sboms': {path.name: digest(path) for path in sorted((output / 'publisher-sboms').iterdir())},
                 'build_inputs': {path.name: digest(path) for path in sorted(inputs.iterdir())},
                 'sdk_sources': sources,
                 'core_build_inputs': {name: digest(core / name) for name in [

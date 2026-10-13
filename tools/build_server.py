@@ -21,7 +21,7 @@ def archive_bundle(output):
     artifact = output / ('openavc-server-linux-' + runtime['machine'] + '.tar.gz')
     with tarfile.open(artifact, 'x:gz') as archive:
         for name in ['INSTALL.txt', 'bundle.json', 'runtime.json', 'python-packages.cdx.json',
-                     'requirements.txt', 'build-image.txt', 'build-inputs', 'wheels']:
+                     'requirements.txt', 'build-image.txt', 'build-inputs', 'publisher-sboms', 'wheels']:
             archive.add(output / name, arcname='openavc-server/' + name)
     with artifact.open('rb') as stream:
         sha = hashlib.file_digest(stream, 'sha256').hexdigest()
@@ -79,7 +79,10 @@ def build(args):
         'docs/building.md in the SDK checkout. Qualify the complete firmware.\n\n'
         'Retain bundle.json and python-packages.cdx.json with this firmware build.\n'
         'The CycloneDX inventory describes delivered Python wheels, not the complete\n'
-        'firmware or nested native/JavaScript dependencies. Hashes are not signatures.\n', encoding='utf-8')
+        'firmware or nested native/JavaScript dependencies. publisher-sboms/index.json\n'
+        'lists the original component inventories supplied inside those wheels;\n'
+        'an empty document list means that wheel supplied none in the standard location.\n'
+        'Their content and completeness are not verified. Hashes are not signatures.\n', encoding='utf-8')
     print('Server bundle: ' + str(output))
     print('Offline installation instructions: ' + str(output / 'INSTALL.txt'))
     print('Archive: ' + str(archive_bundle(output)))

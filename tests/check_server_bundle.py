@@ -28,6 +28,24 @@ for filename, sha in record['wheels'].items():
     assert components[filename]['version'] == declared['Version'] == metadata.version(declared['Name'])
 for name, sha in record['inventories'].items():
     assert hashlib.sha256((bundle / name).read_bytes()).hexdigest() == sha
+supplied = bundle / 'publisher-sboms'
+assert set(record['publisher_sboms']) == {path.name for path in supplied.iterdir()}
+for name, sha in record['publisher_sboms'].items():
+    assert hashlib.sha256((supplied / name).read_bytes()).hexdigest() == sha
+index = json.loads((supplied / 'index.json').read_text())
+assert set(index['wheels']) == set(record['wheels'])
+for name, entry in index['wheels'].items():
+    assert entry['sha256'] == record['wheels'][name]
+    with ZipFile(bundle / 'wheels' / name) as wheel:
+        metadata_file, = [n for n in wheel.namelist() if re.fullmatch(r'[^/]+\.dist-info/METADATA', n)]
+        prefix = metadata_file.removesuffix('METADATA') + 'sboms/'
+        originals = {item.filename for item in wheel.infolist()
+                     if item.filename.startswith(prefix) and not item.is_dir()}
+        assert {document['member'] for document in entry['documents']} == originals
+        for document in entry['documents']:
+            copied = (supplied / document['file']).read_bytes()
+            assert copied == wheel.read(document['member'])
+            assert hashlib.sha256(copied).hexdigest() == document['sha256']
 for name, sha in record['build_inputs'].items():
     assert hashlib.sha256((bundle / 'build-inputs' / name).read_bytes()).hexdigest() == sha
 locked = {}

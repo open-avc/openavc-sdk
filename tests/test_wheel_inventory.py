@@ -4,9 +4,10 @@ import hashlib
 from pathlib import Path
 import tempfile
 import unittest
+import warnings
 from zipfile import ZipFile
 
-from tools.wheel_inventory import install_requirements, inventory
+from tools.wheel_inventory import install_requirements, inventory, publisher_sboms
 
 
 class WheelInventory(unittest.TestCase):
@@ -72,6 +73,37 @@ class WheelInventory(unittest.TestCase):
         bom['components'][0]['version'] = '1 --extra-index-url https://example.invalid'
         with self.assertRaisesRegex(ValueError, 'invalid version'):
             install_requirements(bom)
+
+    def test_publisher_documents_keep_original_bytes_and_do_not_follow_member_paths(self):
+        self.write_wheel('Metadata-Version: 2.4\nName: Example\nVersion: 1\n')
+        # SBOM data is opaque: include an unfamiliar format and a hostile path.
+        payload = b'Publisher document\r\n\xff\n'
+        member = 'example_audio-1.2.dist-info/sboms/../../../outside.txt'
+        with ZipFile(self.wheel, 'a') as archive:
+            archive.writestr(member, payload)
+            archive.writestr('example_audio/internal-sbom.json', '{}')
+        output = Path(self.folder.name) / 'documents'
+        result = publisher_sboms([self.wheel], output)
+        wheel = result['wheels'][self.wheel.name]
+        self.assertEqual(wheel['sha256'], hashlib.sha256(self.wheel.read_bytes()).hexdigest())
+        document, = wheel['documents']
+        sha = hashlib.sha256(payload).hexdigest()
+        self.assertEqual(document, {'member': member, 'file': sha + '.txt', 'sha256': sha})
+        self.assertEqual((output / document['file']).read_bytes(), payload)
+        self.assertEqual(list(output.iterdir()), [output / (sha + '.txt')])
+        self.assertFalse((Path(self.folder.name) / 'outside.txt').exists())
+
+    def test_absent_documents_are_explicit_and_duplicate_members_are_refused(self):
+        self.write_wheel('Metadata-Version: 2.4\nName: Example\nVersion: 1\n')
+        result = publisher_sboms([self.wheel], Path(self.folder.name) / 'empty')
+        self.assertEqual(result['wheels'][self.wheel.name]['documents'], [])
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', UserWarning)
+            with ZipFile(self.wheel, 'a') as archive:
+                for payload in ['first', 'second']:
+                    archive.writestr('example_audio-1.2.dist-info/sboms/component.json', payload)
+        with self.assertRaisesRegex(ValueError, 'repeated publisher'):
+            publisher_sboms([self.wheel], Path(self.folder.name) / 'repeated')
 
 
 if __name__ == '__main__':

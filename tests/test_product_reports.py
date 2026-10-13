@@ -136,11 +136,16 @@ class ProductReports(unittest.TestCase):
             paths.append(path)
         for name in ['python-packages.cdx.json', 'requirements.txt']:
             (bundle / name).write_text(private)
+        supplied = bundle / 'publisher-sboms'
+        supplied.mkdir()
+        document = supplied / 'index.json'
+        document.write_text(private)
         metadata = {'core': {'core_head': 'a' * 40, 'repository': private},
                     'runtime': {'system': 'Linux', 'machine': 'aarch64', 'python': '3.12.15', 'label': private},
                     'build_image_id': 'sha256:' + 'b' * 64,
                     'sdk_sources': {private: 'c' * 64},
                     'wheels': {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in paths},
+                    'publisher_sboms': {'index.json': hashlib.sha256(document.read_bytes()).hexdigest()},
                     'inventories': {name: hashlib.sha256((bundle / name).read_bytes()).hexdigest()
                                     for name in ['python-packages.cdx.json', 'requirements.txt']}}
         record = bundle / 'bundle.json'
@@ -159,6 +164,10 @@ class ProductReports(unittest.TestCase):
         result = subprocess.run([*args, '--out', str(exported)], capture_output=True, text=True, timeout=5)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(preview.stdout, exported.read_text())
+        document.write_text('altered publisher document')
+        with self.assertRaisesRegex(ValueError, 'checksum'):
+            summarize(server_bundle=bundle)
+        document.write_text(private)
         original = paths[0].read_bytes()
         paths[0].write_bytes(original + b'changed')
         refused = self.work / 'refused.json'

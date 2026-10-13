@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 from email.parser import BytesParser
 import hashlib
+from pathlib import PurePosixPath
 import re
 from urllib.parse import quote
 import uuid
@@ -69,6 +70,46 @@ def inventory(paths):
                     'Dependency relationships and license declarations are not evaluated.'}]},
             'components': components,
             'compositions': [{'aggregate': 'incomplete', 'assemblies': ['openavc-server-wheel-bundle']}]}
+
+
+def publisher_sboms(paths, output):
+    """Copy opaque PEP 770 documents, retaining their source wheel and member.
+
+    Content-derived filenames avoid interpreting archive member paths as local
+    paths. The documents remain publisher declarations, not verified coverage.
+    """
+    output.mkdir()
+    records = {}
+    for path in sorted(paths):
+        documents = []
+        with ZipFile(path) as archive:
+            metadata = [entry.filename for entry in archive.infolist()
+                        if re.fullmatch(r'[^/]+\.dist-info/METADATA', entry.filename)]
+            if len(metadata) != 1:
+                raise ValueError(f'{path.name}: expected one wheel METADATA record.')
+            prefix = metadata[0].removesuffix('METADATA') + 'sboms/'
+            seen = set()
+            for entry in archive.infolist():
+                if not entry.filename.startswith(prefix) or entry.is_dir():
+                    continue
+                if entry.filename in seen:
+                    raise ValueError(f'{path.name}: repeated publisher SBOM member.')
+                seen.add(entry.filename)
+                content = archive.read(entry)
+                sha = hashlib.sha256(content).hexdigest()
+                suffix = PurePosixPath(entry.filename).suffix
+                if not re.fullmatch(r'\.[A-Za-z0-9]{1,10}', suffix):
+                    suffix = '.sbom'
+                name = sha + suffix
+                destination = output / name
+                if not destination.exists():
+                    destination.write_bytes(content)
+                documents.append({'member': entry.filename, 'file': name, 'sha256': sha})
+        records[path.name] = {'sha256': digest(path), 'documents': documents}
+    return {'coverage': 'Publisher-supplied PEP 770 documents copied unchanged from delivered wheels. '
+                         'An empty document list means none was supplied in that location. '
+                         'Content, completeness and publisher signatures are not verified.',
+            'wheels': records}
 
 
 def install_requirements(bom):

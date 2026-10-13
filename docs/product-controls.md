@@ -40,7 +40,8 @@ python3 -m openavc_oem --config /etc/product/openavc.json
 ```
 
 For a firmware image, package it in the product's Python environment through
-your image build. The [Buildroot package](buildroot.md) supplies that recipe.
+your image build. The [Buildroot package](buildroot.md) and
+[Yocto/OpenEmbedded layer](yocto.md) supply recipes.
 
 Start your hardware application before this service. Run both under your normal
 firmware service supervisor. The SDK starts/stops its native device service and

@@ -88,6 +88,7 @@ preview diagnostics before sharing them.
 | [Product testing tools](docs/product-testing.md) | A separate product starter, command checks, resource measurements/comparisons and diagnostic previews. |
 | [Product controls](docs/product-controls.md) | Your product's management UI/API, credentials, optional server and firmware updates. |
 | [Linux firmware](docs/firmware.md) | Runnable service startup, persistent storage, systemd templates and per-unit provisioning. |
+| [Buildroot](docs/buildroot.md) and [Yocto/OpenEmbedded](docs/yocto.md) | Firmware packages and reference builds for the native SDK and Python product manager. |
 | [OpenAVC Cloud](docs/cloud.md) | Optional pairing, remote access, product permissions and firmware testing. |
 | [Protocol reference](docs/protocol.md) | Network messages, identity, authentication, outcomes and transport bounds. |
 | [Firmware testing](docs/qualification.md) | Product-specific build, hardware, resource, recovery and cloud acceptance. |
@@ -99,8 +100,8 @@ newer. The optional full server adds OpenAVC's dependencies. A macOS development
 host can run the C/C++ example inside the product process. Follow the firmware
 testing guide to check compatibility and resource use on your product.
 
-The installer selects which product runs OpenAVC. Other products connect to
-that server; the SDK does not automatically select a server or take over if it fails.
+The installer selects which product runs OpenAVC. That server controls the
+other products; the SDK does not automatically select a server or take over if it fails.
 
 ## Upstream compatibility
 

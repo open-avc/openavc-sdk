@@ -72,10 +72,11 @@ From a committed SDK source checkout whose revision is available on GitHub:
 
 ```sh
 python3 examples/linux/yocto/setup.py --out build/yocto \
-  --machine qemuarm64 --sdk-revision "$(git rev-parse HEAD)"
+  --machine qemuarm64 --sdk-revision "$(git rev-parse HEAD)" --tasks 4
 sdk_checkout="$PWD"
 source build/yocto/layers/openembedded-core/oe-init-build-env \
   "$PWD/build/yocto/build" "$PWD/build/yocto/layers/bitbake"
+bitbake -c unpack openavc-sdk python3-openavc-oem openavc-example-consumer
 bitbake openavc-sdk openavc-example-image
 image_root=$(bitbake-getvar -r openavc-example-image --value IMAGE_ROOTFS)
 image_dir=$(bitbake-getvar -r openavc-example-image --value DEPLOY_DIR_IMAGE)
@@ -86,10 +87,20 @@ python3 "$sdk_checkout/examples/linux/yocto/export.py" \
   --out "$sdk_checkout/build/exported"
 ```
 
-For x86-64, select `qemux86-64` in a separate build directory. The reference
-filesystem includes the native C/C++ examples, a separately linked product
-application, Python management and the checks. It contains no kernel,
-bootloader or full OpenAVC server.
+For x86-64, select `qemux86-64` in a separate build directory. These reference
+configurations use Yocto's `cortexa57` and `x86-64-v3` CPU settings respectively.
+Run their binaries only on a compatible processor. For your product, use your
+board-support package's machine and CPU settings.
+
+The reference filesystem includes the native C/C++ examples, a separately
+linked product application, Python management and the checks. It is not a
+bootable board image and does not include the full OpenAVC server.
+
+`--tasks` selects concurrent BitBake tasks; each compiler invocation uses up to
+two jobs. The automated reference builds use four tasks on a four-core Linux
+host with 15 GiB RAM. Reduce this setting for a smaller build host. Keep the
+build directory to reuse completed work, and reenter its environment to resume
+with the same `bitbake` command. You do not need to run the preparation tool again.
 
 The exporter copies the installed binaries, generated files and filesystem
 without recompiling, and records their hashes. The

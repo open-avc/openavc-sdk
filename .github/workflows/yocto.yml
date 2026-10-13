@@ -35,7 +35,7 @@ jobs:
   build:
     name: Yocto build (${{ matrix.machine }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 150
+    timeout-minutes: 300
     strategy:
       fail-fast: false
       matrix:
@@ -59,7 +59,17 @@ jobs:
       - name: Prepare the pinned reference build
         env:
           MACHINE: ${{ matrix.machine }}
-        run: python3 examples/linux/yocto/setup.py --out build/yocto --machine "$MACHINE" --sdk-revision "$GITHUB_SHA" > build/yocto-setup.log 2>&1
+        run: python3 examples/linux/yocto/setup.py --out build/yocto --machine "$MACHINE" --sdk-revision "$GITHUB_SHA" --tasks 4 > build/yocto-setup.log 2>&1
+      - name: Restore reference build cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/yocto/build/downloads
+            build/yocto/build/sstate-cache
+          key: yocto-${{ matrix.machine }}-${{ hashFiles('examples/linux/yocto/setup.py') }}-${{ github.run_id }}
+          restore-keys: |
+            yocto-${{ matrix.machine }}-${{ hashFiles('examples/linux/yocto/setup.py') }}-
       - name: Build packages and the reference filesystem
         env:
           LANG: en_US.UTF-8
@@ -84,6 +94,7 @@ jobs:
         run: |
           df -h >> build/host-resources.txt
           free -h >> build/host-resources.txt
+          du -sh build/yocto/build/downloads build/yocto/build/sstate-cache >> build/host-resources.txt
           python3 - <<'PY'
           from pathlib import Path
           import tarfile
@@ -92,6 +103,14 @@ jobs:
                   if path.is_file() and not path.is_symlink():
                       archive.add(path, arcname=str(path))
           PY
+      - name: Save completed build work
+        if: always() && steps.cache.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/yocto/build/downloads
+            build/yocto/build/sstate-cache
+          key: ${{ steps.cache.outputs.cache-primary-key }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

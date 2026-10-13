@@ -22,6 +22,8 @@ def setup(args):
         raise ValueError('Use checkout and build paths without spaces or quotation marks for BitBake.')
     if not re.fullmatch('[0-9a-f]{40}', args.sdk_revision):
         raise ValueError('Select the complete, published SDK Git revision.')
+    if args.tasks < 1:
+        raise ValueError('Select at least one concurrent build task.')
     output.mkdir(parents=True, exist_ok=False)
     layers = output / 'layers'
     layers.mkdir()
@@ -46,14 +48,15 @@ def setup(args):
         f'OPENAVC_SDK_REVISION = "{args.sdk_revision}"\n'
         'PACKAGECONFIG:append:pn-openavc-sdk = " examples"\n'
         'INIT_MANAGER = "mdev-busybox"\n'
-        'BB_NUMBER_THREADS = "2"\nPARALLEL_MAKE = "-j2"\n'
+        f'BB_NUMBER_THREADS = "{args.tasks}"\nPARALLEL_MAKE = "-j2"\n'
         'INHERIT += "rm_work"\n'
         'RM_WORK_EXCLUDE += "openavc-sdk openavc-example-image"\n'
         'BB_DISKMON_DIRS = "STOPTASKS,${TMPDIR},4G,100K HALT,${TMPDIR},2G,50K"\n'
         'BB_HASHSERVE = "auto"\nBB_SIGNATURE_HANDLER = "OEEquivHash"\n'
         'require conf/fragments/yocto/sstate-mirror-cdn.conf\n')
     (configuration / 'sources.json').write_text(json.dumps(
-        {'sources': SOURCES, 'sdk_revision': args.sdk_revision, 'machine': args.machine}, indent=2) + '\n')
+        {'sources': SOURCES, 'sdk_revision': args.sdk_revision, 'machine': args.machine,
+         'concurrent_tasks': args.tasks}, indent=2) + '\n')
     print('Prepared ' + str(output / 'build'))
     print('Source layers/openembedded-core/oe-init-build-env with the absolute build and BitBake paths.')
 
@@ -63,4 +66,5 @@ if __name__ == '__main__':
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--machine', choices=['qemuarm64', 'qemux86-64'], required=True)
     parser.add_argument('--sdk-revision', required=True)
+    parser.add_argument('--tasks', type=int, default=2, help='Concurrent BitBake tasks (default: 2)')
     setup(parser.parse_args())

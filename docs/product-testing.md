@@ -252,6 +252,26 @@ paths, identity, labels, raw errors/logs, project contents, command values and
 process details. No directories or additional files are collected automatically.
 Retain the original reports locally for investigation.
 
+### Include build and toolchain checks
+
+Select the report from `doctor.py` to include setup findings in the same preview:
+
+```sh
+python3 collect-diagnostics.py --environment build/environment.json --checks build/network-inspection/report.json --out setup-support.json
+```
+
+Use doctor and collector reports from the same SDK revision. If an older report
+is refused, run the current doctor to create a new report; do not edit its format.
+The summary includes recognized prerequisite results, build-host OS/CPU/Python,
+configured target OS/CPU, cross-compiling status and doctor/toolchain file hashes.
+Compiler commands, paths, sysroot contents, raw errors and version-output text
+stay in the private doctor report. A passing compile check does not prove that
+the target can execute the software or sustain the product's AV workload.
+
+Selected product-check reports also summarize invalid-request outcomes and
+reconnect observation when those checks were run. Command values, state,
+identity and session IDs remain excluded. Missing checks have no implied result.
+
 ### Include server health and network information
 
 Select the product's `logs/health.jsonl` to include its recorded server health

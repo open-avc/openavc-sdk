@@ -25,11 +25,56 @@ def digest(value):
     return value if type(value) is str and re.fullmatch('[0-9a-f]{64}', value) else None
 
 
-def summarize(status=None, checks=None, resources=None, server_bundle=None, health_logs=(), network=False):
+def summarize(status=None, checks=None, resources=None, server_bundle=None, health_logs=(), network=False, environment=None):
     report = {'format': 1, 'collected': [], 'findings': [],
               'omitted': ['credentials', 'keys', 'network addresses', 'paths', 'product identity and labels',
                           'raw errors and logs', 'projects', 'command parameters', 'hardware state values',
                           'process IDs, arguments and environment']}
+    if environment is not None:
+        source = object_value(environment)
+        if source.get('format') != 1 or source.get('coverage') != 'build_prerequisites':
+            raise ValueError('Use a report produced by doctor.py from the same SDK revision.')
+        known = {'Python', 'Development host', 'Delivery form', 'Firmware toolchain file',
+                 'Firmware toolchain source build', 'Prebuilt library platform', 'Supplied SDK files',
+                 'cmake', 'cc', 'c++', 'openssl', 'OpenSSL development directory',
+                 'C11, supplied SDK, threads and OpenSSL 3 development files',
+                 'C11/C++17, threads and OpenSSL 3 development files'}
+        rows = source.get('checks')
+        if type(rows) is not list:
+            raise ValueError('The environment report has no check list.')
+        host = object_value(source.get('host'))
+        python = host.get('python')
+        probe = object_value(source.get('compile_probe'))
+        target = object_value(probe.get('target'))
+        summary = {
+            'status': choice(source.get('status'), {'prerequisites-verified', 'needs-attention', 'error'}),
+            'delivery': choice(source.get('delivery'), {'source', 'supplied-c-runtime'}),
+            'form': choice(source.get('form'), {'direct', 'service'}),
+            'doctor_sha256': digest(source.get('doctor_sha256')),
+            'toolchain_sha256': digest(object_value(source.get('toolchain')).get('sha256')),
+            'host': {'os': choice(host.get('os'), {'Linux', 'Darwin', 'Windows'}),
+                     'machine': choice(host.get('machine'), {'arm64', 'aarch64', 'x86_64', 'AMD64'}),
+                     'python': python if type(python) is str and re.fullmatch(r'[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(?:(?:a|b|rc)[0-9]{1,3})?', python) else None},
+            'compile_probe': choice(probe.get('status'), {'not-run', 'failed', 'passed'}),
+            'target': {'system': choice(target.get('system'), {'Linux', 'Darwin', 'Windows'}),
+                       'processor': choice(target.get('processor'), {'arm64', 'aarch64', 'x86_64', 'AMD64'}),
+                       'cross_compiling': {'TRUE': True, 'FALSE': False}.get(choice(target.get('cross_compiling'), {'TRUE', 'FALSE'}))},
+            'checks': [], 'unrecognized_checks': 0,
+            'target_execution_verified': False,
+        }
+        for row in rows:
+            row = object_value(row)
+            name = row.get('check')
+            if type(name) is str and name in known:
+                summary['checks'].append({'check': name, 'status': choice(row.get('status'), {'passed', 'needs-attention'})})
+            else:
+                summary['unrecognized_checks'] += 1
+        report['environment'] = summary
+        report['collected'].append('build_environment')
+        if summary['status'] != 'prerequisites-verified':
+            report['findings'].append('Build prerequisites need attention. Read the local doctor report for compiler and dependency details.')
+        if summary['unrecognized_checks']:
+            report['findings'].append('Some environment checks were not recognized. Use matching SDK tools and retain the original report.')
     if status is not None:
         source = object_value(object_value(status).get('status'))
         if not source:
@@ -63,6 +108,17 @@ def summarize(status=None, checks=None, resources=None, server_bundle=None, heal
         commands = source.get('commands')
         report['checks']['commands'] = {state: sum(object_value(item).get('status') == state for item in commands)
             for state in ('dispatching', 'observing', 'checking_duplicate', 'passed')} if type(commands) is list else None
+        refusals = source.get('refusals')
+        report['checks']['refusals'] = {state: sum(object_value(item).get('status') == state for item in refusals)
+            for state in ('dispatching', 'observing', 'passed')} if type(refusals) is list else None
+        if 'reconnect' in source:
+            reconnect = object_value(source['reconnect'])
+            report['checks']['reconnect'] = {
+                'status': choice(reconnect.get('status'), {'waiting_for_disconnect', 'waiting_for_recovery', 'passed'}),
+                'timeout': number(reconnect.get('timeout')),
+                'unavailable_after_seconds': number(reconnect.get('unavailable_after_seconds')),
+                'recovered_after_seconds': number(reconnect.get('recovered_after_seconds')),
+            }
         if source.get('status') != 'passed':
             report['findings'].append('Product checks did not finish successfully. Read the private report before sending another command.')
     if resources is not None:

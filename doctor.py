@@ -142,7 +142,7 @@ def inspect(form, openssl, toolchain=None):
                  if toolchain else "Read the configure/build output in this report. Use the matching prebuilt libraries and C compiler; install OpenSSL 3 development files."
                  if supplied else "Read the configure/build output in this report. On Ubuntu install build-essential and libssl-dev; on Homebrew pass --openssl /opt/homebrew/opt/openssl@3."))
     passed = all(row["status"] == "passed" for row in rows)
-    return {"format": 1, "status": "prerequisites-verified" if passed else "needs-attention",
+    return {"format": 1, "coverage": "build_prerequisites", "status": "prerequisites-verified" if passed else "needs-attention",
             "doctor_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             "host": {"os": platform.system(), "machine": platform.machine(), "python": platform.python_version()},
             "delivery": delivery, "form": form, "checks": rows, "tools": tools, "compile_probe": probe,
@@ -174,7 +174,7 @@ def main():
             result = inspect(args.form, args.openssl.resolve() if args.openssl else None,
                              args.toolchain.resolve() if args.toolchain else None)
         except Exception as error:
-            result = {"format": 1, "status": "error", "checks": [], "error": str(error),
+            result = {"format": 1, "coverage": "build_prerequisites", "status": "error", "checks": [], "error": str(error),
                       "scope": "The environment check did not finish. Prerequisites have not been verified."}
         json.dump(result, destination, indent=2)
         destination.write("\n")

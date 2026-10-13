@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import os
 import platform
 from pathlib import Path
 import shutil
@@ -20,6 +21,51 @@ def digest(path):
 def inventory(root):
     return {str(path.relative_to(root)): digest(path) for path in sorted(root.rglob('*'))
             if path.is_file() and '__pycache__' not in path.parts}
+
+
+def package_origin(source):
+    environment = {**os.environ, 'LC_ALL': 'C.UTF-8'}
+    owners = subprocess.check_output(['dpkg-query', '-S', str(source)], text=True, env=environment).splitlines()
+    owners = [line.split(': ', 1)[0] for line in owners if line.endswith(': ' + str(source))]
+    if len(owners) != 1 or ', ' in owners[0]:
+        raise ValueError('Cannot identify one installed package for ' + str(source))
+    fields = ('Package', 'Version', 'Architecture', 'source:Package', 'source:Version')
+    form = '\t'.join('${' + field + '}' for field in fields) + '\n'
+    values = subprocess.check_output(['dpkg-query', '-W', '-f=' + form, owners[0]],
+                                     text=True, env=environment).strip().split('\t')
+    if len(values) != len(fields) or not all(values):
+        raise ValueError('Installed package metadata is incomplete for ' + str(source))
+    return dict(zip(('package', 'version', 'architecture', 'source_package', 'source_version'), values))
+
+
+def native_build_record(build):
+    cache = {}
+    for line in (build / 'CMakeCache.txt').read_text().splitlines():
+        if line and not line.startswith(('#', '//')) and '=' in line:
+            field, value = line.split('=', 1)
+            cache[field.split(':', 1)[0]] = value
+    tools = {}
+    for name, key in (('c_compiler', 'CMAKE_C_COMPILER'), ('cxx_compiler', 'CMAKE_CXX_COMPILER'),
+                      ('cmake', 'CMAKE_COMMAND')):
+        path = Path(cache[key]).resolve(strict=True)
+        tools[name] = {'command': Path(cache[key]).name, 'file': path.name, 'sha256': digest(path),
+                       'version_output': subprocess.check_output([str(path), '--version'], text=True).strip()}
+    libraries = {}
+    for key in ('OPENSSL_SSL_LIBRARY', 'OPENSSL_CRYPTO_LIBRARY'):
+        path = Path(cache[key]).resolve(strict=True)
+        libraries[key] = {'file': path.name, 'sha256': digest(path)}
+    settings = {key: value for key, value in cache.items() if key in {
+        'CMAKE_BUILD_TYPE', 'CMAKE_GENERATOR', 'CMAKE_C_FLAGS', 'CMAKE_C_FLAGS_RELEASE',
+        'CMAKE_CXX_FLAGS', 'CMAKE_CXX_FLAGS_RELEASE', 'CMAKE_EXE_LINKER_FLAGS',
+        'CMAKE_EXE_LINKER_FLAGS_RELEASE', 'CMAKE_OSX_ARCHITECTURES', 'CMAKE_OSX_DEPLOYMENT_TARGET'}}
+    distribution = None
+    if platform.system() == 'Linux':
+        distribution = {key: value for key, value in platform.freedesktop_os_release().items()
+                        if key in {'ID', 'VERSION_ID', 'VERSION_CODENAME', 'PRETTY_NAME'}}
+    return {'format': 1, 'tools': tools, 'cmake_settings': settings, 'openssl_link_inputs': libraries,
+            'distribution': distribution,
+            'coverage': 'Native build tools, selected CMake settings and OpenSSL link inputs. '
+                        'This is build context, not a complete dependency inventory or an ABI compatibility guarantee.'}
 
 
 def package(args):
@@ -61,6 +107,7 @@ def package(args):
     shutil.copy2(ROOT / 'tools/supplied-CMakeLists.txt', destination / 'CMakeLists.txt')
     (destination / 'tools').mkdir()
     for name in ['build_server.py', 'server_bundle.py', 'wheel_inventory.py',
+                 'build_browser.mjs', 'browser_inventory.mjs',
                  'requirements-server.txt', 'requirements-build.txt']:
         shutil.copy2(ROOT / 'tools' / name, destination / 'tools' / name)
     lib = destination / 'sdk/lib'
@@ -76,10 +123,12 @@ def package(args):
             source = (Path('/usr/lib') / triplet / name).resolve(strict=True)
             shutil.copy2(source, lib / name)
             # Debian/Ubuntu package metadata supplies each redistributed license.
-            owner = subprocess.check_output(['dpkg-query', '-S', str(source)], text=True).split(': ', 1)[0].split(':')[0]
+            origin = package_origin(source)
+            owner = origin['package']
             shutil.copy2(Path('/usr/share/doc') / owner / 'copyright', destination / 'licenses' / (owner + '.copyright'))
-            origins[name] = {'package': owner, 'sha256': digest(source)}
+            origins[name] = {**origin, 'sha256': digest(source), 'copyright': 'licenses/' + owner + '.copyright'}
         shutil.copy2('/usr/share/common-licenses/Apache-2.0', destination / 'licenses/Apache-2.0.txt')
+    (destination / 'native-build.json').write_text(json.dumps(native_build_record(build), indent=2) + '\n')
     files = {'sdk/' + name: sha for name, sha in inventory(destination / 'sdk').items()}
     (destination / 'sdk/sha256.json').write_text(json.dumps(files, indent=2) + '\n')
     sources = {}

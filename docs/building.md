@@ -184,7 +184,16 @@ no documents. Use them with your software composition tools; their content,
 completeness and publisher signatures have not been verified.
 Keep both records and `build-inputs/` with your firmware build. That directory
 contains the Python locks, web dependency lockfiles, Dockerfile and an inventory
-of the builder's installed system packages. To check the files and preview a
+of the builder's installed system packages. `build-inputs/browser-builds/` records
+packages that contributed to the compiled Programmer and Simulator, including
+their workers, with hashes checked against the emitted files. It also records
+the panel icon sprite's source and preserves the contributing packages' supplied
+root license/notice files. Where a package supplies no separate notice file,
+its declared entry source is retained unchanged for review when available.
+The records distinguish notice files from source files; neither is a license
+review. These build records supplement the lockfiles;
+they do not establish attribution for every copied asset or nested component.
+To check the files and preview a
 summary for support, use `python3 collect-diagnostics.py --server-bundle build/server-bundle`
 from the SDK directory. See [diagnostic previews](product-testing.md#preview-diagnostics-before-sharing)
 for export controls and the verification scope. `INSTALL.txt` contains the offline
@@ -232,8 +241,16 @@ python3 tools/package_runtime.py --out build/package
 
 The output contains a C-only example package, an archive and its SHA-256 file.
 `bundle.json` records the build host, libc, canonical contract revision, source
-hashes and redistributed runtime origins. Libraries include their license
-notices. Use a new output directory for each build.
+hashes and redistributed runtime origins, including their installed binary/source
+package versions and architecture. `native-build.json` records the actual C/C++
+compiler and CMake versions/hashes, selected compiler/linker settings, OpenSSL
+link-input hashes and Linux distribution. It is included in the archive's file
+inventory. Libraries include their license notices. Use a new output directory
+for each build.
+
+Keep these records with your firmware build. Package versions identify this
+builder's inputs; they do not select a compatible ABI for another firmware or
+lock future host-package updates. Test the transferred libraries on your target.
 
 Extract that archive into a clean directory and run its `doctor.py` and
 `try-example.py` commands before distributing it. The doctor checks archive

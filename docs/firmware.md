@@ -186,6 +186,37 @@ Your factory procedure must explicitly handle account revocation, Programmer
 credentials, cloud unpairing when used, and any certificate replacement.
 `POST /oem/repair` repairs SDK settings; it is not a complete product factory reset.
 
+### Run the settings recovery example
+
+After building the hardware example, run:
+
+```sh
+python3 examples/linux/check.py --storage-recovery --out build/firmware-storage-device
+python3 examples/linux/check.py --with-server --storage-recovery --out build/firmware-storage-server
+```
+
+The second command requires the matching server installed. Both source and
+prebuilt library checkouts supply this exercise. It changes only the new staging
+directory it creates and refuses an existing output directory.
+
+The check stops management, then separately supplies a truncated settings file
+and an interrupted-save marker. On each restart, equipment access and the local
+server must remain stopped while the hardware application keeps running. A
+settings change and unauthenticated repair must be refused. Authenticated repair
+must retain the damaged input and leave every OpenAVC access setting disabled,
+including after another restart.
+
+The check explicitly restores the earlier access choices and verifies retained
+unit identity, credentials and hardware control. With the server included, it
+also verifies the original Programmer account and saved project variable. The
+hardware application's own counters must show that refused commands were never
+executed. Reports and private logs remain in the selected output directory.
+
+This demonstrates detected settings damage and interrupted-save recovery. It
+does not interrupt physical storage writes, remove power, repair a filesystem or
+perform a factory reset. Repeat those checks through your product's storage and
+recovery facilities.
+
 ### Run the application update and rollback example
 
 On an isolated Linux host, use a source checkout and build both hardware examples:

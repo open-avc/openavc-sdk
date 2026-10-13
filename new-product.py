@@ -40,6 +40,8 @@ python3 sdk/try-example.py --project . --language LANGUAGE --checks checks.json 
 The first command compiles without starting hardware. Inspection reads state
 without sending hardware commands. The last command executes your checks and
 deliberately repeats each completed request ID to check duplicate handling.
+The starter's increment check also enables `check_refusals`: invalid copies must
+be refused without changing the counter. Review this option for your test hardware.
 Use a new evidence directory each time. An interrupted operation requires
 inspection before another run.
 

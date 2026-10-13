@@ -4,7 +4,12 @@ on:
     paths:
       - '.github/workflows/buildroot.yml'
       - 'examples/linux/buildroot/**'
-      - 'examples/linux/firmware_export.py'
+      - 'examples/linux/*'
+      - 'check-product.py'
+      - 'product_checks.py'
+      - 'try-example.py'
+      - 'example_build.py'
+      - 'inspection.py'
       - 'examples/installed/**'
       - 'CMakeLists.txt'
       - 'cmake/**'
@@ -15,7 +20,12 @@ on:
     paths:
       - '.github/workflows/buildroot.yml'
       - 'examples/linux/buildroot/**'
-      - 'examples/linux/firmware_export.py'
+      - 'examples/linux/*'
+      - 'check-product.py'
+      - 'product_checks.py'
+      - 'try-example.py'
+      - 'example_build.py'
+      - 'inspection.py'
       - 'examples/installed/**'
       - 'CMakeLists.txt'
       - 'cmake/**'
@@ -135,6 +145,7 @@ jobs:
             rootfs/kit/built/*-result.json
             rootfs/kit/built/*.log
             rootfs/kit/firmware-check/report.json
+            rootfs/kit/firmware-check/product-checks/report.json
             rootfs/kit/firmware-check/*.log
             exported/export.json
           if-no-files-found: error

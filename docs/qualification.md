@@ -13,12 +13,13 @@ alone does not establish compatibility with a firmware image.
 | `try-example.py --inspect` | The launched example integration reports the generated model and current readback. It sends no hardware commands. |
 | `try-example.py --exercise-demo` | Commands, independent feedback and delayed completion for the unchanged invented amplifier. |
 | `new-product.py` | A separate C or C++ product starter; source checkouts also supply a CI build workflow pinned to the SDK revision. |
-| `try-example.py --checks` / `check-product.py` | Your selected commands, retained outcomes, duplicate request handling and reported state against the generated model. Physical effects need independent verification. |
+| `try-example.py --checks` / `check-product.py` | Your selected commands, retained outcomes, duplicate request handling and reported state against the generated model. Optional `check_refusals` verifies selected invalid requests and unchanged feedback. Physical effects need independent verification. |
 | `profile-product.py` | Sampled local process resources and optional data-directory size during a workload you select. |
 | `compare-profiles.py` | Differences between completed resource reports, with workload and environment differences identified. |
 | `collect-diagnostics.py` | A preview or explicit export of selected status/measurement summaries, recorded server-health events, local network-interface state and a checksummed offline server-bundle identity. |
 | `examples/linux/check.py` | Unprivileged firmware-example startup, hardware restart, persistence and orderly shutdown. |
 | `examples/linux/check.py --update` | Orderly C-to-C++ example application replacement and rollback with stopped-process data snapshots; uses a source checkout and the same server/data format. |
+| `examples/linux/check.py --storage-recovery` | Refused control and authenticated repair after damaged settings or a retained save marker; preserves identity, credentials and existing server data. Uses disposable example files, not physical power loss. |
 | `examples/linux/check-systemd.py` | Actual example systemd units, filesystem restrictions, restart and cleanup on an isolated systemd host. |
 | `try-system.py --check` | Both SDK products and ordinary TCP equipment work in the selected example arrangement. Use it with the supplied demonstration model. |
 

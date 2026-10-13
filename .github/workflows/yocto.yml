@@ -4,7 +4,12 @@ on:
     paths:
       - '.github/workflows/yocto.yml'
       - 'examples/linux/yocto/**'
-      - 'examples/linux/firmware_export.py'
+      - 'examples/linux/*'
+      - 'check-product.py'
+      - 'product_checks.py'
+      - 'try-example.py'
+      - 'example_build.py'
+      - 'inspection.py'
       - 'examples/linux/buildroot/check-installed.py'
       - 'examples/installed/**'
       - 'CMakeLists.txt'
@@ -17,7 +22,12 @@ on:
     paths:
       - '.github/workflows/yocto.yml'
       - 'examples/linux/yocto/**'
-      - 'examples/linux/firmware_export.py'
+      - 'examples/linux/*'
+      - 'check-product.py'
+      - 'product_checks.py'
+      - 'try-example.py'
+      - 'example_build.py'
+      - 'inspection.py'
       - 'examples/linux/buildroot/check-installed.py'
       - 'examples/installed/**'
       - 'CMakeLists.txt'
@@ -191,6 +201,7 @@ jobs:
             rootfs/kit/installed-consumer/*-result.json
             rootfs/kit/installed-consumer/*.log
             rootfs/kit/firmware-check/report.json
+            rootfs/kit/firmware-check/product-checks/report.json
             rootfs/kit/firmware-check/*.log
             exported/export.json
           if-no-files-found: error

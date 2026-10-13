@@ -68,6 +68,29 @@ assert delivered == set(locked)
 assert record['build_image_id'] == (bundle / 'build-image.txt').read_text().strip()
 for interface in ['programmer', 'simulator']:
     assert resources.files('openavc').joinpath(f'web/{interface}/dist/index.html').is_file()
+    folder = bundle / 'build-inputs/browser-builds' / interface
+    browser = json.loads((folder / 'report.json').read_text())
+    assert browser['outputs'] and browser['observations'] and browser['packages']
+    installed = resources.files('openavc').joinpath(f'web/{interface}')
+    for name, sha in browser['inputs'].items():
+        assert hashlib.sha256(installed.joinpath(name).read_bytes()).hexdigest() == sha
+    for name, sha in browser['outputs'].items():
+        assert hashlib.sha256(installed.joinpath('dist', name).read_bytes()).hexdigest() == sha
+    observed = {chunk['file']: chunk for observation in browser['observations'] for chunk in observation['chunks']}
+    assert {name for name in browser['outputs'] if name.endswith('.js')} <= set(observed)
+    for name, chunk in observed.items():
+        assert browser['outputs'][name] == chunk['sha256']
+    lock = json.loads((bundle / f'build-inputs/{interface}-package-lock.json').read_text())
+    packages = dict(browser['packages'])
+    for name, asset in browser['copied_assets'].items():
+        assert hashlib.sha256(resources.files('openavc').joinpath(name).read_bytes()).hexdigest() == asset['sha256']
+        package = asset['package']
+        packages[package['name'] + '@' + package['version']] = package
+    for package in packages.values():
+        assert any(path.endswith('node_modules/' + package['name']) and entry.get('version') == package['version']
+                   for path, entry in lock['packages'].items())
+        for notice in package['notices']:
+            assert hashlib.sha256((folder / notice['file']).read_bytes()).hexdigest() == notice['sha256']
 assert resources.files('openavc_oem').joinpath('manager.py').is_file()
 with tempfile.TemporaryDirectory(prefix='openavc-lock-check-') as temporary:
     scratch = Path(temporary)

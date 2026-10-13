@@ -193,8 +193,9 @@ def prepare_cases(plan, model):
             and plan['model_id'] == model['id'] and type(plan['checks']) is list,
             'Check file must contain this model_id and a checks list.')
     for case in plan['checks']:
-        require(type(case) is dict and set(case) <= {'name', 'command', 'params', 'expect', 'outcome', 'timeout', 'observe_for'}
+        require(type(case) is dict and set(case) <= {'name', 'command', 'params', 'expect', 'outcome', 'timeout', 'observe_for', 'check_refusals'}
                 and {'name', 'command', 'params', 'expect'} <= set(case), 'Check fields are invalid.')
+        require(type(case.get('check_refusals', False)) is bool, 'check_refusals must be true or false.')
         require(type(case['name']) is str and case['name'], 'Give each check a name.')
         require(type(case['command']) is str, 'Select a declared command name.')
         command = model.get('commands', {}).get(case['command'])
@@ -248,7 +249,7 @@ def run_checks(client, model, output, plan=None):
               'started_at': datetime.now(timezone.utc).isoformat(),
               'model_canonical_sha256': hashlib.sha256(encoded(model)).hexdigest(),
               'plan_canonical_sha256': hashlib.sha256(encoded(plan)).hexdigest() if plan else None,
-              'client_id': client.identifier, 'checks': [], 'commands': [],
+              'client_id': client.identifier, 'checks': [], 'commands': [], 'refusals': [],
               'coverage': 'protocol_and_reported_state', 'physical_hardware_verified': False}
     def save():
         temporary = output / 'report.json.tmp'
@@ -270,6 +271,44 @@ def run_checks(client, model, output, plan=None):
                     'Readback generation changed or revision moved backward.')
         previous = value
         return value
+    def check_refusals(case, body, before):
+        unknown_command = '__openavc_undeclared_command'
+        while unknown_command in model.get('commands', {}):
+            unknown_command += '_'
+        unknown_param = '__openavc_undeclared_parameter'
+        while unknown_param in model['commands'][case['command']].get('params', {}):
+            unknown_param += '_'
+        requests = [
+            ('authentication', body, False, (401, 403), None),
+            ('changed_session', {**body, 'session': description['session'] + '-invalid'}, True, (409,), 'session_changed'),
+            ('invalid_id', {**body, 'id': 0}, True, (422,), 'invalid_request'),
+            ('unknown_command', {**body, 'command': unknown_command}, True, (422,), 'unknown_command'),
+            ('unknown_parameter', {**body, 'params': {**body['params'], unknown_param: 0}}, True, (422,), 'invalid_parameter'),
+        ]
+        expected = [expectation_value(before, item) for item in case['expect']]
+        for name, request, authenticated, statuses, code in requests:
+            entry = {'check': case['name'], 'kind': name, 'request': request,
+                     'authenticated': authenticated, 'expected_statuses': statuses,
+                     'expected_error': code, 'status': 'dispatching'}
+            report['refusals'].append(entry)
+            save()
+            status, result = client.request('/v1/command', request, authenticated=authenticated)
+            entry.update(http_status=status, response=result, status='observing')
+            save()
+            require(status in statuses and (code is None or type(result) is dict and result.get('error') == code),
+                    'Invalid command was not refused as expected (' + name + '). Stop and inspect the hardware.')
+            deadline = time.monotonic() + case.get('observe_for', .5)
+            while True:
+                current = readback()
+                entry['observed'] = [expectation_value(current, item) for item in case['expect']]
+                require(entry['observed'] == expected,
+                        'Reported state changed during a refused request (' + name + '). Stop and inspect the hardware.')
+                if time.monotonic() >= deadline:
+                    break
+                time.sleep(max(0, min(.05, deadline - time.monotonic())))
+            entry.update(status='passed', observed=expected)
+            save()
+        passed(case['name'] + ': invalid requests refused')
     try:
         save()
         status, description = client.request('/v1/description')
@@ -299,6 +338,8 @@ def run_checks(client, model, output, plan=None):
                 expectation_value(before, item)
             body = {'session': description['session'], 'id': identifier,
                     'command': case['command'], 'params': case['params']}
+            if case.get('check_refusals', False):
+                check_refusals(case, body, before)
             entry = {'name': case['name'], 'request': body, 'status': 'dispatching'}
             report['commands'].append(entry)
             save()

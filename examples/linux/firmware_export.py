@@ -27,8 +27,10 @@ def export_examples(target, generated, destination, builder, build_target=None):
     for name in ['commands.h', 'commands.c']:
         shutil.copy2(generated / name, binaries / 'generated' / name)
     shutil.copy2(build_target or generated / 'build-target.json', binaries)
-    for name in ['try-example.py', 'example_build.py', 'inspection.py', 'product_checks.py']:
+    for name in ['try-example.py', 'example_build.py', 'inspection.py', 'product_checks.py', 'check-product.py']:
         shutil.copy2(ROOT / name, kit / name)
+    (kit / 'sample').mkdir()
+    shutil.copy2(ROOT / 'sample/checks.json', kit / 'sample/checks.json')
     # Exercise the installed Python package, without a source package in /kit
     # that could shadow it and make a missing firmware dependency pass.
     (kit / 'examples/linux').mkdir(parents=True)

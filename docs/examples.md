@@ -21,6 +21,7 @@ until you replace their callbacks or network configuration.
 | [Yocto/OpenEmbedded layer](yocto.md) | Wrynose, Linux x86-64 build host | Follow the reference build commands | Packages the native SDK and Python product manager, plus an independently linked application. Match the selected reference CPU settings. |
 | [Linux firmware](firmware.md), equipment only | Linux; C by default | `python3 examples/linux/check.py --out build/firmware-device` | Staged unprivileged services, hardware restart, persistent settings and shutdown. Build first as described in the guide. |
 | Linux firmware, full server | Linux with the compatible server installed | `python3 examples/linux/check.py --with-server --out build/firmware-server` | The same layout with the full server and retained server setting. |
+| [Settings recovery](firmware.md#run-the-settings-recovery-example) | Linux; source or prebuilt libraries | Add `--storage-recovery` to either firmware check | Damaged-settings refusal, authenticated repair and retained product/project data; only its disposable staging directory is changed. |
 | Linux service supervisor | Isolated Linux host running systemd | `python3 examples/linux/check-systemd.py --with-server --out build/firmware-systemd` | Actual service units, filesystem protection, restart and cleanup; requires administrator access. |
 
 The prebuilt library archive supplies the C adapter example, both native forms on

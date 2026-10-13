@@ -13,6 +13,7 @@ import sys
 import tempfile
 import time
 import traceback
+import urllib.error
 import urllib.request
 
 from stage import ROOT, parser, stage
@@ -81,10 +82,10 @@ def check(args):
 
     control = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     token = (args.out / 'private/management.token').read_text().strip()
-    def management(payload=None):
-        request = urllib.request.Request('http://127.0.0.1:' + str(args.management_port) + '/oem/settings',
-            data=json.dumps(payload).encode() if payload else None,
-            headers={'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'})
+    def management(payload=None, path='/oem/settings', credential=token):
+        request = urllib.request.Request('http://127.0.0.1:' + str(args.management_port) + path,
+            data=json.dumps(payload).encode() if payload is not None else None,
+            headers={'Authorization': 'Bearer ' + credential, 'Content-Type': 'application/json'})
         with control.open(request, timeout=50) as response:
             return json.load(response)
 
@@ -147,12 +148,19 @@ def check(args):
         state = management()
         assert not state['server'] and state['equipment']['remote_access_active']
         report['checks'].append('remote_equipment_started_without_terminal')
-        result, outcome = client.request('/v1/command', {'session': first['session'], 'id': 1, 'command': 'increment', 'params': {}})
-        assert result == 200 and outcome['outcome'] == 'completed'
+        with (evidence / 'product-checks.log').open('w') as log:
+            subprocess.run([str(args.python), str(ROOT / 'check-product.py'),
+                            '--url', 'https://127.0.0.1:' + str(args.equipment_port),
+                            '--credentials', str(args.out / 'private/product-credentials.json'),
+                            '--ca-file', config['ca_file'], '--model', config['model'],
+                            '--checks', str(ROOT / 'sample/checks.json'),
+                            '--out', str(evidence / 'product-checks')],
+                           check=True, stdout=log, stderr=subprocess.STDOUT)
         wait_for(lambda: client.request('/v1/snapshot')[1]['state']['counter'] == 1)
-        report['checks'].append('hardware_command_and_readback')
+        report['checks'].append('product_checker_refusals_commands_and_readback')
         stopped = stop(hardware)
-        assert b'CLOSED' in stopped and b'STATE 1 1 0 ' in stopped
+        (evidence / 'hardware-first-stop.log').write_bytes(stopped)
+        assert b'CLOSED' in stopped and b'STATE 2 2 0 ' in stopped
         wait_for(lambda: client.request('/v1/snapshot')[0] == 503)
         report['checks'].append('graceful_hardware_stop_and_unavailable_readback')
         hardware = launch('hardware-2', hardware_command, hardware_environment)
@@ -165,7 +173,7 @@ def check(args):
             assert state['server_running'] and state['equipment']['reserved_locally']
             assert not state['equipment']['remote_access_active'] and not state['equipment']['discovery_active']
             report['checks'].append('full_server_starts_and_reserves_hardware')
-        if args.update and args.with_server:
+        if (args.update or args.storage_recovery) and args.with_server:
             wait_for(lambda: management()['server_responsive'])
             server_api('/api/auth/setup', server_account)
             (evidence / 'server-login.json').write_text(json.dumps(server_account) + '\n')
@@ -183,9 +191,86 @@ def check(args):
         assert state['settings_valid'] and marker.read_text() == 'retained\n'
         assert state['server_running'] == args.with_server
         report['checks'].append('management_restart_retains_settings_and_data')
+        if args.storage_recovery:
+            private_hashes = {str(p.relative_to(args.out / 'private')): hashlib.sha256(p.read_bytes()).hexdigest()
+                              for p in (args.out / 'private').rglob('*') if p.is_file()}
+            report['storage_recovery'] = []
+            for fault in ('truncated_settings', 'interrupted_save_marker'):
+                before = management()
+                stop(manager)
+                assert hardware.poll() is None
+                data = args.out / 'data'
+                policy = data / 'management.json'
+                original = policy.read_bytes()
+                (evidence / (fault + '-original.json')).write_bytes(original)
+                broken = policy if fault == 'truncated_settings' else data / 'management.pending'
+                payload = b'{"format":' if fault == 'truncated_settings' else json.dumps({
+                    'identity': config['identity'], 'revision': before['revision']}).encode()
+                broken.write_bytes(payload)
+                broken.chmod(0o600)
+                if os.getuid() == 0:
+                    os.chown(broken, account.pw_uid, account.pw_gid)
+                manager = launch('management-' + fault, manager_command, environment)
+                refused = management()
+                assert not refused['settings_valid'] and refused['error']
+                assert not refused['server_running'] and not refused['equipment']['remote_access_active']
+                assert not refused['equipment']['discovery_active']
+                assert hardware.poll() is None and marker.read_text() == 'retained\n'
+                assert client.request('/v1/description')[0] == 503
+                assert client.request('/v1/command', {'session': second['session'], 'id': 2,
+                    'command': 'increment', 'params': {}})[0] == 503
+                for attempt, expected in ((lambda: management({'revision': refused['revision'],
+                        'field': 'equipment', 'enabled': True}), 409),
+                        (lambda: management({}, '/oem/repair', credential=''), 401)):
+                    try:
+                        attempt()
+                    except urllib.error.HTTPError as error:
+                        assert error.code == expected
+                    else:
+                        raise ValueError('Damaged settings accepted an unauthorized or unsafe operation.')
+                repaired = management({}, '/oem/repair')
+                flags = ('server', 'programmer', 'panel', 'discovery', 'remote_access')
+                assert repaired['settings_valid'] and repaired['identity'] == config['identity']
+                assert not any(repaired[key] for key in flags)
+                assert client.request('/v1/description')[0] == 403
+                retained = list(data.glob('management-invalid-*.json')) if fault == 'truncated_settings' else list(data.glob('management-pending-invalid-*.json'))
+                assert any(path.read_bytes() == payload for path in retained)
+                assert not (data / 'management.pending').exists()
+                # Repair restores no permission implicitly, including after boot.
+                stop(manager)
+                assert hardware.poll() is None
+                manager = launch('management-' + fault + '-repaired', manager_command, environment)
+                repaired = management()
+                assert repaired['settings_valid'] and not any(repaired[key] for key in flags)
+                for field in flags:
+                    if before[field]:
+                        repaired = management({'revision': repaired['revision'], 'field': field, 'enabled': True})
+                if args.with_server:
+                    wait_for(lambda: management()['server_responsive'])
+                    assert server_api('/api/auth/required')[0]['state'] == 'required'
+                    assert server_api('/api/state/var.firmware_check')[0]['value'] == 17
+                    wait_for(lambda: server_api('/api/devices/local')[0]['connected'])
+                    assert server_api('/api/devices/local')[0]['state']['counter'] == 0
+                    assert client.request('/v1/description')[0] == 403
+                else:
+                    description = wait_for(available)
+                    assert description['identity'] == config['identity']
+                    assert client.request('/v1/snapshot')[1]['state']['counter'] == 0
+                for name, sha in private_hashes.items():
+                    assert hashlib.sha256((args.out / 'private' / name).read_bytes()).hexdigest() == sha
+                report['storage_recovery'].append({'fault': fault, 'refused_remote_command_status': 503,
+                    'unauthenticated_repair_status': 401, 'hardware_process_id': hardware.pid,
+                    'hardware_process_unchanged': True,
+                    'private_configuration_unchanged': True, 'permissions_disabled_after_repair_and_restart': True,
+                    'account_and_saved_variable_retained': args.with_server, 'damaged_input_retained': True})
+                report['checks'].append(fault + '_refused_control_and_recovered_without_resetting_product')
         stop(manager)
         assert hardware.poll() is None
-        stop(hardware)
+        stopped = stop(hardware)
+        (evidence / 'hardware-final-stop.log').write_bytes(stopped)
+        if args.storage_recovery:
+            assert b'STATE 0 0 0 ' in stopped
+            report['checks'].append('hardware_counter_confirms_refused_commands_were_not_executed')
         assert not Path(config['bridge_path']).exists()
         report['checks'].append('ordered_shutdown_leaves_no_hardware_socket')
         if args.update:
@@ -295,6 +380,7 @@ def check(args):
 if __name__ == '__main__':
     command = parser()
     command.add_argument('--update', action='store_true', help='From a source checkout, replace the hardware example and roll back its program/project data with writers stopped.')
+    command.add_argument('--storage-recovery', action='store_true', help='Damage only this disposable example\'s settings and check authenticated repair, retained data and disabled access.')
     try:
         check(command.parse_args())
     except ValueError as error:

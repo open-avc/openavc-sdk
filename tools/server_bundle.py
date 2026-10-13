@@ -41,12 +41,14 @@ def build(output):
     for interface in ['programmer', 'simulator']:
         shutil.copy2(core / f'openavc/web/{interface}/package-lock.json',
                      inputs / f'{interface}-package-lock.json')
+        shutil.copytree(Path('/opt/browser-builds') / interface, inputs / 'browser-builds' / interface)
     (inputs / 'system-packages.txt').write_text(subprocess.check_output(
         ['dpkg-query', '-W', '-f=${binary:Package}\t${Version}\t${Architecture}\n'],
         text=True), encoding='utf-8')
     sources = {}
     for name in ['openavc_oem', 'examples/system', 'sdk/contract', 'pyproject.toml',
                  'tools/build_server.py', 'tools/server_bundle.py', 'tools/wheel_inventory.py',
+                 'tools/build_browser.mjs', 'tools/browser_inventory.mjs',
                  'tools/requirements-server.txt', 'tools/requirements-build.txt']:
         source = sdk / name
         for path in sorted(source.rglob('*')) if source.is_dir() else [source]:
@@ -56,7 +58,8 @@ def build(output):
                 'runtime': runtime,
                 'wheels': {path.name: digest(path) for path in wheels},
                 'publisher_sboms': {path.name: digest(path) for path in sorted((output / 'publisher-sboms').iterdir())},
-                'build_inputs': {path.name: digest(path) for path in sorted(inputs.iterdir())},
+                'build_inputs': {path.relative_to(inputs).as_posix(): digest(path)
+                                 for path in sorted(inputs.rglob('*')) if path.is_file()},
                 'sdk_sources': sources,
                 'core_build_inputs': {name: digest(core / name) for name in [
                     'pyproject.toml', 'openavc/web/programmer/package-lock.json',

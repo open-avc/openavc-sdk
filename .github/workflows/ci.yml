@@ -95,7 +95,7 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake clang libc++-dev libc++abi-dev libssl-dev openssl
+          sudo apt-get install -y python3-venv cmake clang libc++-dev libc++abi-dev libssl-dev openssl
       - name: Install the pinned core and product controls
         run: |
           python -c "import json,pathlib; print(json.loads(pathlib.Path('sdk/contract/origin.json').read_text())['core_head'])" > /tmp/openavc-ref
@@ -116,6 +116,13 @@ jobs:
           python try-example.py --project build/my-product --checks build/my-product/checks.json --out build/project-checks
           python collect-diagnostics.py --checks build/project-checks/report.json --out build/support-preview.json
           python -m unittest discover -s tests -v
+      - name: Check setup with the operating system's Python
+        run: |
+          /usr/bin/python3 -m venv build/python
+          . build/python/bin/activate
+          python3 -m pip install .
+          python3 -m pip check
+          python3 examples/linux/check.py --out build/firmware-system-python
       - name: Check firmware startup and service supervision
         run: |
           python examples/linux/check.py --out build/firmware-device

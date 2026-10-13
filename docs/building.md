@@ -17,7 +17,7 @@ On Ubuntu 24.04:
 
 ```sh
 sudo apt-get update
-sudo apt-get install python3 cmake build-essential clang libc++-dev libc++abi-dev libssl-dev openssl
+sudo apt-get install python3 python3-venv cmake build-essential clang libc++-dev libc++abi-dev libssl-dev openssl
 python3 doctor.py --report build/environment.json
 python3 try-example.py --exercise-demo
 ```
@@ -37,6 +37,25 @@ hardware examples; this is distinct from the ordinary OpenAVC Windows server.
 The doctor compiles a disposable dependency check. It does not execute product
 code, install packages or upload the report. Choose a new report filename for
 each run; existing reports are not overwritten.
+
+### Python tools
+
+Before installing Python packages for the product controls, firmware examples
+or resource profiler, create an environment from the SDK directory:
+
+```sh
+python3 -m venv build/python
+. build/python/bin/activate
+```
+
+On macOS, use `python3.12` for the first command. Keep this environment active
+when running the guides' `python3` commands; activate it again in each new
+terminal. The Ubuntu prerequisites above include `python3-venv`. This keeps
+development packages separate from the operating system's Python.
+
+For firmware, install dependencies through the product's image build and select
+its installed Python environment. A workstation virtual environment is not a
+portable firmware runtime.
 
 ## Source builds
 
@@ -161,13 +180,18 @@ of the builder's installed system packages. To check the files and preview a
 summary for support, use `python3 collect-diagnostics.py --server-bundle build/server-bundle`
 from the SDK directory. See [diagnostic previews](product-testing.md#preview-diagnostics-before-sharing)
 for export controls and the verification scope. `INSTALL.txt` contains the offline
-installation command:
+installation instructions. For local evaluation on a matching Linux host, run
+these commands from the extracted bundle directory. On Ubuntu, install
+`python3-venv` through the system package manager first:
 
 ```sh
+python3.12 -m venv ../server-python
+. ../server-python/bin/activate
 python3 -m pip install --no-index --find-links=wheels --require-hashes -r requirements.txt
 ```
 
-Run that command from the bundle directory in a fresh firmware staging environment.
+For firmware builds, run the offline installation command in a fresh environment
+prepared by your product's image build.
 The generated `requirements.txt` pins every delivered Python package and enables
 [pip's hash checks](https://pip.pypa.io/en/stable/topics/secure-installs/).
 Keep the requirements file with the trusted bundle; it detects changed archives,

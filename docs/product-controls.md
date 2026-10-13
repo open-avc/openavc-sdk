@@ -31,12 +31,16 @@ Use the [server bundle builder](building.md#build-the-optional-server-bundle)
 to collect them for offline installation into your firmware image. Product
 startup does not download software.
 
-Install the product-management package into the firmware's Python environment:
+For a development or staging run, activate the
+[Python tools environment](building.md#python-tools) and install product management:
 
 ```sh
 python3 -m pip install .
 python3 -m openavc_oem --config /etc/product/openavc.json
 ```
+
+For a firmware image, package it in the product's Python environment through
+your image build. The [Buildroot package](buildroot.md) supplies that recipe.
 
 Start your hardware application before this service. Run both under your normal
 firmware service supervisor. The SDK starts/stops its native device service and

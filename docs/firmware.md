@@ -12,8 +12,9 @@ It does not configure a manufacturer's hardware, network or firmware updater.
 
 ## Run the firmware example
 
-On Linux, install the [build prerequisites](building.md) and the SDK's Python
-package, then build the example:
+On Linux, install the [build prerequisites](building.md), activate the
+[Python tools environment](building.md#python-tools), then install the SDK's
+Python package and build the example:
 
 ```sh
 python3 -m pip install .

@@ -1,7 +1,9 @@
 # Test your product integration
 
 Use these tools from a development checkout or a prebuilt library archive.
-Python 3.12 or newer is required. The resource profiler also needs `psutil`:
+Python 3.12 or newer is required. Activate the
+[Python tools environment](building.md#python-tools) first. The resource profiler
+also needs `psutil`:
 
 ```sh
 python3 -m pip install psutil

@@ -65,7 +65,12 @@ def build(args):
     (output / 'INSTALL.txt').write_text(
         'Optional OpenAVC server and product-management Python bundle\n\n'
         'Use the matching Linux CPU architecture and Python 3.12 environment.\n'
-        'Install in the firmware staging environment, not a running product:\n\n'
+        'Install in a fresh firmware staging environment, not a running product.\n'
+        'For local evaluation on a matching Linux host, from this directory:\n\n'
+        '  python3.12 -m venv ../server-python\n'
+        '  . ../server-python/bin/activate\n\n'
+        'On Ubuntu, install python3-venv before creating the environment.\n'
+        'Then install the bundle into the selected environment:\n\n'
         '  python3 -m pip install --no-index --find-links=wheels --require-hashes -r requirements.txt\n\n'
         'Use a fresh environment. This verifies each installed wheel against the\n'
         'recorded version and hash; retain the trusted requirements file.\n\n'

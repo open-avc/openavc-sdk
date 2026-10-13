@@ -46,3 +46,21 @@ your SDK revision or archive name. Distinguish the development computer's OS/CPU
 from the product's. You can attach a reviewed diagnostic preview; a report is
 optional for a question. Use an invented model when a reproduction would otherwise
 expose confidential product details.
+
+The SDK maintainers handle problems in the supplied libraries, tools, examples,
+documentation and shared OpenAVC integration. Your firmware team owns the product's
+hardware callbacks, operating system/toolchain, factory provisioning, service
+startup, firmware updates and product qualification. Keep the tested SDK and core
+revisions together when reporting a problem. An exact reproduction using an
+invented product helps separate a kit defect from a hardware-specific failure.
+
+For setup problems, include a reviewed `collect-diagnostics.py --environment`
+summary from the matching SDK tools. The private doctor report contains the
+detailed compiler output your team needs locally. See
+[build and toolchain diagnostics](product-testing.md#include-build-and-toolchain-checks).
+
+For a security-sensitive finding, use
+[OpenAVC's private vulnerability reporting](https://github.com/open-avc/openavc/security)
+and select **Report a vulnerability**. State that the report concerns the SDK
+and include its revision. Do not post the vulnerability or product credentials
+in the public integration form.

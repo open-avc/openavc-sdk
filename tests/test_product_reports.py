@@ -122,6 +122,53 @@ class ProductReports(unittest.TestCase):
         self.assertIs(result['product']['panel'], True)
         self.assertEqual(result['checks']['status'], 'unknown')
 
+    def test_environment_and_reconnect_summaries_keep_private_details_local(self):
+        private = 'PRIVATE_PASSWORD_SENTINEL'
+        environment = {'format': 1, 'coverage': 'build_prerequisites', 'status': 'needs-attention',
+                       'delivery': 'source', 'form': 'service', 'doctor_sha256': 'a' * 64,
+                       'toolchain': {'path': private, 'sha256': 'b' * 64},
+                       'host': {'os': 'Linux', 'machine': 'aarch64', 'python': '3.12.15', 'name': private},
+                       'compile_probe': {'status': 'failed', 'configure': {'output': private},
+                                         'target': {'system': 'Linux', 'processor': 'x86_64', 'cross_compiling': 'TRUE', 'sysroot': private}},
+                       'checks': [{'check': 'Firmware toolchain file', 'status': 'passed', 'detail': private},
+                                  {'check': 'C11/C++17, threads and OpenSSL 3 development files', 'status': 'needs-attention', 'action': private},
+                                  {'check': private, 'status': 'passed'}]}
+        source = {'format': 1, 'coverage': 'protocol_and_reported_state', 'status': 'passed',
+                  'commands': [], 'refusals': [{'status': 'passed', 'request': {'password': private}}],
+                  'reconnect': {'status': 'passed', 'timeout': 60, 'unavailable_after_seconds': 1,
+                                'recovered_after_seconds': 3, 'initial_session': private, 'final_session': private}}
+        result = summarize(checks=source, environment=environment)
+        self.assertNotIn(private, json.dumps(result))
+        self.assertFalse(result['environment']['target_execution_verified'])
+        self.assertEqual(result['environment']['unrecognized_checks'], 1)
+        self.assertIs(result['environment']['target']['cross_compiling'], True)
+        self.assertEqual(result['checks']['refusals']['passed'], 1)
+        self.assertEqual(result['checks']['reconnect']['recovered_after_seconds'], 3)
+        environment['host'].update(os=private, machine=private, python=private)
+        environment['compile_probe']['target'].update(processor=private, cross_compiling=[private])
+        environment['toolchain']['sha256'] = private
+        environment['checks'][0]['status'] = private
+        result = summarize(environment=environment)
+        self.assertNotIn(private, json.dumps(result))
+        self.assertIsNone(result['environment']['host']['python'])
+        self.assertEqual(result['environment']['host']['os'], 'unknown')
+        with self.assertRaises(ValueError):
+            summarize(environment=source)
+        path = self.work / 'environment.json'
+        path.write_text(json.dumps(environment))
+        args = [sys.executable, str(ROOT / 'collect-diagnostics.py'), '--environment', str(path)]
+        preview = subprocess.run(args, capture_output=True, text=True, timeout=5)
+        export = subprocess.run([*args, '--out', str(self.work / 'environment-support.json')], capture_output=True, text=True, timeout=5)
+        self.assertEqual(preview.returncode, 0, preview.stderr)
+        self.assertEqual(export.returncode, 0, export.stderr)
+        self.assertEqual(preview.stdout, export.stdout)
+        self.assertEqual(export.stdout, (self.work / 'environment-support.json').read_text())
+        self.assertNotIn(private, export.stdout)
+        failed = summarize(environment={'format': 1, 'coverage': 'build_prerequisites', 'status': 'error',
+                                        'checks': [], 'error': private})
+        self.assertEqual(failed['environment']['status'], 'error')
+        self.assertNotIn(private, json.dumps(failed))
+
     def test_bundle_identity_uses_checked_bytes_and_excludes_private_metadata(self):
         bundle = self.work / 'private-product-build'
         wheels = bundle / 'wheels'

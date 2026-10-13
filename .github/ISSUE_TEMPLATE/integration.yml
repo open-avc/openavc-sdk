@@ -7,6 +7,8 @@ body:
         Describe the integration step you are working on. Share only information
         your team can make public. Review a diagnostic preview before attaching it;
         keep product credentials, private keys and confidential firmware details private.
+        For security-sensitive findings, use OpenAVC's private reporting instead:
+        https://github.com/open-avc/openavc/security
   - type: textarea
     id: question
     attributes:

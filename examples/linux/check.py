@@ -153,6 +153,7 @@ def check(args):
         wait_for(lambda: client.request('/v1/snapshot')[1]['state']['counter'] == 1)
         report['checks'].append('hardware_command_and_readback')
         stopped = stop(hardware)
+        (evidence / 'hardware-first-stop.log').write_bytes(stopped)
         assert b'CLOSED' in stopped and b'STATE 1 1 0 ' in stopped
         wait_for(lambda: client.request('/v1/snapshot')[0] == 503)
         report['checks'].append('graceful_hardware_stop_and_unavailable_readback')
@@ -252,13 +253,15 @@ def check(args):
                 for name, sha in private_hashes.items():
                     assert hashlib.sha256((args.out / 'private' / name).read_bytes()).hexdigest() == sha
                 report['storage_recovery'].append({'fault': fault, 'refused_remote_command_status': 503,
-                    'unauthenticated_repair_status': 401, 'hardware_pid_unchanged': hardware.pid,
+                    'unauthenticated_repair_status': 401, 'hardware_process_id': hardware.pid,
+                    'hardware_process_unchanged': True,
                     'private_configuration_unchanged': True, 'permissions_disabled_after_repair_and_restart': True,
                     'account_and_saved_variable_retained': args.with_server, 'damaged_input_retained': True})
                 report['checks'].append(fault + '_refused_control_and_recovered_without_resetting_product')
         stop(manager)
         assert hardware.poll() is None
         stopped = stop(hardware)
+        (evidence / 'hardware-final-stop.log').write_bytes(stopped)
         if args.storage_recovery:
             assert b'STATE 0 0 0 ' in stopped
             report['checks'].append('hardware_counter_confirms_refused_commands_were_not_executed')

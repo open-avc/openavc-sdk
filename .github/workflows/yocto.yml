@@ -92,9 +92,11 @@ jobs:
       - name: Retain task logs and final resource usage
         if: always()
         run: |
-          df -h >> build/host-resources.txt
-          free -h >> build/host-resources.txt
-          du -sh build/yocto/build/downloads build/yocto/build/sstate-cache >> build/host-resources.txt
+          {
+            df -h
+            free -h
+            du -sh build/yocto/build/downloads build/yocto/build/sstate-cache
+          } >> build/host-resources.txt
           python3 - <<'PY'
           from pathlib import Path
           import tarfile

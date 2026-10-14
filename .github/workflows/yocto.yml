@@ -76,6 +76,8 @@ jobs:
         with:
           path: build/yocto/build/sstate-cache
           key: yocto-sstate-${{ matrix.machine }}-${{ hashFiles('examples/linux/yocto/setup.py') }}
+          restore-keys: |
+            yocto-sstate-${{ matrix.machine }}-
       - name: Build packages and the reference filesystem
         id: firmware
         env:
@@ -102,7 +104,9 @@ jobs:
           {
             df -h
             free -h
-            du -sh build/yocto/build/downloads build/yocto/build/sstate-cache
+            for directory in build/yocto/build/downloads build/yocto/build/sstate-cache; do
+              if test -d "$directory"; then du -sh "$directory"; fi
+            done
           } >> build/host-resources.txt
           python3 - <<'PY'
           from pathlib import Path

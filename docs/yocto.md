@@ -66,7 +66,9 @@ Include the host's `python3-websockets` package for the shared-state mirror.
 The preparation tool fetches exact OpenEmbedded Core, BitBake and meta-openembedded
 revisions and creates a separate build directory. It enables the upstream
 shared-state mirror and removes temporary completed build work to reduce disk use.
-Initial builds require internet access. Existing build directories are not overwritten.
+Initial builds require internet access. Interrupted source downloads are attempted
+up to three times at the same pinned revision. Credential, certificate and missing
+revision errors stop preparation. Existing build directories are not overwritten.
 
 From a committed SDK source checkout whose revision is available on GitHub:
 

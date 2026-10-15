@@ -184,6 +184,13 @@ target_link_libraries(model-test PRIVATE adapter)
         self.assertEqual(self.ready()["state"]["writes"], before)
 
     def test_product_checker_with_changed_model_and_adapter(self):
+        def physical_writes():
+            self.process.stdin.write('snapshot\n')
+            self.process.stdin.flush()
+            label, value = self.process.stdout.readline().split()
+            self.assertEqual(label, 'WRITES')
+            return int(value)
+
         work = Path(self.folder.name)
         model = json.loads((work / 'build/sdk/generated/model.json').read_text())
         plan = {'model_id': model['id'], 'checks': [{
@@ -193,12 +200,22 @@ target_link_libraries(model-test PRIVATE adapter)
                        {'state': 'mute', 'equals': False},
                        {'child_type': 'output', 'child_id': 'Main-L', 'state': 'gain', 'equals': -12.5}]}]}
         before = self.ready()['state']['writes']
+        self.assertEqual(physical_writes(), before)
         report = run_checks(Client(self.url, {'token': self.token}, work / 'cert.pem'), model,
                             work / 'product-check', plan)
         self.assertEqual(report['status'], 'passed')
         self.assertFalse(report['physical_hardware_verified'])
         self.assertEqual(self.ready()['state']['writes'], before + 1)
         self.assertEqual(sum(row['method'] == 'POST' for row in report['requests']), 2)
+        for interruption, delta in [('before_acceptance', 0), ('before_response', 1)]:
+            case = {**plan['checks'][0], 'interruption': interruption,
+                    'expect': [{'state': 'writes', 'delta': delta}]}
+            report = run_checks(Client(self.url, {'token': self.token}, work / 'cert.pem'), model,
+                                work / interruption, {'model_id': model['id'], 'checks': [case]})
+            self.assertEqual(report['status'], 'passed')
+            self.assertEqual(sum(row['method'] == 'POST' for row in report['requests']), 1)
+            self.assertEqual(self.ready()['state']['writes'], before + 1 + delta)
+            self.assertEqual(physical_writes(), before + 1 + delta)
         # Exercise the supplied CLI against this non-demo product, without commands.
         credential = work / 'credentials.json'
         credential.write_text(json.dumps({'token': self.token}))
@@ -207,7 +224,7 @@ target_link_libraries(model-test PRIVATE adapter)
                                  '--model', str(work / 'build/sdk/generated/model.json'),
                                  '--out', str(work / 'inspection')], capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(self.ready()['state']['writes'], before + 1)
+        self.assertEqual(self.ready()['state']['writes'], before + 2)
         self.assertNotIn(self.token, (work / 'inspection/report.json').read_text() + result.stdout + result.stderr)
 
 

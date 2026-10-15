@@ -64,7 +64,7 @@ python3 try-example.py --run-built /path/to/target --form direct --exercise-demo
 
 The launcher verifies the recorded hashes, OS, processor and core contract before
 starting the existing binaries. It exercises commands, independent invented
-hardware counters, external feedback and delayed completion, then stops both
+hardware counters, external feedback, delayed completion and interrupted requests, then stops both
 processes. Reports distinguish the build computer from the computer that ran
 the check. Checksums detect changed files; they do not authenticate their source.
 Only run artifacts from a source you trust.

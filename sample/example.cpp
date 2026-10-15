@@ -79,6 +79,7 @@ public:
             std::istringstream text(line);
             std::string action; text >> action;
             if (action == "delay") text >> delay_ms_;
+            else if (action == "finish") { if (pending_) pending_->due = Clock::now(); }
             else if (action == "external") { text >> gain_[1]; ++ticks_; ++revision_; }
             else if (action == "channels") {
                 unsigned count = 0; text >> count;

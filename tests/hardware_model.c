@@ -73,7 +73,13 @@ int main(int argc, char **argv) {
     oavc_endpoint *endpoint = oavc_open(&config, error, sizeof(error));
     if (!endpoint) { fprintf(stderr, "%s\n", error); return 2; }
     printf("READY %u\n", oavc_port(endpoint)); fflush(stdout);
-    (void)getchar();
+    char input[32];
+    while (fgets(input, sizeof(input), stdin) && strcmp(input, "\n")) {
+        if (strcmp(input, "snapshot\n")) return 3;
+        pthread_mutex_lock(&h.mutex);
+        printf("WRITES %lld\n", (long long)h.writes); fflush(stdout);
+        pthread_mutex_unlock(&h.mutex);
+    }
     oavc_close(endpoint);
     pthread_mutex_destroy(&h.mutex);
     return 0;

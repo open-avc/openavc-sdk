@@ -13,6 +13,7 @@ import tempfile
 import unittest
 
 from aiohttp import BasicAuth, ClientSession, ClientTimeout
+from product_checks import Client
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -75,6 +76,9 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
         return process
 
     async def shutdown(self):
+        if hasattr(self, 'product') and self.product.returncode is None:
+            self.product.stdin.write(b'finish\n')
+            await self.product.stdin.drain()
         for process in reversed(self.processes):
             if process.returncode is None:
                 process.terminate()
@@ -96,13 +100,93 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(response.status, 200, await response.text())
             return await response.json()
 
-    async def setting(self, field, enabled):
+    async def setting(self, field, enabled, expected=200):
         current = await self.get_settings()
         async with self.http.post(self.management + '/oem/settings', headers={
                 'Authorization': 'Bearer ' + self.management_token}, json={
                     'revision': current['revision'], 'field': field, 'enabled': enabled}) as response:
-            self.assertEqual(response.status, 200, await response.text())
+            self.assertEqual(response.status, expected, await response.text())
             return await response.json()
+
+    async def hardware(self, command='snapshot'):
+        self.product.stdin.write((command + '\n').encode())
+        await self.product.stdin.drain()
+        row = (await self.line(self.product)).split()
+        self.assertEqual(row[0], 'STATE', row)
+        return {'writes': int(row[1]), 'callbacks': int(row[2]), 'wrong_threads': int(row[3]),
+                'counter': int(row[5]), 'pending': int(row[13])}
+
+    async def hardware_until(self, predicate):
+        async with asyncio.timeout(5):
+            while True:
+                state = await self.hardware()
+                if predicate(state):
+                    return state
+                await asyncio.sleep(.02)
+
+    async def local_connected(self):
+        async with asyncio.timeout(10):
+            while True:
+                devices = (await self.api('GET', '/api/devices'))['devices']
+                if any(device['id'] == 'local' and device['connected'] for device in devices):
+                    return
+                await asyncio.sleep(.1)
+
+    async def test_role_changes_wait_for_hardware_after_a_lost_response(self):
+        evidence = {'status': 'running'}
+        destination = ROOT / 'build/role-interruption.json'
+        try:
+            client = Client(self.equipment, self.login, self.root / 'ca.pem')
+            description = await self.equipment_response(200)
+            # The simulated product owns completion. A role transition cannot
+            # release this deliberately held operation or erase its context.
+            await self.hardware('delay 60000')
+            await asyncio.to_thread(client.interrupt_command, {
+                'session': description['session'], 'id': 1, 'command': 'increment', 'params': {}}, 'before_response')
+            pending = await self.hardware_until(lambda state: state['pending'])
+            self.assertEqual((pending['callbacks'], pending['writes']), (1, 0))
+            refused = (await self.setting('server', True, expected=503))['state']
+            self.assertTrue(refused['server'])
+            self.assertFalse(refused['server_running'])
+            self.assertTrue(refused['equipment']['reserved_locally'])
+            await self.equipment_response(403)
+            blocked = await self.hardware()
+            self.assertEqual(blocked, pending)
+            evidence['start_while_remote_command_pending'] = {'hardware': blocked, 'settings': refused}
+            await self.hardware('finish')
+            complete = await self.hardware_until(lambda state: not state['pending'])
+            self.assertEqual((complete['callbacks'], complete['writes'], complete['counter']), (1, 1, 1))
+            self.assertTrue((await self.setting('server', True))['server_running'])
+            await self.api('POST', '/api/auth/setup', self.login)
+            await self.local_connected()
+
+            await self.hardware('delay 60000')
+            await self.api('POST', '/api/devices/local/command', {'command': 'increment', 'params': {}}, expected=409)
+            pending = await self.hardware()
+            self.assertNotEqual(pending['pending'], 0)
+            self.assertEqual((pending['callbacks'], pending['writes'], pending['counter']), (2, 1, 1))
+            refused = (await self.setting('server', False, expected=503))['state']
+            self.assertFalse(refused['server'])
+            self.assertFalse(refused['server_running'])
+            self.assertTrue(refused['equipment']['reserved_locally'])
+            await self.equipment_response(403)
+            self.assertEqual(await self.hardware(), pending)
+            evidence['stop_while_local_command_pending'] = {'hardware': pending, 'settings': refused}
+            await self.hardware('finish')
+            complete = await self.hardware_until(lambda state: not state['pending'])
+            self.assertEqual((complete['callbacks'], complete['writes'], complete['counter']), (2, 2, 2))
+            released = await self.setting('server', False)
+            self.assertFalse(released['equipment']['reserved_locally'])
+            description = await self.equipment_response(200)
+            status, reply = await asyncio.to_thread(client.request, '/v1/command', {
+                'session': description['session'], 'id': 2, 'command': 'increment', 'params': {}})
+            self.assertEqual((status, reply['outcome']), (200, 'completed'))
+            complete = await self.hardware()
+            self.assertEqual((complete['callbacks'], complete['writes'], complete['counter']), (3, 3, 3))
+            self.assertEqual(complete['wrong_threads'], 0)
+            evidence.update(status='passed', hardware_after=complete)
+        finally:
+            destination.write_text(json.dumps(evidence, indent=2) + '\n')
 
     async def equipment_response(self, expected):
         async with self.http.get(self.equipment + '/v1/description',

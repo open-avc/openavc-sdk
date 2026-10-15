@@ -53,7 +53,10 @@ class TransferredBuild(unittest.TestCase):
         report = json.loads((build / 'c-direct-result.json').read_text())
         self.assertEqual(report['status'], 'passed')
         self.assertTrue(report['transferred_build'])
-        self.assertEqual(report['hardware']['writes'], 2)
+        self.assertEqual(report['hardware']['writes'], 3)
+        self.assertEqual(set(report['interrupted_commands']), {'before_acceptance', 'before_response'})
+        for case in report['interrupted_commands'].values():
+            self.assertEqual(case['report']['status'], 'passed')
         self.assertEqual(before, (build / 'c-direct-build-result.json').read_bytes())
 
     def test_changed_binary_refused_before_launch(self):

@@ -75,6 +75,12 @@ work. Invoke the function once on the thread allowed to access your hardware.
 The supplied C and C++ examples demonstrate a product event loop and delayed
 completion on that same thread.
 
+The examples' stdin test controls include `delay 60000` to hold the next simulated
+operation for up to a minute and `finish` to let it complete sooner. Their
+`snapshot` output reports callback, completed-write and pending-operation counts
+independently of network readback. These controls operate the invented hardware;
+use your product's test instrumentation to observe its physical operations.
+
 Call `oavc_adapter_refresh` on the product thread. It calls your `readback`
 function and copies its snapshot for the networking service. Choose
 `feedback_max_age_ms` to match your product's measured refresh interval; refresh

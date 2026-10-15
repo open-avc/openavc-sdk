@@ -132,6 +132,7 @@ int main(int argc, char **argv) {
         if (!fgets(line, sizeof(line), stdin)) { oavc_adapter_stop(adapter); p.stop = 1; continue; }
         unsigned number; double gain;
         if (sscanf(line, "delay %u", &number) == 1) p.delay_ms = number;
+        else if (!strcmp(line, "finish\n")) p.due = now();
         else if (sscanf(line, "external %lf", &gain) == 1) { p.gain[1] = gain; ++p.ticks; ++p.revision; }
         else if (sscanf(line, "channels %u", &number) == 1 && number <= 4) { p.channels = number; ++p.revision; }
         else if (sscanf(line, "generation %u", &number) == 1 && number) { p.generation = number; ++p.revision; }

@@ -1,12 +1,13 @@
 """Workstation checks for a manufacturer's running equipment integration.
 
 The check plan selects every physical operation. The runner never invents a
-command, follows a redirect or resumes an interrupted run. Each selected command
-is deliberately repeated with the same ID after completion to check deduplication.
+command, follows a redirect or resumes an interrupted run. Ordinary checks repeat
+the ID after completion to check deduplication; interruption checks never replay.
 """
 import base64
 from datetime import datetime, timezone
 import hashlib
+import http.client
 import json
 import math
 import os
@@ -88,9 +89,40 @@ class Client:
         self.timeout = timeout
         self.identifier = secrets.token_hex(16)
         self.timings = []
+        self.tls = ssl.create_default_context(cafile=ca_file)
         self.opener = urllib.request.build_opener(
             urllib.request.ProxyHandler({}), NoRedirect(),
-            urllib.request.HTTPSHandler(context=ssl.create_default_context(cafile=ca_file)))
+            urllib.request.HTTPSHandler(context=self.tls))
+
+    def interrupt_command(self, body, interruption):
+        """Send once over verified TLS, then close without reading a response.
+
+        A complete send establishes neither acceptance nor completion. The
+        caller must inspect the retained result and feedback without replay.
+        """
+        require(interruption in ('before_acceptance', 'before_response'), 'Unknown interruption check.')
+        url = urllib.parse.urlsplit(self.base + '/v1/command')
+        raw = encoded(body)
+        sent = raw[:-1] if interruption == 'before_acceptance' else raw
+        connection = http.client.HTTPSConnection(url.hostname, url.port, timeout=self.timeout, context=self.tls)
+        start = time.monotonic()
+        try:
+            connection.putrequest('POST', url.path)
+            connection.putheader('Authorization', self.authorization)
+            connection.putheader('X-OpenAVC-Client', self.identifier)
+            connection.putheader('Content-Type', 'application/json')
+            connection.putheader('Content-Length', str(len(raw)))
+            connection.putheader('Connection', 'close')
+            connection.endheaders()
+            connection.send(sent)
+            return {'body_bytes_sent': len(sent), 'content_length': len(raw), 'response_read': False}
+        except (OSError, http.client.HTTPException) as error:
+            raise CheckFailed('Could not complete the selected connection interruption; '
+                              'acceptance is unknown. Inspect the hardware and do not replay the command.') from error
+        finally:
+            connection.close()
+            self.timings.append({'method': 'POST', 'path': '/v1/command', 'interruption': interruption,
+                                 'seconds': time.monotonic() - start})
 
     def request(self, path, body=None, *, authenticated=True):
         headers = {'Content-Type': 'application/json', 'X-OpenAVC-Client': self.identifier}
@@ -198,8 +230,10 @@ def prepare_cases(plan, model):
             and plan['model_id'] == model['id'] and type(plan['checks']) is list,
             'Check file must contain this model_id and a checks list.')
     for case in plan['checks']:
-        require(type(case) is dict and set(case) <= {'name', 'command', 'params', 'expect', 'outcome', 'timeout', 'observe_for', 'check_refusals'}
+        require(type(case) is dict and set(case) <= {'name', 'command', 'params', 'expect', 'outcome', 'timeout', 'observe_for', 'check_refusals', 'interruption'}
                 and {'name', 'command', 'params', 'expect'} <= set(case), 'Check fields are invalid.')
+        interruption = case.get('interruption')
+        require(interruption in (None, 'before_acceptance', 'before_response'), 'Select a supported interruption.')
         require(type(case.get('check_refusals', False)) is bool, 'check_refusals must be true or false.')
         require(type(case['name']) is str and case['name'], 'Give each check a name.')
         require(type(case['command']) is str, 'Select a declared command name.')
@@ -214,7 +248,10 @@ def prepare_cases(plan, model):
                     channel_id(case['params'][key], model['child_entity_types'][rule['child_type']])
                 else:
                     scalar(case['params'][key], rule, 'params.' + key)
-        require(case.get('outcome', 'completed') in ('completed', 'rejected', 'failed'), 'Select a terminal outcome.')
+        if interruption == 'before_acceptance':
+            require('outcome' not in case, 'Omit outcome for an incomplete request; it must not be accepted.')
+        else:
+            require(case.get('outcome', 'completed') in ('completed', 'rejected', 'failed'), 'Select a terminal outcome.')
         timeout = case.get('timeout', 10)
         require(type(timeout) in (int, float) and math.isfinite(timeout) and 0 < timeout <= 300,
                 'A check timeout must be greater than zero and at most 300 seconds.')
@@ -391,20 +428,54 @@ def run_checks(client, model, output, plan=None, *, reconnect=None, ready=None):
                 time.sleep(min(.25, max(0, deadline - time.monotonic())))
         for identifier, case in enumerate(cases, 1):
             before = readback()
+            interruption = case.get('interruption')
             targets = [item.get('equals') if 'equals' in item
                        else expectation_value(before, item) + item['delta'] for item in case['expect']]
             # Resolve every selected channel before admitting any command.
             for item in case['expect']:
                 expectation_value(before, item)
+            if interruption == 'before_acceptance':
+                require(targets == [expectation_value(before, item) for item in case['expect']],
+                        'An incomplete request must expect unchanged state. Use delta: 0 or the current value.')
             body = {'session': description['session'], 'id': identifier,
                     'command': case['command'], 'params': case['params']}
             if case.get('check_refusals', False):
                 check_refusals(case, body, before)
             entry = {'name': case['name'], 'request': body, 'status': 'dispatching'}
+            if interruption:
+                entry['interruption'] = interruption
             report['commands'].append(entry)
             save()
-            status, result = client.request('/v1/command', body)
-            polled = False
+            if interruption:
+                entry['transport'] = client.interrupt_command(body, interruption)
+                entry['status'] = 'observing'
+                save()
+                deadline = time.monotonic() + (case.get('observe_for', .5) if interruption == 'before_acceptance'
+                                              else case.get('timeout', 10))
+                while True:
+                    current = readback()
+                    status, result = client.request('/v1/commands/' + str(identifier))
+                    if interruption == 'before_response' and status == 200:
+                        break
+                    require(status == 404 and type(result) is dict and result.get('error') == 'unknown_request',
+                            'An incomplete request was accepted.' if interruption == 'before_acceptance'
+                            else 'Could not establish command acceptance; do not replay it.')
+                    if interruption == 'before_acceptance':
+                        actual = [expectation_value(current, item) for item in case['expect']]
+                        require(actual == targets, 'Reported state changed after an incomplete request.')
+                        if time.monotonic() >= deadline:
+                            break
+                    else:
+                        require(time.monotonic() < deadline,
+                                'Command acceptance is unknown; inspect hardware and do not replay it.')
+                    time.sleep(max(0, min(.05, deadline - time.monotonic())))
+                if interruption == 'before_acceptance':
+                    entry.update(status='passed', outcome='not_accepted', observed=actual)
+                    passed(case['name'])
+                    continue
+            else:
+                status, result = client.request('/v1/command', body)
+            polled = bool(interruption)
             deadline = time.monotonic() + case.get('timeout', 10)
             while True:
                 require(status in (200, 202, 409) and type(result) is dict
@@ -415,16 +486,23 @@ def run_checks(client, model, output, plan=None, *, reconnect=None, ready=None):
                 require(status == (200 if polled else {'completed': 200, 'rejected': 409, 'failed': 409,
                                                        'pending': 202, 'uncertain': 202}[outcome]),
                         'Command HTTP status does not match its outcome; do not replay it.')
+                if interruption:
+                    observations = entry.setdefault('observed_outcomes', [])
+                    if not observations or observations[-1] != outcome:
+                        observations.append(outcome)
+                        save()
                 if outcome not in ('pending', 'uncertain'):
                     break
                 require(time.monotonic() < deadline, 'Hardware completion is still uncertain; do not replay the command.')
                 time.sleep(.05)
+                if interruption:
+                    current = readback()
                 status, result = client.request('/v1/commands/' + str(identifier))
                 polled = True
             entry.update(outcome=outcome, status='observing')
             save()
             require(outcome == case.get('outcome', 'completed'), 'Command did not return its expected outcome.')
-            for attempt in range(2):
+            for attempt in range(1 if interruption else 2):
                 if attempt:
                     # Intentional duplicate-ID conformance check, only after terminal completion.
                     entry['status'] = 'checking_duplicate'
@@ -441,13 +519,13 @@ def run_checks(client, model, output, plan=None, *, reconnect=None, ready=None):
                         break
                     require(time.monotonic() < feedback_deadline, 'Reported hardware state did not reach the expected values.')
                     time.sleep(.05)
-                # Read for a bounded interval after the duplicate, including at its end.
-                if attempt:
+                # Interrupted commands are observed without any duplicate POST.
+                if attempt or interruption:
                     observation_end = time.monotonic() + case.get('observe_for', .5)
                     while True:
                         current = readback()
                         actual = [expectation_value(current, item) for item in case['expect']]
-                        require(actual == targets, 'Reported state changed after the duplicate request.')
+                        require(actual == targets, 'Reported state changed after command completion.')
                         if time.monotonic() >= observation_end:
                             break
                         time.sleep(max(0, min(.05, observation_end - time.monotonic())))

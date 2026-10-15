@@ -172,6 +172,64 @@ class ProductChecks(unittest.TestCase):
         self.assertEqual(equipment.posts, 0)
         self.assertEqual(equipment.reads, 0)
 
+    def test_interruption_checks_observe_without_replaying(self):
+        class InterruptedEquipment(FaultEquipment):
+            interruption = None
+            polls = 0
+
+            def interrupt_command(self, body, interruption):
+                # Intent must already be durable if the process dies here.
+                saved = json.loads((output / 'report.json').read_text())
+                assert saved['commands'][0]['request'] == body
+                assert saved['commands'][0]['interruption'] == interruption
+                self.interruption = interruption
+                self.posts += 1
+                return {'response_read': False}
+
+            def request(self, path, body=None, authenticated=True):
+                if body is not None:
+                    raise AssertionError('Interrupted command was replayed')
+                if path.startswith('/v1/commands/'):
+                    self.polls += 1
+                    if self.fault == 'missing' or (self.interruption == 'before_acceptance' and self.fault != 'accepted'):
+                        return 404, {'error': 'unknown_request'}
+                    return 200, {'id': 1, 'outcome': 'pending' if self.polls < 3 else 'completed'}
+                status, value = super().request(path, body, authenticated)
+                if type(value) is dict and 'state' in value:
+                    value['state']['count'] = int(self.interruption == 'before_response' and self.polls >= 3)
+                    if self.fault == 'double' and self.polls >= 3:
+                        value['state']['count'] = 2
+                return status, value
+
+        for interruption, fault in [('before_acceptance', None), ('before_response', None),
+                                    ('before_acceptance', 'accepted'), ('before_response', 'missing'),
+                                    ('before_response', 'restart'), ('before_response', 'double')]:
+            with self.subTest(interruption=interruption, fault=fault):
+                equipment = InterruptedEquipment(fault)
+                plan = copy.deepcopy(PLAN)
+                plan['checks'][0].update(interruption=interruption, timeout=.2)
+                plan['checks'][0]['expect'][0]['delta'] = int(interruption == 'before_response')
+                output = self.output / (interruption + '-' + str(fault))
+                if fault is None:
+                    report = run_checks(equipment, MODEL, output, plan)
+                    self.assertEqual(report['status'], 'passed')
+                    self.assertEqual(report['commands'][0]['outcome'],
+                                     'not_accepted' if interruption == 'before_acceptance' else 'completed')
+                else:
+                    with self.assertRaises(CheckFailed):
+                        run_checks(equipment, MODEL, output, plan)
+                    self.assertEqual(json.loads((output / 'report.json').read_text())['status'], 'failed')
+                self.assertEqual(equipment.posts, 1)
+
+    def test_invalid_interruption_is_refused_before_contact(self):
+        plan = copy.deepcopy(PLAN)
+        plan['checks'][0]['interruption'] = 'invented'
+        equipment = FaultEquipment(None)
+        with self.assertRaisesRegex(CheckFailed, 'interruption'):
+            run_checks(equipment, MODEL, self.output, plan)
+        self.assertEqual(equipment.posts, 0)
+        self.assertEqual(equipment.reads, 0)
+
     def test_refused_operations_precede_valid_work_and_preserve_evidence(self):
         class RefusingEquipment(FaultEquipment):
             def __init__(self, fault):

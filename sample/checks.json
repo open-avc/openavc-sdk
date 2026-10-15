@@ -2,6 +2,20 @@
   "model_id": "acme_amplifier",
   "checks": [
     {
+      "name": "Incomplete request has no effect",
+      "command": "increment",
+      "params": {},
+      "interruption": "before_acceptance",
+      "expect": [{"state": "counter", "delta": 0}]
+    },
+    {
+      "name": "Lost response completes once",
+      "command": "increment",
+      "params": {},
+      "interruption": "before_response",
+      "expect": [{"state": "counter", "delta": 1}]
+    },
+    {
       "name": "Increment once",
       "command": "increment",
       "params": {},

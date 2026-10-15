@@ -77,14 +77,15 @@ The entire check file is validated before any command is sent.
 | `state`, `equals` | State name and exact expected value. |
 | `state`, `delta` | Numeric state name and expected change from the value read immediately before dispatch. Use this for a completion counter, for example. |
 | `child_type`, `child_id` | Both select a channel's state. Omit both for product-level state. Numeric and string IDs retain their type. |
-| `outcome` | Optional `completed` (default), `rejected` or `failed`. |
+| `outcome` | Optional `completed` (default), `rejected` or `failed`. Omit for `before_acceptance`. |
 | `timeout` | Seconds allowed for command completion and, separately, matching feedback. Default 10; greater than zero, up to 300. Requests also have a five-second network timeout. |
-| `observe_for` | Seconds to continue checking state after the duplicate request. Default 0.5; from 0.1 to 30. |
+| `observe_for` | Seconds to check stable state after a duplicate, incomplete request or interrupted command's completion. Default 0.5; from 0.1 to 30. |
 | `check_refusals` | Optional boolean, default `false`. Before this command, submit invalid copies and verify refusal with unchanged selected state. |
+| `interruption` | Optional `before_acceptance` or `before_response`. Interrupt this command's connection and inspect its result without resending it. See below. |
 
 The checker verifies the description against the generated model, authentication,
-typed state, channel IDs, generation/revision and change readback. For each selected
-command it waits for a terminal outcome and matching feedback. It then deliberately
+typed state, channel IDs, generation/revision and change readback. For a command
+without `interruption`, it waits for a terminal outcome and matching feedback, then deliberately
 sends the **same request ID and body** again and checks the retained outcome and
 state. A counter with `delta: 1` can detect a reported extra execution; a gain
 value alone cannot prove that the physical write occurred only once.
@@ -109,6 +110,66 @@ The report records each command's intent before dispatch. On a timeout, restart,
 session change or failure, the run stops and retains its evidence. It does not
 resume or automatically resend an interrupted command. Inspect the hardware and
 the original result before starting another run; a new run has a new client ID.
+
+## Check interrupted commands
+
+Add these checks to your product's checks file, replacing `increment` and `counter`
+with your selected command and completion counter:
+
+```json
+{
+  "model_id": "acme_amplifier",
+  "checks": [
+    {
+      "name": "Incomplete request has no effect",
+      "command": "increment", "params": {},
+      "interruption": "before_acceptance",
+      "expect": [{"state": "counter", "delta": 0}]
+    },
+    {
+      "name": "Lost response completes once",
+      "command": "increment", "params": {},
+      "interruption": "before_response",
+      "expect": [{"state": "counter", "delta": 1}]
+    }
+  ]
+}
+```
+
+Run the same `try-example.py --checks` or `check-product.py --checks` command.
+Both cases close a verified TLS connection without reading its command response.
+`before_acceptance` sends all but the final request-body byte. It requires no
+retained command result and unchanged selected state throughout `observe_for`.
+`before_response` sends the complete body, then reads the retained result until
+completion and checks the expected state. It never repeats the command, including
+after completion. A missing result, changed session or unavailable feedback stops
+the run; a missing result is not proof that hardware did nothing.
+
+Choose an observation interval long enough to detect delayed hardware effects.
+Verify callback and physical-operation counts independently. Use your adapter's
+test controls to delay completion as well as testing immediate completion. The
+report records sent body length, whether a response was read, and observed command
+outcomes. Bytes sent do not prove acceptance; the retained result establishes it.
+These checks interrupt one HTTP exchange. They do not reboot equipment, interrupt
+its firmware update or simulate every network failure.
+
+For a product that includes the full server, also exercise its normal product
+settings while a hardware command is pending:
+
+1. Start a delayed command through remote equipment control, then enable the
+   product's OpenAVC server. It must not start while hardware completion is unknown.
+   Remote equipment control must remain unavailable during the transition.
+2. Let the hardware finish, inspect its operation count, then retry the setting
+   if needed. The server must use the completed hardware state without replaying
+   the earlier command.
+3. Start a delayed command through the local server, then disable that server.
+   Remote equipment control must remain unavailable until completion is confirmed
+   and the setting is applied successfully.
+4. Verify one physical operation, then send a new command through remote control.
+
+The supplied Linux host checks exercise both transitions against the native
+adapter and an installed OpenAVC server. Use your product's own hardware observation
+and settings interface when qualifying its firmware.
 
 ## Check equipment already running on your network
 

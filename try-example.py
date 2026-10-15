@@ -171,6 +171,25 @@ def main(args):
                     actual = hardware()
                     until(lambda: request('/v1/snapshot')[1]['children'][0]['state']['gain'] == actual['gain1'])
                     check('delayed_hardware_completed_once', actual['gain1'] == -31 and actual['writes'] == 2 and actual['callbacks'] == 2 and actual['wrong_threads'] == 0)
+                    result['interrupted_commands'] = {}
+                    for interruption, delta in [('before_acceptance', 0), ('before_response', 1)]:
+                        before = hardware('delay 900')
+                        model = read_json(build / 'generated/model.json')
+                        plan = {'model_id': model['id'], 'checks': [{
+                            'name': interruption, 'command': 'increment', 'params': {},
+                            'interruption': interruption, 'observe_for': 1.2,
+                            'expect': [{'state': 'counter', 'delta': delta}]}]}
+                        observed = run_checks(Client(base, {'token': token}, private / 'cert.pem'),
+                                              model, private / interruption, plan)
+                        actual = hardware()
+                        check(interruption + '_hardware_effects',
+                              all(actual[key] == before[key] + delta for key in ('callbacks', 'writes', 'counter'))
+                              and actual['pending'] == 0 and actual['wrong_threads'] == 0)
+                        if delta:
+                            check('completion_observed_after_lost_response',
+                                  observed['commands'][0]['observed_outcomes'][0] in ('pending', 'uncertain'))
+                        result['interrupted_commands'][interruption] = {
+                            'report': observed, 'hardware_before': before, 'hardware_after': actual}
                     result.update(status='passed', hardware=actual)
                 result.update(model_sha256=hashlib.sha256((build / 'generated/model.json').read_bytes()).hexdigest(),
                               binary_sha256=hashlib.sha256((build / target).read_bytes()).hexdigest())

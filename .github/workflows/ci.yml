@@ -196,6 +196,7 @@ jobs:
             build/server-bundle/*.log
             build/*-result.json
             build/host-system-logs/*.log
+            build/role-interruption.json
             build/check-*/checks.json
             build/check-*/discovery.json
             build/check-*/build.log

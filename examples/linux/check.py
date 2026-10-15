@@ -182,12 +182,12 @@ def check(args):
                             '--checks', str(ROOT / 'sample/checks.json'),
                             '--out', str(evidence / 'product-checks')],
                            check=True, stdout=log, stderr=subprocess.STDOUT)
-        wait_for(lambda: client.request('/v1/snapshot')[1]['state']['counter'] == 1)
+        wait_for(lambda: client.request('/v1/snapshot')[1]['state']['counter'] == 2)
         report['checks'].append('product_checker_refusals_commands_and_readback')
         observer, observed = observe_reconnect('product-hardware-reconnect')
         stopped = stop(hardware)
         (evidence / 'hardware-first-stop.log').write_bytes(stopped)
-        assert b'CLOSED' in stopped and b'STATE 2 2 0 ' in stopped
+        assert b'CLOSED' in stopped and b'STATE 3 3 0 ' in stopped
         wait_for(lambda: client.request('/v1/snapshot')[0] == 503)
         report['checks'].append('graceful_hardware_stop_and_unavailable_readback')
         wait_for(lambda: observed('waiting_for_recovery'))

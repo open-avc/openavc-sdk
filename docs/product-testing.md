@@ -106,6 +106,14 @@ State expectations must remain stable during the observation interval. If your
 product changes state independently, select suitable state or control that activity
 through your test setup. The tool does not lock the product against other clients.
 
+Check factory identity on two known, separate units. Each private `report.json`
+contains `identity`; OpenAVC also reports it as **Equipment ID** in the device's
+advanced connection settings. The two units must have different identities.
+If they match, correct provisioning before commissioning them. Two addresses
+alone do not prove there are two units: one product can have multiple interfaces.
+OpenAVC does not automatically warn about duplicate unit identities or elect a
+controller from them. Keep identity stable across firmware updates and restarts.
+
 The report records each command's intent before dispatch. On a timeout, restart,
 session change or failure, the run stops and retains its evidence. It does not
 resume or automatically resend an interrupted command. Inspect the hardware and

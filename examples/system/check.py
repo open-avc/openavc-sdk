@@ -136,6 +136,10 @@ def check(folder):
         api('/api/devices/ordinary/command', {'command': 'set_level', 'params': {'level': 42}})
         until(lambda: api('/api/devices/ordinary')['state'].get('level') == 42)
         recorded('The same server controls ordinary non-SDK equipment')
+        if layout.get('authority_checks'):
+            from authority import check_authority
+            check_authority(layout, report, api=api, docker=docker, physical=physical,
+                            until=until, recorded=recorded, credentials=login)
         if layout.get('network_faults'):
             from network_faults import check_network_faults
             context = dict(api=api, docker=docker, physical=physical, until=until,

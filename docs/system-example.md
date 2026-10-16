@@ -80,6 +80,29 @@ each saved `*-data/openavc/logs/` directory. Hosted checks include those logs in
 the downloadable artifact.
 Do not use the demonstration checker as a command test for a modified product.
 
+## Check independent controllers and shared equipment
+
+Add `--authority-checks` to a verification run:
+
+```sh
+python3 try-system.py --arrangement external --out build/authority-external --check --authority-checks
+python3 try-system.py --arrangement embedded --out build/authority-embedded --check --authority-checks
+```
+
+This starts a second ordinary OpenAVC server on the isolated example network.
+Each controller operates a selected product. Both then command the same remote
+amplifier using valid product credentials; independent hardware counters must
+show one operation for each submitted command. The check deliberately gives
+the second controller an incorrect password. It must report authentication
+failure and refuse commands while the first controller and ordinary TCP equipment
+keep working. Restoring the credentials must allow a new command without replay.
+
+Multiple credentialed controllers are permitted. The SDK does not elect a winner
+or prevent duplicate automation between them. In an installation, choose the
+controller that runs the intended programming. The second server in this check
+is stopped before other verification steps and removed with the example.
+`checks.json` saves the outcomes and hardware counts.
+
 ## Five products, one controller
 
 Use `--products 5` to run five server-capable amplifiers plus ordinary TCP

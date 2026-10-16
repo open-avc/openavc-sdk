@@ -25,6 +25,13 @@ against the manufacturer's product credentials. Normal OpenAVC device settings
 contain the username/password and certificate-verification option. Keep
 verification enabled with a certificate trusted by the OpenAVC server.
 
+More than one remote controller with valid credentials can control a product.
+Each has its own command history. This does not prevent two controllers from
+running the same automation. Choose one controller for the installation's
+programming; independent installations may share the network. When OpenAVC runs
+on the product itself, its hardware is reserved for that local server and remote
+equipment control is unavailable.
+
 The connection from a server to its own product hardware uses a separate,
 randomly provisioned bearer credential and a TLS-verified loopback endpoint. Its connection details belong to the
 firmware manifest and are not exported with the integrator's project.

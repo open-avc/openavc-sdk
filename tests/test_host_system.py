@@ -13,6 +13,7 @@ import tempfile
 import unittest
 
 from aiohttp import BasicAuth, ClientSession, ClientTimeout
+from openavc_oem._protocol import MAX_MESSAGE_BYTES
 from product_checks import Client
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -232,6 +233,197 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
                 auth=BasicAuth(self.login['username'], self.login['password'])) as response:
             self.assertEqual(response.status, expected, await response.text())
             return await response.json()
+
+    async def test_native_endpoint_refuses_blank_unit_identity(self):
+        for number, identity in enumerate(('', ' \t\n')):
+            with self.subTest(identity=identity):
+                environment = {**os.environ, 'OPENAVC_DEVICE_ID': identity,
+                               'OPENAVC_TOKEN': secrets.token_hex(32)}
+                environment.pop('OPENAVC_PRODUCT_SOCKET', None)
+                process = await self.launch('blank-identity-' + str(number),
+                    [str(ROOT / 'build/example-c'), self.config['model'], str(self.root / 'server.pem')],
+                    env=environment)
+                self.assertEqual(await self.line(process), '')
+                self.assertEqual(await asyncio.wait_for(process.wait(), 5), 2)
+                self.assertIn('identity', (self.root / ('blank-identity-' + str(number) + '.log')).read_text())
+
+    async def test_remote_request_boundaries(self):
+        evidence = {'status': 'running', 'refusals': []}
+        destination = ROOT / 'build/request-boundaries-result.json'
+        try:
+            description = await self.equipment_response(200)
+            headers = {'Authorization': BasicAuth(self.login['username'], self.login['password']).encode(),
+                       'X-OpenAVC-Client': secrets.token_hex(16), 'Content-Type': 'application/json'}
+            body = json.dumps({'session': description['session'], 'id': 1,
+                               'command': 'increment', 'params': {}}).encode()
+            cases = [
+                ('malformed_json', b'{', headers, 422),
+                ('invalid_utf8', b'\xff', headers, 422),
+                ('array_body', b'[]', headers, 422),
+                ('duplicate_field', b'{"id":1,' + body[1:], headers, 422),
+                ('nested_body', b'[' * 32 + b'0' + b']' * 32, headers, 422),
+                ('oversized_body', body + b' ' * (MAX_MESSAGE_BYTES + 1 - len(body)), headers, 413),
+                ('invalid_client', body, {**headers, 'X-OpenAVC-Client': 'g' * 32}, 422),
+                ('missing_client', body, {k: v for k, v in headers.items() if k != 'X-OpenAVC-Client'}, 422),
+                ('duplicate_authorization', body,
+                 [*headers.items(), ('Authorization', headers['Authorization'])], 401),
+            ]
+            before = await self.hardware()
+            for name, raw, supplied, status in cases:
+                async with self.http.post(self.equipment + '/v1/command', headers=supplied,
+                                         data=raw, ssl=self.tls) as response:
+                    text = await response.text()
+                    self.assertEqual(response.status, status, (name, text))
+                after = await self.hardware()
+                self.assertEqual(after, before, name)
+                evidence['refusals'].append({'case': name, 'http_status': status,
+                                            'body_bytes': len(raw), 'hardware': after})
+            # The documented maximum is inclusive. A larger request was refused
+            # above; a valid request exactly at the boundary must still work.
+            raw = body + b' ' * (MAX_MESSAGE_BYTES - len(body))
+            async with self.http.post(self.equipment + '/v1/command', headers=headers,
+                                     data=raw, ssl=self.tls) as response:
+                self.assertEqual(response.status, 200, await response.text())
+                self.assertEqual((await response.json())['outcome'], 'completed')
+            after = await self.hardware()
+            self.assertEqual((after['writes'], after['callbacks'], after['counter']), (1, 1, 1))
+            self.assertEqual(after['wrong_threads'], 0)
+            evidence.update(status='passed', maximum_body_bytes=len(raw), hardware_after=after)
+        except BaseException as error:
+            evidence.update(status='failed', error=str(error))
+            raise
+        finally:
+            destination.write_text(json.dumps(evidence, indent=2) + '\n')
+
+    async def test_independent_controllers_and_shared_equipment(self):
+        evidence = {'status': 'running'}
+        destination = ROOT / 'build/controller-authority-result.json'
+        try:
+            other_root = self.root / 'other-product'
+            other_root.mkdir(mode=0o700)
+            other = await self.launch('other-hardware', [str(ROOT / 'build/example-c'), self.config['model'], '-'],
+                env={**os.environ, 'OPENAVC_PRODUCT_SOCKET': str(other_root / 'product.sock')})
+            self.assertEqual(await self.line(other), 'READY 0')
+            # Deliberately copy the unit identity to a second independent
+            # hardware process. Both ordinary device views must expose the
+            # duplicate; a shared identity is not a global controller election.
+            other_config = {**self.config, 'identity': self.config['identity'],
+                            'data_dir': str(other_root / 'data'), 'bridge_path': str(other_root / 'product.sock'),
+                            'equipment_port': free_port(), 'management_port': free_port()}
+            other_config.pop('server_python')
+            config_file = other_root / 'config.json'
+            config_file.write_text(json.dumps(other_config))
+            manager = await self.launch('other-manager', [sys.executable, '-m', 'openavc_oem', '--config', str(config_file)])
+            self.assertEqual(await self.line(manager), 'READY')
+
+            async def other_hardware():
+                other.stdin.write(b'snapshot\n')
+                await other.stdin.drain()
+                values = (await self.line(other)).split()
+                self.assertEqual(values[0], 'STATE')
+                return {'writes': int(values[1]), 'callbacks': int(values[2]),
+                        'wrong_threads': int(values[3]), 'counter': int(values[5])}
+
+            def device(identifier, port):
+                return {'id': identifier, 'name': identifier, 'driver': 'openavc_equipment',
+                        'config': {'host': '127.0.0.1', 'port': port, **self.login}}
+
+            controllers = []
+            for number, product_port in enumerate((self.config['equipment_port'], other_config['equipment_port'])):
+                data = self.root / ('controller-' + str(number))
+                data.mkdir()
+                project = {'openavc_version': '0.14.0', 'project': {'id': 'independent-' + str(number),
+                           'name': 'Independent system'}, 'devices': [device('own', product_port)]}
+                (data / 'project.avc').write_text(json.dumps(project))
+                port = free_port()
+                while port == int(self.config['server_environment']['OPENAVC_PORT']):
+                    port = free_port()
+                await self.launch('controller-' + str(number), [sys.executable, '-m', 'openavc.main'], env={
+                    **os.environ, **self.config['server_environment'], 'OPENAVC_PORT': str(port),
+                    'OPENAVC_DATA_DIR': str(data), 'OPENAVC_PROJECT': str(data / 'project.avc'),
+                    'OPENAVC_ALLOW_ANONYMOUS': 'false', 'SSL_CERT_FILE': str(self.root / 'ca.pem')})
+                controllers.append(f'http://127.0.0.1:{port}')
+
+            async def request(number, path, body=None, method='GET', expected=200, headers=None):
+                async with self.http.request(method, controllers[number] + path, json=body,
+                        headers=headers, auth=BasicAuth(self.login['username'], self.login['password'])) as response:
+                    self.assertEqual(response.status, expected, await response.text())
+                    return await response.json(), response.headers
+
+            async def connected(number, identifier, desired=True):
+                async with asyncio.timeout(30):
+                    while True:
+                        body, _ = await request(number, '/api/devices/' + identifier)
+                        if body['connected'] == desired:
+                            return body
+                        await asyncio.sleep(.1)
+
+            reported = []
+            for number in (0, 1):
+                async with asyncio.timeout(30):
+                    while True:
+                        try:
+                            async with self.http.get(controllers[number] + '/api/health') as response:
+                                if response.status == 200:
+                                    break
+                                self.assertEqual(response.status, 503, await response.text())
+                        except OSError:
+                            pass
+                        await asyncio.sleep(.1)
+                await request(number, '/api/auth/setup', self.login, 'POST')
+                state = await connected(number, 'own')
+                reported.append(state['state']['_sdk_identity'])
+            self.assertEqual(reported, [self.config['identity']] * 2)
+            self.assertNotEqual(self.product.pid, other.pid)
+            evidence['cloned_identity'] = {'reported_equipment_ids': reported,
+                'independent_hardware_processes': [self.product.pid, other.pid],
+                'automatic_duplicate_warning': False}
+            command = {'command': 'increment', 'params': {}}
+            await asyncio.gather(request(0, '/api/devices/own/command', command, 'POST'),
+                                 request(1, '/api/devices/own/command', command, 'POST'))
+            self.assertEqual((await self.hardware())['counter'], 1)
+            self.assertEqual((await other_hardware())['counter'], 1)
+            evidence['independent_systems'] = {'first': await self.hardware(), 'second': await other_hardware()}
+
+            project, headers = await request(1, '/api/project')
+            project['devices'].append(device('shared', self.config['equipment_port']))
+            await request(1, '/api/project', project, 'PUT', headers={'If-Match': headers['ETag']})
+            await connected(1, 'shared')
+            await asyncio.gather(request(0, '/api/devices/own/command', command, 'POST'),
+                                 request(1, '/api/devices/shared/command', command, 'POST'))
+            shared = await self.hardware()
+            self.assertEqual((shared['writes'], shared['callbacks'], shared['counter']), (3, 3, 3))
+            evidence['two_authorized_writers'] = shared
+
+            await self.setting('server', True)
+            await self.api('POST', '/api/auth/setup', self.login)
+            await self.local_connected()
+            await connected(0, 'own', False)
+            await connected(1, 'shared', False)
+            for number, identifier in ((0, 'own'), (1, 'shared')):
+                await request(number, '/api/devices/' + identifier + '/command', command, 'POST', expected=503)
+            await self.api('POST', '/api/devices/local/command', command)
+            await request(1, '/api/devices/own/command', command, 'POST')
+            self.assertEqual((await self.hardware())['counter'], 4)
+            self.assertEqual((await other_hardware())['counter'], 2)
+            evidence['active_host_protection'] = {'first': await self.hardware(), 'second': await other_hardware()}
+
+            await self.setting('server', False)
+            await asyncio.gather(connected(0, 'own'), connected(1, 'shared'))
+            recovered = await self.hardware()
+            self.assertEqual((recovered['writes'], recovered['callbacks'], recovered['counter']), (4, 4, 4))
+            await asyncio.gather(request(0, '/api/devices/own/command', command, 'POST'),
+                                 request(1, '/api/devices/shared/command', command, 'POST'))
+            final, independent = await self.hardware(), await other_hardware()
+            self.assertEqual((final['writes'], final['callbacks'], final['counter']), (6, 6, 6))
+            self.assertEqual((independent['writes'], independent['callbacks'], independent['counter']), (2, 2, 2))
+            self.assertEqual((final['wrong_threads'], independent['wrong_threads']), (0, 0))
+            evidence.update(status='passed', after_recovery=final, other_product=independent)
+        except BaseException as error:
+            evidence.update(status='failed', error=str(error))
+            raise
+        finally:
+            destination.write_text(json.dumps(evidence, indent=2) + '\n')
 
     async def test_remote_and_local_use_the_same_hardware(self):
         description = await self.equipment_response(200)

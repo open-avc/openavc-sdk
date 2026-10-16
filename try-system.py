@@ -32,6 +32,7 @@ def run(args):
     layout = {'arrangement': args.arrangement, 'product_count': args.products,
               'recovery': args.recovery, 'faults': args.faults, 'cloud_access': args.cloud,
               'network_faults': args.network_faults, 'equipment_ipv6': args.equipment_ipv6,
+              'authority_checks': args.authority_checks,
               'docker': docker, 'network': prefix, 'products': {},
               'contract': json.loads((ROOT / 'sdk/contract/origin.json').read_text()),
               'containers': containers, 'status': 'starting'}
@@ -211,6 +212,24 @@ def run(args):
             call(['start', controller])
         if args.cloud:
             call(['network', 'connect', 'bridge', controller])
+        if args.authority_checks:
+            seed = out / 'independent-controller'
+            seed.mkdir(mode=0o700)
+            shutil.copy2(trust, seed / 'trust.pem')
+            (seed / 'admin.json').write_text(json.dumps({'username': 'independent-admin',
+                                                       'password': secrets.token_urlsafe(24)}))
+            (seed / 'admin.json').chmod(0o600)
+            (seed / 'project.avc').write_text(json.dumps({
+                'openavc_version': '0.14.0', 'project': {'id': 'independent', 'name': 'Independent system'},
+                'devices': [{'id': 'own', 'name': 'Second amplifier', 'driver': 'openavc_equipment',
+                             'config': {'host': addresses['product2'], 'port': 9443, **credentials}}]}))
+            secondary = create('independent-controller', ['-m', 'openavc.main'], environment={
+                'OPENAVC_DATA_DIR': '/data', 'OPENAVC_PROJECT': '/data/project.avc', 'OPENAVC_BIND': '0.0.0.0',
+                'OPENAVC_ALLOW_ANONYMOUS': 'false', 'OPENAVC_CLOUD_ENABLED': 'false',
+                'OPENAVC_PORT80_REDIRECT': 'false', 'SSL_CERT_FILE': '/data/trust.pem'})
+            copy(seed, secondary, '/data')
+            call(['start', secondary])
+            layout['secondary_controller'] = secondary
         # Docker does not publish ports from an internal network. This HTTP
         # gateway joins the normal bridge. With --cloud, the selected
         # controller also joins it; equipment-only peers stay isolated.
@@ -317,6 +336,7 @@ if __name__ == '__main__':
     parser.add_argument('--faults', action='store_true', help='With --check, exercise trust, access, hardware faults and a peer network outage in the invented products.')
     parser.add_argument('--network-faults', action='store_true', help='With --check, exercise routing, interfaces and network impairments; needs Docker NET_ADMIN and netem support.')
     parser.add_argument('--equipment-ipv6', action='store_true', help='With --network-faults, use IPv6 equipment connections. Discovery is IPv4 only; management and ordinary TCP remain IPv4.')
+    parser.add_argument('--authority-checks', action='store_true', help='With --check, exercise two independent controllers, shared equipment and credential refusal.')
     options = parser.parse_args()
     if not 1024 <= options.port <= 65535 - options.products * 2:
         parser.error('--port must leave room for two ports per product and one controller port below 65536.')
@@ -328,6 +348,8 @@ if __name__ == '__main__':
         parser.error('--network-faults requires --check.')
     if options.equipment_ipv6 and (not options.network_faults or options.faults):
         parser.error('--equipment-ipv6 requires --network-faults and cannot be combined with the IPv4 --faults exercise.')
+    if options.authority_checks and not options.check:
+        parser.error('--authority-checks requires --check.')
     try:
         run(options)
     except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as error:

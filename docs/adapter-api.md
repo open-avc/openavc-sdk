@@ -20,7 +20,7 @@ interfaces, not additional firmware components you must implement.
 |---|---|
 | `network.abi` | Set to `1`. |
 | `network.size` | Set to `sizeof(oavc_endpoint_config)` from the headers used to build your adapter. |
-| `network.identity` | Stable identity of this physical unit. |
+| `network.identity` | Nonempty, stable identity of this physical unit. Give separate units different identities. |
 | `network.model_path` | Generated `model.json` built with this adapter. It must remain unchanged while opening. |
 | `network.token` | Local endpoint bearer credential in the in-process form. The separate service receives its own credential from product management. |
 | `network.certificate_path` | PEM certificate and private key for the in-process endpoint. The separate service receives its certificate path at startup. |

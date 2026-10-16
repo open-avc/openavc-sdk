@@ -397,6 +397,8 @@ oavc_endpoint *oavc_open(const oavc_endpoint_config *config, char *error, size_t
         if (!config || config->abi != 1 || config->size != sizeof(oavc_endpoint_config) || !config->identity || !config->token ||
             !config->model_path || !config->certificate_path || !config->readback || !config->command || std::strlen(config->token) < 32)
             throw std::runtime_error("Supply ABI 1 configuration, callbacks, model, TLS certificate and a strong credential.");
+        if (std::string(config->identity).find_first_not_of(" \t\r\n\f\v") == std::string::npos)
+            throw std::runtime_error("Supply a nonempty identity for this physical unit.");
         return new oavc_endpoint(*config);
     } catch (const std::exception& e) { if (error && size) std::snprintf(error, size, "%s", e.what()); return nullptr; }
 }

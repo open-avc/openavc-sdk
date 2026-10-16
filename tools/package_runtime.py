@@ -110,6 +110,7 @@ def package(args):
     shutil.copy2(ROOT / 'tools/supplied-CMakeLists.txt', destination / 'CMakeLists.txt')
     (destination / 'tools').mkdir()
     for name in ['build_server.py', 'server_bundle.py', 'wheel_inventory.py', 'wheel_contents.py',
+                 'refresh_wheel_notices.py', 'wheel-notice-sources.json',
                  'build_browser.mjs', 'browser_inventory.mjs',
                  'requirements-server.txt', 'requirements-build.txt', 'debian.sources']:
         shutil.copy2(ROOT / 'tools' / name, destination / 'tools' / name)

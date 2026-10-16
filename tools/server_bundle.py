@@ -63,6 +63,7 @@ def build(output):
     for name in ['openavc_oem', 'examples/system', 'sdk/contract', 'pyproject.toml',
                  'tools/build_server.py', 'tools/server_bundle.py', 'tools/wheel_inventory.py',
                  'tools/wheel_contents.py', 'licenses/wheels',
+                 'tools/refresh_wheel_notices.py', 'tools/wheel-notice-sources.json',
                  'tools/build_browser.mjs', 'tools/browser_inventory.mjs',
                  'tools/requirements-server.txt', 'tools/requirements-build.txt', 'tools/debian.sources']:
         source = sdk / name

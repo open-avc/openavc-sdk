@@ -9,6 +9,7 @@ from zipfile import ZipFile
 
 from tools.wheel_inventory import install_requirements, inventory, publisher_sboms
 from tools.wheel_contents import collect
+from tools.refresh_wheel_notices import materialize
 
 
 class WheelInventory(unittest.TestCase):
@@ -145,6 +146,32 @@ class WheelInventory(unittest.TestCase):
         notice.write_bytes(b'changed source notice')
         with self.assertRaisesRegex(ValueError, 'hash mismatch'):
             collect([self.wheel], root / 'changed', [supplement])
+
+    def test_notice_sources_reproduce_bytes_offline_and_refuse_tampering(self):
+        import io
+        import tarfile
+        root = Path(self.folder.name)
+        cache = root / 'cache'
+        cache.mkdir()
+        notice = b'Original upstream notice\r\n'
+        stream = io.BytesIO()
+        with tarfile.open(fileobj=stream, mode='w') as archive:
+            item = tarfile.TarInfo('../LICENSE')
+            item.size = len(notice)
+            archive.addfile(item, io.BytesIO(notice))
+        raw = stream.getvalue()
+        sha = hashlib.sha256(raw).hexdigest()
+        (cache / sha).write_bytes(raw)
+        source = {'url': 'https://example.invalid/package.tar', 'kind': 'tar', 'sha256': sha,
+                  'component': {'name': 'example', 'version': '1'}, 'evidence': 'source',
+                  'applies_to': [{'wheel_sha256': ['a' * 64]}],
+                  'files': [{'member': '../LICENSE', 'sha256': hashlib.sha256(notice).hexdigest()}]}
+        files = materialize([source], cache, offline=True)
+        self.assertEqual(files[hashlib.sha256(notice).hexdigest() + '.txt'], notice)
+        self.assertFalse((root / 'LICENSE').exists())
+        (cache / sha).write_bytes(b'changed download')
+        with self.assertRaisesRegex(ValueError, 'Source digest mismatch'):
+            materialize([source], cache, offline=True)
 
 
 if __name__ == '__main__':

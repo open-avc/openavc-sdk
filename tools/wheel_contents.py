@@ -94,8 +94,10 @@ def collect(paths, output, supplements=()):
             raise ValueError('Notice supplement hash mismatch: ' + item['origin'])
         notice = {'origin': item['origin'], 'selection': 'source-supplement',
                   **_save(output, content)}
-        if 'source_archive_sha256' in item:
-            notice['source_archive_sha256'] = item['source_archive_sha256']
+        for key in ['source_archive_sha256', 'source_sha256', 'source_format',
+                    'component', 'evidence', 'dependency_scope']:
+            if key in item:
+                notice[key] = item[key]
         for row in matching:
             row['notices'].append(dict(notice))
     return {'coverage':

@@ -210,6 +210,20 @@ copied unchanged into the same directory. Source supplements identify the exact
 wheel hashes they accompany and the original source URL. Keep the supplied notices
 with your firmware distribution; an empty list does not mean a package has no
 notice requirements. Native file entries do not enumerate statically linked code.
+Supplement entries name nested components and explain their evidence. A
+`publisher-declared` component comes from the wheel's publisher SBOM;
+`runtime-source` or `build-only` comes from the resolved source dependency graph.
+Source reachability does not prove every component remains in a compiled binary.
+The package retains both the original publisher documents and the source notices.
+
+For SDK maintenance, [`tools/wheel-notice-sources.json`](../tools/wheel-notice-sources.json)
+pins reviewed source inputs, notice members and the wheel hashes they accompany.
+Reproduce the retained files with `python3 tools/refresh_wheel_notices.py --check`.
+The first run downloads the pinned sources into `build/notice-source-cache`;
+later runs can use `--offline`. The tool reads archives as data and verifies the
+source and notice hashes. It does not run their build scripts. When updating a
+dependency, review its sources and update this record before building the bundle.
+Normal server builds use the retained notices without these downloads.
 Keep these records and `build-inputs/` with your firmware build. That directory
 contains the Python locks, web dependency lockfiles, Dockerfile and an inventory
 of the builder's installed system packages. `build-inputs/system-inputs/` retains

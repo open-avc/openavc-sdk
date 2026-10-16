@@ -10,6 +10,31 @@ Use a committed SDK checkout and retain its commit ID with your firmware build.
 The public OpenAVC release you already use may predate manufacturer integration;
 use the server selected by the kit's pin when evaluating these examples.
 
+## Select matching components
+
+| Component | Combination for this checkout |
+|---|---|
+| OpenAVC server, separate or product-hosted | Core commit `29ae653ea0dc9e1a49f05b827780b3cb76c5d93b`, recorded in `sdk/contract/origin.json`. |
+| Equipment protocol | `openavc-device-1`. A different protocol is refused before control. |
+| Product description and callbacks | Generate the model and compile the adapter together using this SDK checkout. |
+| Native headers, libraries and service | Use one matching source build or supplied archive for the target CPU. |
+| SDK Python package and optional server | Use the matching offline server bundle or the source builder's pinned inputs. |
+
+Use the run for the SDK commit you select to confirm ARM64 and x86-64 results;
+an untested branch or a different core commit is not a qualified combination.
+The [build guide](building.md) lists each delivered form and its requirements.
+
+After equipment restarts, OpenAVC reads its protocol and capabilities again
+before accepting more commands. Added commands become available after reconnect.
+Removed commands disappear from the command list and attempts to send them are
+refused. Existing programming is retained; review any scripts, macros or panels
+that refer to removed or renamed capabilities.
+
+Run the [model update example](system-example.md#check-model-updates) to exercise
+compiled additions and removals with normal Discovery/Add and Product hardware.
+The example records the exact generated model, binaries and independent command
+effects. Its successful run does not qualify your firmware updater.
+
 ## Record what you ship
 
 Keep the SDK commit, core commit, product description, generated model, adapter,

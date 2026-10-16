@@ -125,6 +125,25 @@ responses and independent hardware counts. The 16 MiB fixture is a test boundary
 not a firmware storage requirement. Its volatile diagnostic files are copied
 before the product container stops.
 
+## Check model updates
+
+```sh
+python3 try-system.py --arrangement embedded --out build/model-updates --check --compatibility-checks
+```
+
+This compiles two revisions of the invented amplifier. One adds Advance Once;
+the next removes Set Gain. It updates the discovered peer and then the product
+hosting OpenAVC, preserving their identity, credentials and saved project. Each
+restart must expose the new command list, leave the project unchanged and send
+one fresh command exactly once. A removed command must be refused without an
+extra hardware operation. The check stops the example after completion.
+
+Use `--arrangement external` for a separate OpenAVC controller. `checks.json`
+records the model and binary hashes, command lists and hardware counts. Generated
+sources and build results are retained under `model-variants/`. This check uses
+the IPv4 Discovery/Add example. Qualify your own firmware update process with
+your product's adapter, persistent storage and existing user projects.
+
 ## Five products, one controller
 
 Use `--products 5` to run five server-capable amplifiers plus ordinary TCP

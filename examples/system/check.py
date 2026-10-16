@@ -421,6 +421,10 @@ def check(folder):
         api('/api/devices/' + new_id + '/command', {'command': 'increment', 'params': {}})
         assert physical('product2')['counter'] == before['counter'] + 1
         recorded('Discovery Add uses normal credentials and controls the discovered product')
+        if layout.get('compatibility_checks'):
+            from compatibility import check_compatibility
+            check_compatibility(layout, report, folder=folder, peer_device=new_id, api=api,
+                                docker=docker, physical=physical, until=until, recorded=recorded)
         report['status'] = 'passed'
         print('System example passed. Evidence: ' + str(folder / 'checks.json'), flush=True)
     except BaseException as error:

@@ -34,6 +34,7 @@ def run(args):
               'network_faults': args.network_faults, 'equipment_ipv6': args.equipment_ipv6,
               'authority_checks': args.authority_checks,
               'resource_checks': args.resource_checks,
+              'compatibility_checks': args.compatibility_checks,
               'docker': docker, 'network': prefix, 'products': {},
               'contract': json.loads((ROOT / 'sdk/contract/origin.json').read_text()),
               'containers': containers, 'status': 'starting'}
@@ -345,6 +346,7 @@ if __name__ == '__main__':
     parser.add_argument('--equipment-ipv6', action='store_true', help='With --network-faults, use IPv6 equipment connections. Discovery is IPv4 only; management and ordinary TCP remain IPv4.')
     parser.add_argument('--authority-checks', action='store_true', help='With --check, exercise two independent controllers, shared equipment and credential refusal.')
     parser.add_argument('--resource-checks', action='store_true', help='With --check, exercise queue capacity and full storage in a disposable peer.')
+    parser.add_argument('--compatibility-checks', action='store_true', help='With --check, compile and exercise changed example models through normal reconnect.')
     options = parser.parse_args()
     if not 1024 <= options.port <= 65535 - options.products * 2:
         parser.error('--port must leave room for two ports per product and one controller port below 65536.')
@@ -360,6 +362,8 @@ if __name__ == '__main__':
         parser.error('--authority-checks requires --check.')
     if options.resource_checks and not options.check:
         parser.error('--resource-checks requires --check.')
+    if options.compatibility_checks and (not options.check or options.equipment_ipv6):
+        parser.error('--compatibility-checks requires --check and the IPv4 Discovery/Add example.')
     try:
         run(options)
     except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as error:

@@ -159,8 +159,8 @@ jobs:
           trap - EXIT
       - name: Exercise both complete arrangements
         run: |
-          python try-system.py --arrangement external --out build/check-external --check --cloud --authority-checks --resource-checks
-          python try-system.py --arrangement embedded --out build/check-embedded --check --cloud --authority-checks --resource-checks
+          python try-system.py --arrangement external --out build/check-external --check --cloud --authority-checks --resource-checks --compatibility-checks
+          python try-system.py --arrangement embedded --out build/check-embedded --check --cloud --authority-checks --resource-checks --compatibility-checks
       - name: Exercise five products, recovery and faults
         run: |
           python try-system.py --products 5 --arrangement external --out build/check-five-external --check --recovery --faults --network-faults
@@ -205,6 +205,9 @@ jobs:
             build/resource-startup.json
             build/resource-capacity.json
             build/check-*/checks.json
+            build/check-*/model-variants/*/manifest.json
+            build/check-*/model-variants/*/product.json
+            build/check-*/model-variants/*/example.c
             build/check-*/discovery.json
             build/check-*/build.log
             build/check-*/run.json

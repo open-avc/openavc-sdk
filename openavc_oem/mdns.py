@@ -52,7 +52,7 @@ class Advertiser:
             self.socket = None
         self.addresses = addresses
         if not addresses:
-            self.error = 'No network interface is available for equipment discovery.'
+            self.error = 'No IPv4 interface is available for equipment discovery.'
             return
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:

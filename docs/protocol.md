@@ -16,6 +16,10 @@ contains its HTTPS equipment port. TXT records describe its stable unit identity
 manufacturer, model name and whether remote access is enabled. Advertisements
 contain no credentials and do not authorize control.
 
+Equipment discovery uses IPv4. An IPv6 equipment listener supports manual
+connections; it does not advertise through the IPv4 discovery service. See
+[product controls](product-controls.md) for listener and certificate settings.
+
 The product service authenticates remote requests using HTTP Basic over TLS,
 against the manufacturer's product credentials. Normal OpenAVC device settings
 contain the username/password and certificate-verification option. Keep

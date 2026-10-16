@@ -3,6 +3,7 @@ import asyncio
 import contextlib
 import hmac
 import hashlib
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -678,7 +679,8 @@ class ProductManager:
             addresses = self.config.get('advertise_addresses')
             bind = self.config.get('equipment_bind', '0.0.0.0')
             if bind != '0.0.0.0':
-                addresses = [] if bind in {'127.0.0.1', '::1'} else [bind]
+                address = ipaddress.ip_address(bind)
+                addresses = [] if address.version == 6 or address.is_loopback else [bind]
             self.mdns = Advertiser(self.identity, self.config.get('equipment_port', 9443), addresses)
             await self.mdns.start()
             if self.state['server']:

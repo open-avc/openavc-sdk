@@ -40,7 +40,7 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
         (self.root / 'management.token').write_text(self.management_token)
         subprocess.run(['openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
                         '-keyout', str(self.root / 'key.pem'), '-out', str(self.root / 'ca.pem'),
-                        '-subj', '/CN=Example equipment', '-addext', 'subjectAltName=IP:127.0.0.1'],
+                        '-subj', '/CN=Example equipment', '-addext', 'subjectAltName=IP:127.0.0.1,IP:::1'],
                        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         (self.root / 'server.pem').write_bytes((self.root / 'ca.pem').read_bytes() + (self.root / 'key.pem').read_bytes())
         self.tls = ssl.create_default_context(cafile=str(self.root / 'ca.pem'))
@@ -66,6 +66,38 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
 
     async def line(self, process):
         return (await asyncio.wait_for(process.stdout.readline(), 10)).decode().strip()
+
+    async def test_ipv6_equipment_listener_does_not_start_ipv4_discovery(self):
+        self.manager.terminate()
+        await asyncio.wait_for(self.manager.wait(), 15)
+        self.config['equipment_bind'] = '::'
+        (self.root / 'config.json').write_text(json.dumps(self.config))
+        self.manager = await self.launch('manager-ipv6', [sys.executable, '-m', 'openavc_oem',
+                                        '--config', str(self.root / 'config.json')])
+        self.assertEqual(await self.line(self.manager), 'READY')
+        endpoint = f'https://[::1]:{self.config["equipment_port"]}'
+        auth = BasicAuth(self.login['username'], self.login['password'])
+        headers = {'X-OpenAVC-Client': secrets.token_hex(16)}
+        async with self.http.get(endpoint + '/v1/description', ssl=self.tls, auth=auth) as response:
+            self.assertEqual(response.status, 200)
+            description = await response.json()
+        async with self.http.post(endpoint + '/v1/command', ssl=self.tls, auth=auth, headers=headers,
+            json={'session': description['session'], 'id': 1, 'command': 'increment', 'params': {}}) as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual((await response.json())['outcome'], 'completed')
+        self.product.stdin.write(b'snapshot\n')
+        await self.product.stdin.drain()
+        physical = await self.line(self.product)
+        self.assertTrue(physical.startswith('STATE 1 1 0 2 1 '), physical)
+        settings = await self.get_settings()
+        self.assertTrue(settings['discovery'])
+        self.assertFalse(settings['equipment']['discovery_active'])
+        self.assertIn('IPv4', settings['discovery_error'])
+        (ROOT / 'build/ipv6-equipment.json').write_text(json.dumps({
+            'status': 'passed', 'bind': '::', 'verified_tls': True,
+            'identity': description['identity'], 'physical': physical,
+            'discovery_active': settings['equipment']['discovery_active'],
+            'discovery_error': settings['discovery_error']}, indent=2) + '\n')
 
     async def launch(self, name, command, **kwargs):
         log = (self.root / (name + '.log')).open('w')

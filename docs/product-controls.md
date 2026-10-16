@@ -87,8 +87,13 @@ image or provisioning process and substitute your actual paths.
   equipment integration still works. A request to start the absent server returns
   a clear refusal.
 - `equipment_bind` defaults to `0.0.0.0`. `advertise_addresses`, when supplied,
-  selects IPv4 addresses for equipment advertisement. The management API always
-  binds to loopback in production.
+  selects IPv4 addresses for equipment advertisement. A specific IPv4 bind
+  advertises only that address; a loopback bind does not advertise.
+  For manual IPv6 equipment connections, use `::` or a specific IPv6 address
+  and include the product's network address or hostname in its certificate.
+  Equipment discovery uses IPv4 and is unavailable with an IPv6-only listener.
+  Add that product using its address and credentials in OpenAVC.
+  The management API always binds to loopback in production.
 - `server_environment` passes ordinary OpenAVC environment settings to the
   optional server. The SDK supplies its project/data paths, permanent equipment
   manifest and supervision credentials. The normal OpenAVC interface and account

@@ -24,6 +24,7 @@ class Advertiser:
         self.properties = {}
         self.socket = None
         self.task = None
+        self.receiving = None
         self.error = None
 
     @property
@@ -48,8 +49,7 @@ class Advertiser:
         if self.socket is not None:
             with contextlib.suppress(OSError):
                 await self.send(0)
-            self.socket.close()
-            self.socket = None
+            await self.close_socket()
         self.addresses = addresses
         if not addresses:
             self.error = 'No IPv4 interface is available for equipment discovery.'
@@ -76,13 +76,14 @@ class Advertiser:
             await self.send(120)
 
     async def send(self, ttl):
-        if self.socket is None:
+        sock = self.socket
+        if sock is None:
             return
         for address in self.addresses:
-            self.socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(address))
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(address))
             packet = build_dns_response(build_announcement_records(
                 self.name, SERVICE, self.name, address, self.port, self.properties, ttl=ttl))
-            await asyncio.get_running_loop().sock_sendto(self.socket, packet, GROUP)
+            await asyncio.get_running_loop().sock_sendto(sock, packet, GROUP)
 
     async def set(self, enabled, properties):
         if enabled == self.enabled and properties == self.properties:
@@ -91,19 +92,27 @@ class Advertiser:
             try:
                 await self.send(0)
             except OSError as error:
-                self.network_error(error)
+                await self.network_error(error)
         self.enabled, self.properties = enabled, dict(properties)
         if enabled:
             try:
                 await self.send(120)
             except OSError as error:
-                self.network_error(error)
+                await self.network_error(error)
 
-    def network_error(self, error):
+    async def close_socket(self):
+        sock, self.socket = self.socket, None
+        receiving = self.receiving
+        if receiving is not None and not receiving.done():
+            receiving.cancel()
+            await asyncio.gather(receiving, return_exceptions=True)
+        # Unregister the pending receive before its descriptor can be reused.
+        if sock is not None:
+            sock.close()
+
+    async def network_error(self, error):
         self.error = str(error)
-        if self.socket:
-            self.socket.close()
-        self.socket = None
+        await self.close_socket()
 
     async def listen(self):
         while True:
@@ -112,20 +121,28 @@ class Advertiser:
                     await asyncio.sleep(5)
                     await self.refresh_interfaces()
                     continue
+                receiving = self.receiving = asyncio.create_task(
+                    asyncio.get_running_loop().sock_recvfrom(self.socket, 9000))
                 try:
-                    packet, _ = await asyncio.wait_for(
-                        asyncio.get_running_loop().sock_recvfrom(self.socket, 9000), 5)
+                    packet, _ = await asyncio.wait_for(receiving, 5)
+                except asyncio.CancelledError:
+                    if asyncio.current_task().cancelling():
+                        raise
+                    continue
                 except TimeoutError:
                     await self.refresh_interfaces()
                     if self.enabled:
                         await self.send(120)
                     continue
+                finally:
+                    if self.receiving is receiving:
+                        self.receiving = None
                 names = {name.rstrip('.').lower() for name, _ in _parse_query_questions(packet)}
                 wanted = {SERVICE.rstrip('.'), (self.name + '.' + SERVICE).rstrip('.'), self.name + '.local'}
                 if self.enabled and names & wanted:
                     await self.send(120)
             except OSError as error:
-                self.network_error(error)
+                await self.network_error(error)
 
     async def close(self):
         if self.enabled:
@@ -135,5 +152,4 @@ class Advertiser:
             self.task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self.task
-        if self.socket:
-            self.socket.close()
+        await self.close_socket()

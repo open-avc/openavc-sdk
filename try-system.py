@@ -31,7 +31,7 @@ def run(args):
     network_created = False
     layout = {'arrangement': args.arrangement, 'product_count': args.products,
               'recovery': args.recovery, 'faults': args.faults, 'cloud_access': args.cloud,
-              'network_faults': args.network_faults,
+              'network_faults': args.network_faults, 'equipment_ipv6': args.equipment_ipv6,
               'docker': docker, 'network': prefix, 'products': {},
               'contract': json.loads((ROOT / 'sdk/contract/origin.json').read_text()),
               'containers': containers, 'status': 'starting'}
@@ -127,9 +127,11 @@ def run(args):
                     str(ROOT / 'examples/system/network-tools.Dockerfile'), str(ROOT)],
                     check=True, stdout=log, stderr=subprocess.STDOUT)
             layout['network_tools_image'] = network_image.read_text().strip()
-        call(['network', 'create', '--internal', '--label', 'openavc.sdk.example=' + prefix, prefix])
+        network_options = ['--internal', *(['--ipv6'] if args.equipment_ipv6 else []),
+                           '--label', 'openavc.sdk.example=' + prefix]
+        call(['network', 'create', *network_options, prefix])
         network_created = True
-        if args.faults:
+        if args.faults or args.network_faults:
             # Docker requires an explicit subnet when reconnecting a peer at a
             # fixed address. Let its allocator choose the available subnet first;
             # no product exists yet. A concurrent allocation conflict fails setup
@@ -138,8 +140,8 @@ def run(args):
             subnet = next(item['Subnet'] for item in allocated if ':' not in item['Subnet'])
             call(['network', 'rm', prefix])
             network_created = False
-            call(['network', 'create', '--internal', '--subnet', subnet,
-                  '--label', 'openavc.sdk.example=' + prefix, prefix])
+            subnets = [value for item in allocated for value in ('--subnet', item['Subnet'])]
+            call(['network', 'create', *network_options, *subnets, prefix])
             network_created = True
             layout['network_subnet'] = subnet
             save()
@@ -159,7 +161,7 @@ def run(args):
             server_included = args.products == 5 or number == 1
             container = create(name, ['examples/system/product.py'], environment={
                 'EXAMPLE_IDENTITY': prefix + '-' + name, 'EXAMPLE_INCLUDE_SERVER': '1' if server_included else '0',
-                'EXAMPLE_SERVER_PORT': str(port)})
+                'EXAMPLE_SERVER_PORT': str(port), 'EXAMPLE_EQUIPMENT_IPV6': '1' if args.equipment_ipv6 else '0'})
             # docker cp can create /data before the product process starts.
             seed = out / name
             seed.mkdir()
@@ -167,7 +169,10 @@ def run(args):
             copy(seed, container, '/data')
             call(['start', container])
             ready(container)
-            address = call(['inspect', '-f', '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}', container])
+            key = 'GlobalIPv6Address' if args.equipment_ipv6 else 'IPAddress'
+            address = json.loads(call(['inspect', '-f', '{{json .NetworkSettings.Networks}}', container]))[prefix][key]
+            if not address:
+                raise RuntimeError('Docker did not assign an equipment address for the requested IP family.')
             addresses[name] = address
             certificate = seed / 'ca.pem'
             call(['cp', container + ':/data/ca.pem', str(certificate)])
@@ -271,6 +276,14 @@ def run(args):
         layout['status'] = 'failed'
         raise
     finally:
+        # A checker interrupted during its own cleanup can leave a helper.
+        # Only remove these exact names after confirming this run's label.
+        for helper in (prefix + '-datagrams', prefix + '-router') if args.network_faults else ():
+            with contextlib.suppress(Exception):
+                labels = json.loads(call(['inspect', '-f', '{{json .Config.Labels}}', helper]))
+                if labels.get('openavc.sdk.example') == prefix:
+                    (out / (helper + '.log')).write_text(call(['logs', helper]))
+                    call(['rm', '-f', helper])
         for container in reversed(containers):
             with contextlib.suppress(Exception):
                 result = subprocess.run(docker + ['logs', container], capture_output=True, text=True)
@@ -282,6 +295,12 @@ def run(args):
         if network_created:
             with contextlib.suppress(Exception):
                 call(['network', 'rm', prefix])
+        if args.network_faults:
+            with contextlib.suppress(Exception):
+                extra = prefix + '-routed'
+                details = json.loads(call(['network', 'inspect', extra]))[0]
+                if details['Labels'].get('openavc.sdk.example') == prefix:
+                    call(['network', 'rm', extra])
         save()
 
 
@@ -296,7 +315,8 @@ if __name__ == '__main__':
     parser.add_argument('--check', action='store_true', help='Exercise the sample equipment and stop after verification.')
     parser.add_argument('--recovery', action='store_true', help='With --check, stop/restart an invented peer and the controller, then verify recovery.')
     parser.add_argument('--faults', action='store_true', help='With --check, exercise trust, access, hardware faults and a peer network outage in the invented products.')
-    parser.add_argument('--network-faults', action='store_true', help='With --check, block multicast and drop packets in one example container; needs Docker NET_ADMIN support.')
+    parser.add_argument('--network-faults', action='store_true', help='With --check, exercise routing, interfaces and network impairments; needs Docker NET_ADMIN and netem support.')
+    parser.add_argument('--equipment-ipv6', action='store_true', help='With --network-faults, use IPv6 equipment connections. Discovery is IPv4 only; management and ordinary TCP remain IPv4.')
     options = parser.parse_args()
     if not 1024 <= options.port <= 65535 - options.products * 2:
         parser.error('--port must leave room for two ports per product and one controller port below 65536.')
@@ -306,6 +326,8 @@ if __name__ == '__main__':
         parser.error('--faults requires --check.')
     if options.network_faults and not options.check:
         parser.error('--network-faults requires --check.')
+    if options.equipment_ipv6 and (not options.network_faults or options.faults):
+        parser.error('--equipment-ipv6 requires --network-faults and cannot be combined with the IPv4 --faults exercise.')
     try:
         run(options)
     except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as error:

@@ -165,6 +165,10 @@ jobs:
         run: |
           python try-system.py --products 5 --arrangement external --out build/check-five-external --check --recovery --faults --network-faults
           python try-system.py --products 5 --arrangement embedded --out build/check-five-embedded --check --recovery --faults --network-faults
+      - name: Exercise IPv6 equipment, routing and network faults
+        run: |
+          python try-system.py --arrangement external --out build/check-ipv6-external --check --network-faults --equipment-ipv6
+          python try-system.py --arrangement embedded --out build/check-ipv6-embedded --check --network-faults --equipment-ipv6
       - name: Build and install the offline server bundle
         run: |
           python build/extracted/openavc-sdk/tools/build_server.py --out build/server-bundle
@@ -197,6 +201,7 @@ jobs:
             build/*-result.json
             build/host-system-logs/*.log
             build/role-interruption.json
+            build/ipv6-equipment.json
             build/check-*/checks.json
             build/check-*/discovery.json
             build/check-*/build.log

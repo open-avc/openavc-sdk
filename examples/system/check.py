@@ -138,8 +138,19 @@ def check(folder):
         recorded('The same server controls ordinary non-SDK equipment')
         if layout.get('network_faults'):
             from network_faults import check_network_faults
-            check_network_faults(layout, report, api=api, docker=docker, physical=physical,
-                                 until=until, recorded=recorded, product_status=product_status)
+            context = dict(api=api, docker=docker, physical=physical, until=until,
+                           recorded=recorded, product_status=product_status)
+            if not layout.get('equipment_ipv6'):
+                check_network_faults(layout, report, **context)
+            else:
+                for name in devices:
+                    assert not product_status(name)['equipment']['discovery_active']
+                report['observations']['ipv6_discovery'] = {'status': 'unsupported',
+                    'reason': 'Equipment discovery uses IPv4; IPv6 connections use manual setup.'}
+            from network_impairments import check_impairments
+            from network_routes import check_routes
+            check_impairments(layout, report, **context)
+            check_routes(layout, report, **context)
         if layout.get('faults'):
             before = physical('product2')
             assert equipment_probe('--wrong-trust') == {'tls_refused': True}
@@ -378,6 +389,10 @@ def check(folder):
         if layout['arrangement'] == 'embedded':
             api('/api/devices/local', method='DELETE', expected=409)
             recorded('Product hardware cannot be removed')
+        if layout.get('equipment_ipv6'):
+            report['status'] = 'passed'
+            print('IPv6 system example passed. Evidence: ' + str(folder / 'checks.json'), flush=True)
+            return
         api('/api/discovery/scan', {'subnets': [value + '/32' for value in layout['addresses'].values()],
                                    'snmp_enabled': False, 'timeout': 35})
         until(lambda: api('/api/discovery/status')['status'] != 'running', timeout=90)

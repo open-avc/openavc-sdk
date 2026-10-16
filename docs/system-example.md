@@ -195,7 +195,7 @@ split network containing competing controllers. Interrupted
 physical operations, mixed protocol versions and controller replacement also
 require their own acceptance tests.
 
-## Exercise multicast filtering and packet loss
+## Exercise routing and network faults
 
 Use the separate network check with either arrangement:
 
@@ -204,10 +204,11 @@ python3 try-system.py --products 5 --arrangement embedded --out build/network-ch
 ```
 
 This builds an additional container containing Linux network tools. Docker must
-allow `NET_ADMIN` in a helper container sharing the example peer's network
-namespace. The product containers retain their normal restricted capabilities;
-the helper changes only amplifier 2's private network rules. The launcher removes
-the example containers afterward. These tools are not required on your firmware.
+allow `NET_ADMIN` in helpers sharing the example containers' network namespaces,
+and its Linux kernel must support `netem`. Products retain their normal restricted
+capabilities. The check creates a disposable router. Its test routes and firewall
+rules are applied only inside disposable container network namespaces.
+The launcher removes the example afterward. These tools are not needed on firmware.
 
 The multicast check blocks amplifier 2's mDNS packets while its discovery setting
 remains enabled. It temporarily pauses the original
@@ -227,13 +228,50 @@ records controller connection/readback observations and operates the ordinary
 TCP device. After removing the rule, current feedback must return and one new
 command must execute once. Kernel packet counters prove the loss was applied;
 hardware counters check that prior commands were not replayed. No new hardware
-command is sent to the affected peer during loss. Interrupted command completion,
-other loss patterns and latency/reordering require separate checks.
+command is sent to the affected peer during this loss check.
 
-`checks.json` retains the drop counters and observations; `run.json` identifies
-the helper image. Combine `--network-faults` with `--faults --recovery` to run all
-supplied failure exercises. These are isolated examples, not firmware timing or
-network-scale guarantees.
+The next checks apply delay, packet duplication and reordering to the peer's
+network interface. A bounded stream of numbered test datagrams measures what
+actually arrives. OpenAVC continues using its normal TLS/TCP connection on that
+interface. Commands must execute once, changed hardware feedback must return,
+and ordinary TCP equipment must remain controllable. Hardware counts are checked
+again after each impairment is removed.
+
+The controller then gets a second network interface. The IPv4 check selects the
+original adapter through **Settings > Network > Reach devices through**, reconnects
+the peer and verifies its observed source address. Amplifier 2 then moves to a
+separate subnet behind the example router. Manual setup uses its hostname,
+credentials and verified certificate. Router counters must show the traffic
+crossed subnets. A route outage must produce offline status and unavailable
+readback; recovery must return current feedback without replaying commands.
+The hardware process, certificate and product identity remain unchanged. A saved
+numeric address is expected to go offline when the product moves. The example
+supplies hostname resolution explicitly; it does not simulate DHCP or campus DNS.
+
+### IPv6 equipment connections
+
+Run the same routed and impaired network checks with IPv6 equipment connections:
+
+```sh
+python3 try-system.py --arrangement external --out build/ipv6-external --check --network-faults --equipment-ipv6
+python3 try-system.py --arrangement embedded --out build/ipv6-embedded --check --network-faults --equipment-ipv6
+```
+
+Docker must support IPv6 internal networks. Equipment listens on IPv6; the
+example management pages and ordinary TCP equipment still use IPv4. Equipment
+discovery currently uses IPv4, so these checks use manual connections and record
+IPv6 discovery as unsupported. Use **Every connected adapter** for IPv6 equipment;
+the pinned server's specific-adapter choice resolves an IPv4 source address.
+Scoped link-local IPv6 addresses are not covered by this example.
+IPv6 packet loss uses a 10% `netem` policy, confirmed by missing test datagrams.
+It checks feedback and subsequent control without sending a hardware command
+to the affected peer during loss.
+
+`checks.json` retains the counters, datagram observations, routes and independent
+hardware results; `run.json` identifies the helper image. On IPv4, combine
+`--network-faults` with `--faults --recovery` for the other supplied failure
+exercises. `--equipment-ipv6` cannot be combined with the IPv4 `--faults` exercise.
+These checks do not establish firmware timing or network-scale guarantees.
 
 ## Ports and cleanup
 

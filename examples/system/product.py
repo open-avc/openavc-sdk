@@ -21,10 +21,15 @@ async def main():
     identity = os.environ['EXAMPLE_IDENTITY']
     credentials = json.loads((DATA / 'login.json').read_text())
     address = socket.gethostbyname(socket.gethostname())
+    ipv6 = os.environ.get('EXAMPLE_EQUIPMENT_IPV6') == '1'
+    ipv6_san = ''
+    if ipv6:
+        address6 = socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET6)[0][4][0]
+        ipv6_san = ',IP:::1,IP:' + address6
     if not (DATA / 'server.pem').exists():
         subprocess.run(['openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '7',
             '-keyout', str(DATA / 'key.pem'), '-out', str(DATA / 'ca.pem'), '-subj', '/CN=OpenAVC example product',
-            '-addext', f'subjectAltName=IP:127.0.0.1,IP:{address},DNS:{socket.gethostname()}'],
+            '-addext', f'subjectAltName=IP:127.0.0.1,IP:{address},DNS:{socket.gethostname()}{ipv6_san}'],
             check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         (DATA / 'server.pem').write_bytes((DATA / 'ca.pem').read_bytes() + (DATA / 'key.pem').read_bytes())
         (DATA / 'management.token').write_text(secrets.token_hex(32))
@@ -41,6 +46,7 @@ async def main():
         'management_token_file': str(DATA / 'management.token'), 'device_service': str(ROOT / 'build/openavc-device-service'),
         'bridge_path': str(DATA / 'hardware.sock'), 'certificate': str(DATA / 'server.pem'),
         'ca_file': str(DATA / 'ca.pem'), 'login': credentials, 'example_ui': True, 'example_bind': '0.0.0.0',
+        'equipment_bind': '::' if ipv6 else '0.0.0.0',
         'example_server_port': int(os.environ.get('EXAMPLE_SERVER_PORT', '8080')),
         'server_environment': {'OPENAVC_PORT': '8080', 'OPENAVC_BIND': '0.0.0.0',
             'OPENAVC_CLOUD_ENABLED': 'false', 'OPENAVC_PORT80_REDIRECT': 'false',

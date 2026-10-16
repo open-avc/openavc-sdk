@@ -204,7 +204,13 @@ The original documents are copied unchanged alongside that index. It records
 each source wheel, archive member and document hash, including wheels that supply
 no documents. Use them with your software composition tools; their content,
 completeness and publisher signatures have not been verified.
-Keep both records and `build-inputs/` with your firmware build. That directory
+`wheel-contents/index.json` lists native ELF files and notice files from each
+wheel, including their hashes and original archive paths. The notice files are
+copied unchanged into the same directory. Source supplements identify the exact
+wheel hashes they accompany and the original source URL. Keep the supplied notices
+with your firmware distribution; an empty list does not mean a package has no
+notice requirements. Native file entries do not enumerate statically linked code.
+Keep these records and `build-inputs/` with your firmware build. That directory
 contains the Python locks, web dependency lockfiles, Dockerfile and an inventory
 of the builder's installed system packages. `build-inputs/system-inputs/` retains
 the selected Debian repositories and their signed release metadata.

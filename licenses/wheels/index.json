@@ -1,0 +1,40 @@
+{
+  "format": 1,
+  "notices": [
+    {
+      "package": "pyserial",
+      "version": "3.5",
+      "wheel_sha256": [
+        "c4451db6ba391ca6ca299fb3ec7bae67a5c55dde170964c7a14ceefec02f2cf0"
+      ],
+      "file": "f91cb9813de6a5b142b8f7f2dede630b5134160aedaeaf55f4d6a7e2593ca3f3.txt",
+      "sha256": "f91cb9813de6a5b142b8f7f2dede630b5134160aedaeaf55f4d6a7e2593ca3f3",
+      "origin": "https://files.pythonhosted.org/packages/1e/7d/ae3f0a63f41e4d2f6cb66a5b57197850f919f59e558159a4dd3a818f5082/pyserial-3.5.tar.gz#pyserial-3.5/LICENSE.txt",
+      "source_archive_sha256": "3c77e014170dfffbd816e6ffc205e9842efb10be9f58ec16d3e8675b4925cddb"
+    },
+    {
+      "package": "uvloop",
+      "version": "0.23.0",
+      "wheel_sha256": [
+        "090865d8ce7a03986755a3ce711b7dd0d4b44eb14ab74368b717f3fad1180208",
+        "f7548ede3ee908cfabc0d068106e303a9a2d811af959cdf6ab85676344cedcda"
+      ],
+      "file": "16de0c32b265cb7d46a6d3bd614f259dd4d693a5e26b3407b04aae8d73041f0c.txt",
+      "sha256": "16de0c32b265cb7d46a6d3bd614f259dd4d693a5e26b3407b04aae8d73041f0c",
+      "origin": "https://files.pythonhosted.org/packages/fa/42/02c739ce85fb2ee8d99212c61417da8140c6b87e9d97c430bea520d76044/uvloop-0.23.0.tar.gz#uvloop-0.23.0/vendor/libuv/LICENSE",
+      "source_archive_sha256": "28d160f51ab4da3b187063652e643dea6831072add4adc1e6d62afbe73b6be27"
+    },
+    {
+      "package": "uvloop",
+      "version": "0.23.0",
+      "wheel_sha256": [
+        "090865d8ce7a03986755a3ce711b7dd0d4b44eb14ab74368b717f3fad1180208",
+        "f7548ede3ee908cfabc0d068106e303a9a2d811af959cdf6ab85676344cedcda"
+      ],
+      "file": "262c44bd2cdba037e6d2a82fba15f5800d292bc993a6f5d6b6ea487744d02836.txt",
+      "sha256": "262c44bd2cdba037e6d2a82fba15f5800d292bc993a6f5d6b6ea487744d02836",
+      "origin": "https://files.pythonhosted.org/packages/fa/42/02c739ce85fb2ee8d99212c61417da8140c6b87e9d97c430bea520d76044/uvloop-0.23.0.tar.gz#uvloop-0.23.0/vendor/libuv/LICENSE-extra",
+      "source_archive_sha256": "28d160f51ab4da3b187063652e643dea6831072add4adc1e6d62afbe73b6be27"
+    }
+  ]
+}

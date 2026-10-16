@@ -20,14 +20,16 @@ def inspect_bundle(folder):
     wheels = metadata.get('wheels')
     inventories = metadata.get('inventories')
     supplied = metadata.get('publisher_sboms', {})
+    contents = metadata.get('wheel_contents', {})
     if (type(wheels) is not dict or not wheels or len(wheels) > 4096
-            or type(inventories) is not dict or type(supplied) is not dict
+            or type(inventories) is not dict or type(supplied) is not dict or type(contents) is not dict
             or set(inventories) != {'python-packages.cdx.json', 'requirements.txt'}):
         raise ValueError('Use a complete offline server bundle.')
     if set(path.name for path in (folder / 'wheels').glob('*.whl')) != set(wheels):
         raise ValueError('The wheel set differs from the bundle record.')
     packages = {}
-    for directory, entries in [('wheels', wheels), ('', inventories), ('publisher-sboms', supplied)]:
+    for directory, entries in [('wheels', wheels), ('', inventories), ('publisher-sboms', supplied),
+                               ('wheel-contents', contents)]:
         for name, expected in entries.items():
             if (type(name) is not str or not re.fullmatch(r'[A-Za-z0-9_.+!-]+', name)
                     or type(expected) is not str or not re.fullmatch(r'[0-9a-f]{64}', expected)):

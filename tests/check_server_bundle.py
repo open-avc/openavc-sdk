@@ -28,6 +28,28 @@ for filename, sha in record['wheels'].items():
     assert components[filename]['version'] == declared['Version'] == metadata.version(declared['Name'])
 for name, sha in record['inventories'].items():
     assert hashlib.sha256((bundle / name).read_bytes()).hexdigest() == sha
+contents = bundle / 'wheel-contents'
+assert set(record['wheel_contents']) == {path.name for path in contents.iterdir()}
+for name, sha in record['wheel_contents'].items():
+    assert hashlib.sha256((contents / name).read_bytes()).hexdigest() == sha
+index = json.loads((contents / 'index.json').read_text())
+assert set(index['wheels']) == set(record['wheels'])
+for name, entry in index['wheels'].items():
+    assert entry['sha256'] == record['wheels'][name]
+    with ZipFile(bundle / 'wheels' / name) as wheel:
+        native = {item.filename for item in wheel.infolist()
+                  if not item.is_dir() and wheel.read(item)[:4] == b'\x7fELF'}
+        assert {item['member'] for item in entry['native_members']} == native
+        for item in entry['native_members']:
+            payload = wheel.read(item['member'])
+            assert hashlib.sha256(payload).hexdigest() == item['sha256']
+            assert len(payload) == item['size']
+        for notice in entry['notices']:
+            payload = (contents / notice['file']).read_bytes()
+            assert hashlib.sha256(payload).hexdigest() == notice['sha256']
+            if 'member' in notice:
+                assert payload == wheel.read(notice['member'])
+    assert entry['notices'], name
 supplied = bundle / 'publisher-sboms'
 assert set(record['publisher_sboms']) == {path.name for path in supplied.iterdir()}
 for name, sha in record['publisher_sboms'].items():

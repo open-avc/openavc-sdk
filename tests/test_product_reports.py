@@ -195,6 +195,11 @@ class ProductReports(unittest.TestCase):
                     'publisher_sboms': {'index.json': hashlib.sha256(document.read_bytes()).hexdigest()},
                     'inventories': {name: hashlib.sha256((bundle / name).read_bytes()).hexdigest()
                                     for name in ['python-packages.cdx.json', 'requirements.txt']}}
+        contents = bundle / 'wheel-contents'
+        contents.mkdir()
+        notice = contents / 'notice.txt'
+        notice.write_text(private)
+        metadata['wheel_contents'] = {notice.name: hashlib.sha256(notice.read_bytes()).hexdigest()}
         record = bundle / 'bundle.json'
         record.write_text(json.dumps(metadata))
         args = [sys.executable, str(ROOT / 'collect-diagnostics.py'), '--server-bundle', str(bundle)]
@@ -211,6 +216,10 @@ class ProductReports(unittest.TestCase):
         result = subprocess.run([*args, '--out', str(exported)], capture_output=True, text=True, timeout=5)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(preview.stdout, exported.read_text())
+        notice.write_text('changed notice')
+        with self.assertRaisesRegex(ValueError, 'checksum'):
+            summarize(server_bundle=bundle)
+        notice.write_text(private)
         document.write_text('altered publisher document')
         with self.assertRaisesRegex(ValueError, 'checksum'):
             summarize(server_bundle=bundle)

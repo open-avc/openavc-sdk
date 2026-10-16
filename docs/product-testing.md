@@ -315,7 +315,8 @@ The command prints the exact preview and creates no file. Run it again with
 least one. Inputs are limited to 16 MiB each. Existing export files are refused.
 
 The summary includes only recognized status flags, check outcomes and measured
-resource totals. Its `collected` list identifies which sources you supplied;
+resource totals, including discarded process-output bytes and queued diagnostic
+chunks when supplied by product management. Its `collected` list identifies which sources you supplied;
 missing sources have no implied result. It excludes credentials, keys, addresses,
 paths, identity, labels, raw errors/logs, project contents, command values and
 process details. No directories or additional files are collected automatically.

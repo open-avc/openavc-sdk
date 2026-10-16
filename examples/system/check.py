@@ -140,6 +140,10 @@ def check(folder):
             from authority import check_authority
             check_authority(layout, report, api=api, docker=docker, physical=physical,
                             until=until, recorded=recorded, credentials=login)
+        if layout.get('resource_checks'):
+            from resources import check_resources
+            check_resources(layout, report, api=api, docker=docker, physical=physical,
+                            until=until, recorded=recorded, product_status=product_status)
         if layout.get('network_faults'):
             from network_faults import check_network_faults
             context = dict(api=api, docker=docker, physical=physical, until=until,

@@ -85,6 +85,12 @@ def summarize(status=None, checks=None, resources=None, server_bundle=None, heal
             'server_installed', 'server_running', 'server_responsive', *FLAGS,
             'settings_valid', 'storage_cleanup_pending')}
         report['product']['transition'] = choice(source.get('transition'), {'idle', 'starting', 'applying'})
+        output = object_value(source.get('process_logs'))
+        report['product']['process_logs'] = {
+            key: output[key] if type(output.get(key)) is int and output[key] >= 0 else None
+            for key in ('dropped_bytes', 'queued_chunks')}
+        if report['product']['process_logs']['dropped_bytes']:
+            report['findings'].append('Some process output was not retained. Check local storage and logging verbosity.')
         report['equipment'] = {key: boolean(equipment.get(key)) for key in (
             'reserved_locally', 'discovery_active', 'remote_access_active')}
         if source.get('settings_valid') is False:

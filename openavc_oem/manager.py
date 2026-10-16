@@ -17,6 +17,7 @@ from .state import defaults, read_state
 from .storage import Journal, save_json, sync_parent
 from .native_hosting import NativeHosting
 from .supervision import Supervision
+from .process_logs import ProcessLogs
 from .mdns import Advertiser
 from ._protocol import MAX_MESSAGE_BYTES
 
@@ -85,7 +86,6 @@ class ProductManager:
         self.hardware_transition_blocked = False
         self.sessions = set()
         self.owned = []
-        self.logs = []
         self.core = None
         self.core_listener = None
         self.core_ready = False
@@ -102,6 +102,7 @@ class ProductManager:
         self.http = None
         self.run_dir = self.data_dir / "logs"
         self.run_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        self.process_logs = ProcessLogs(self.run_dir)
         self.health_journal = Journal(self.run_dir / 'health.jsonl')
         self.health_observation = None
         self.diagnostic_error = None
@@ -118,7 +119,10 @@ class ProductManager:
             and self.core.returncode is None,
             "server_responsive": self.core_responsive if self.core and self.core.returncode is None else None,
             "health_observation": self.health_observation,
-            "diagnostic_error": self.diagnostic_error,
+            "diagnostic_error": self.diagnostic_error or self.process_logs.error or (
+                'Some process output could not be retained. Check diagnostic storage.'
+                if self.process_logs.dropped_bytes else None),
+            "process_logs": self.process_logs.status(),
             "discovery_error": self.mdns.error if self.mdns else None,
             "interfaces_observed": self.interfaces_observed
             if self.core and self.core.returncode is None
@@ -224,14 +228,15 @@ class ProductManager:
             response.set_cookie(self.session_cookie, token, httponly=True, samesite="Strict", path="/oem")
             return response
 
-    async def launch(self, name, command, **kwargs):
-        output = self.run_dir / f"{name}-{len(self.owned)}.log"
-        log = output.open("w")
-        self.logs.append(log)
-        stdout = kwargs.pop("stdout", log)
+    async def launch(self, name, command, *, log_name=None, **kwargs):
+        stdout = kwargs.pop("stdout", None)
         proc = await asyncio.create_subprocess_exec(
-            *command, stdout=stdout, stderr=log, **kwargs
+            *command, stdout=asyncio.subprocess.PIPE if stdout is None else stdout,
+            stderr=asyncio.subprocess.STDOUT if stdout is None else asyncio.subprocess.PIPE, **kwargs
         )
+        reader = proc.stdout if stdout is None else proc.stderr
+        proc.log_capture = asyncio.create_task(self.process_logs.capture(
+            reader, log_name or f"{name}-{len(self.owned)}.log"))
         self.owned.append((name, proc))
         return proc
 
@@ -711,12 +716,14 @@ class ProductManager:
                 await self.mdns.close()
             for runner in runners:
                 await runner.cleanup()
-            await self.stop_core()
-            for _, process in reversed(self.owned):
-                await stop(process)
-            await self.http.close()
-            for log in self.logs:
-                log.close()
+            try:
+                await self.stop_core()
+                for _, process in reversed(self.owned):
+                    await stop(process)
+                    await self.process_logs.finish(process)
+            finally:
+                await self.http.close()
+                await self.process_logs.close()
 
 
 class Manager(NativeHosting, Supervision, ProductManager):

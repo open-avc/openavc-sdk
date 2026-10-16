@@ -51,6 +51,21 @@ writable data directory. Keep that directory across firmware updates.
 The [Linux firmware example](firmware.md) supplies runnable startup/storage checks,
 service templates and provisioning guidance.
 
+Captured process output is stored under `data_dir/logs`. The SDK retains four
+server generations and one equipment-service output slot, with up to three
+1 MiB files per slot. Its health and restart journals each retain three 1 MiB
+segments. These are diagnostic retention limits; they do not limit projects,
+channels or the server's features. OpenAVC's own log settings remain separate.
+
+Process output is buffered through a bounded queue. If output exceeds storage
+throughput, the SDK drops diagnostic bytes while continuing to read the child
+process. Management status reports `process_logs.dropped_bytes`, `queued_chunks`
+and `error`, and a `diagnostic_error` warning when output could not be retained.
+Check available storage and reduce unnecessary log verbosity. Counts remain
+visible until product management restarts. Captured output is not a durable
+audit trail; retain required product audit records through your firmware's
+normal logging facilities.
+
 ## Product configuration
 
 The paths below are example installation paths. Create the files in your firmware

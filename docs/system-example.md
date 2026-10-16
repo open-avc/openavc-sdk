@@ -103,6 +103,28 @@ controller that runs the intended programming. The second server in this check
 is stopped before other verification steps and removed with the example.
 `checks.json` saves the outcomes and hardware counts.
 
+## Check queue capacity and full storage
+
+Run either arrangement with `--resource-checks`:
+
+```sh
+python3 try-system.py --arrangement external --out build/resources-external --check --resource-checks
+python3 try-system.py --arrangement embedded --out build/resources-embedded --check --resource-checks
+```
+
+The second example product uses a disposable 16 MiB memory-backed filesystem for
+its OpenAVC settings. The check fills only that filesystem, verifies a refused
+settings save leaves the active policy unchanged, and confirms equipment control
+continues. It frees the space and verifies settings and a fresh command work.
+The example also delays a hardware operation, fills the existing two-operation
+command capacity and checks that excess work is refused without an extra hardware
+operation. Ordinary TCP equipment remains controllable during the exercise.
+
+`checks.json` records the operating-system storage error, policy hash, queue
+responses and independent hardware counts. The 16 MiB fixture is a test boundary,
+not a firmware storage requirement. Its volatile diagnostic files are copied
+before the product container stops.
+
 ## Five products, one controller
 
 Use `--products 5` to run five server-capable amplifiers plus ordinary TCP

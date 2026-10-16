@@ -55,6 +55,19 @@ class RuntimeDiagnostics(unittest.TestCase):
         self.assertIsNone(event['http_status'])
         self.assertEqual(event['error_type'], 'unknown')
 
+    def test_process_output_counts_exclude_raw_storage_errors_and_invalid_values(self):
+        secret = 'PRIVATE_STORAGE_PATH'
+        status = {'status': {'process_logs': {'dropped_bytes': 65536, 'queued_chunks': 16,
+                                              'error': secret}, 'diagnostic_error': secret}}
+        result = summarize(status=status)
+        self.assertEqual(result['product']['process_logs'], {'dropped_bytes': 65536, 'queued_chunks': 16})
+        self.assertTrue(result['findings'])
+        self.assertNotIn(secret, json.dumps(result))
+        status['status']['process_logs'].update(dropped_bytes=secret, queued_chunks=True)
+        result = summarize(status=status)
+        self.assertEqual(result['product']['process_logs'], {'dropped_bytes': None, 'queued_chunks': None})
+        self.assertNotIn(secret, json.dumps(result))
+
     def test_recent_events_are_bounded_and_segments_keep_selected_order(self):
         older, newer = self.work / 'health.jsonl.1', self.work / 'health.jsonl'
         older.write_text(''.join(json.dumps({'event': 'core_health', 'start_unix_time': n}) + '\n'

@@ -57,16 +57,9 @@ class Supervision:
             return await super().launch(name, command, **kwargs)
         # Four generation slots retain recent exits without accumulating file
         # descriptors, process objects or a new logfile on every restart.
-        log = (self.run_dir / f"core-{self.core_launches % 4}.log").open("w")
-        try:
-            proc = await asyncio.create_subprocess_exec(*command, stdout=log, stderr=log, **kwargs)
-        except BaseException:
-            log.close()
-            raise
+        proc = await super().launch(name, command,
+                                    log_name=f"core-{self.core_launches % 4}.log", **kwargs)
         self.core_launches += 1
-        proc.supervision_log = log
-        self.logs.append(log)
-        self.owned.append((name, proc))
         self.recovery_record("launched", pid=proc.pid, generation=self.core_launches)
         return proc
 
@@ -79,10 +72,7 @@ class Supervision:
             if proc and proc.returncode is not None:
                 self.recovery_record("reaped", pid=proc.pid, returncode=proc.returncode)
                 self.owned[:] = [(name, child) for name, child in self.owned if child is not proc]
-                log = getattr(proc, "supervision_log", None)
-                if log:
-                    log.close()
-                    self.logs[:] = [item for item in self.logs if item is not log]
+                await self.process_logs.finish(proc)
 
 
     async def supervise(self, stop_requested):

@@ -159,16 +159,16 @@ jobs:
           trap - EXIT
       - name: Exercise both complete arrangements
         run: |
-          python try-system.py --arrangement external --out build/check-external --check --cloud --authority-checks
-          python try-system.py --arrangement embedded --out build/check-embedded --check --cloud --authority-checks
+          python try-system.py --arrangement external --out build/check-external --check --cloud --authority-checks --resource-checks
+          python try-system.py --arrangement embedded --out build/check-embedded --check --cloud --authority-checks --resource-checks
       - name: Exercise five products, recovery and faults
         run: |
           python try-system.py --products 5 --arrangement external --out build/check-five-external --check --recovery --faults --network-faults
           python try-system.py --products 5 --arrangement embedded --out build/check-five-embedded --check --recovery --faults --network-faults
       - name: Exercise IPv6 equipment, routing and network faults
         run: |
-          python try-system.py --arrangement external --out build/check-ipv6-external --check --network-faults --equipment-ipv6
-          python try-system.py --arrangement embedded --out build/check-ipv6-embedded --check --network-faults --equipment-ipv6
+          python try-system.py --arrangement external --out build/check-ipv6-external --check --network-faults --equipment-ipv6 --resource-checks
+          python try-system.py --arrangement embedded --out build/check-ipv6-embedded --check --network-faults --equipment-ipv6 --resource-checks
       - name: Build and install the offline server bundle
         run: |
           python build/extracted/openavc-sdk/tools/build_server.py --out build/server-bundle
@@ -202,13 +202,15 @@ jobs:
             build/host-system-logs/*.log
             build/role-interruption.json
             build/ipv6-equipment.json
+            build/resource-startup.json
+            build/resource-capacity.json
             build/check-*/checks.json
             build/check-*/discovery.json
             build/check-*/build.log
             build/check-*/run.json
             build/check-*/*.log
             build/check-*/*-data/hardware.log
-            build/check-*/*-data/openavc/logs/*.log
+            build/check-*/*-data/openavc/logs/*.log*
             build/check-*/*-data/openavc/logs/*.jsonl
             build/check-*/*-data/openavc/server/logs/*.log*
             build/check-*/*-data/openavc/server/logs/*.jsonl

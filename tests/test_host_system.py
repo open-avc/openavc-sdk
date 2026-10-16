@@ -425,6 +425,70 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
         finally:
             destination.write_text(json.dumps(evidence, indent=2) + '\n')
 
+    async def test_occupied_server_listener_retains_intent_and_can_be_retried(self):
+        occupied = socket.socket()
+        occupied.bind(('127.0.0.1', int(self.config['server_environment']['OPENAVC_PORT'])))
+        occupied.listen()
+        try:
+            refused = await self.setting('server', True, expected=503)
+            self.assertTrue(refused['state']['server'])
+            self.assertFalse(refused['state']['server_running'])
+            self.assertTrue(refused['state']['equipment']['reserved_locally'])
+            self.assertIn('bind address and port', refused['detail'])
+            await self.equipment_response(403)
+            # The manufacturer's application still accepts its own local work.
+            before = await self.hardware('external -17')
+            self.assertEqual(before['writes'], 0)
+        finally:
+            occupied.close()
+        resumed = await self.setting('server', True)
+        self.assertTrue(resumed['server_running'])
+        await self.api('POST', '/api/auth/setup', self.login)
+        await self.local_connected()
+        await self.api('POST', '/api/devices/local/command', {'command': 'increment', 'params': {}})
+        after = await self.hardware()
+        self.assertEqual((after['writes'], after['callbacks'], after['counter']), (1, 1, 1))
+        (ROOT / 'build/resource-startup.json').write_text(json.dumps({
+            'status': 'passed', 'failed_start': refused, 'hardware_before': before,
+            'hardware_after_retry': after}, indent=2) + '\n')
+
+    async def test_result_and_client_capacity_refuse_excess_without_replaying(self):
+        auth = BasicAuth(self.login['username'], self.login['password'])
+        description = await self.equipment_response(200)
+        client = secrets.token_hex(16)
+
+        async def command(identity, number, expected=200):
+            async with self.http.post(self.equipment + '/v1/command', ssl=self.tls, auth=auth,
+                headers={'X-OpenAVC-Client': identity}, json={'session': description['session'],
+                'id': number, 'command': 'increment', 'params': {}}) as response:
+                self.assertEqual(response.status, expected, await response.text())
+                return await response.json()
+
+        for number in range(1, 133):
+            self.assertEqual((await command(client, number))['outcome'], 'completed')
+        before_expired = await self.hardware()
+        self.assertEqual(before_expired['writes'], 132)
+        expired = await command(client, 1, 409)
+        self.assertEqual(expired['error'], 'request_expired')
+        self.assertEqual(await self.hardware(), before_expired)
+        for _ in range(127):
+            await command(secrets.token_hex(16), 1)
+        before_capacity = await self.hardware()
+        capacity = await command(secrets.token_hex(16), 1, 429)
+        self.assertEqual(capacity['error'], 'client_capacity')
+        self.assertEqual(await self.hardware(), before_capacity)
+        async with self.http.get(self.equipment + '/health', ssl=self.tls, auth=auth) as response:
+            self.assertEqual(response.status, 200)
+            health = await response.json()
+        self.assertEqual(health['result_cache'], 128)
+        self.assertEqual(health['pending'], 0)
+        await command(client, 133)
+        after = await self.hardware()
+        self.assertEqual((after['writes'], after['callbacks'], after['counter']), (260, 260, 260))
+        (ROOT / 'build/resource-capacity.json').write_text(json.dumps({
+            'status': 'passed', 'expired': expired, 'capacity': capacity,
+            'health_at_capacity': health, 'hardware_after': after}, indent=2) + '\n')
+
     async def test_remote_and_local_use_the_same_hardware(self):
         description = await self.equipment_response(200)
         self.assertEqual(description['identity'], self.config['identity'])

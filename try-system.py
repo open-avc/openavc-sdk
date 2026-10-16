@@ -33,6 +33,7 @@ def run(args):
               'recovery': args.recovery, 'faults': args.faults, 'cloud_access': args.cloud,
               'network_faults': args.network_faults, 'equipment_ipv6': args.equipment_ipv6,
               'authority_checks': args.authority_checks,
+              'resource_checks': args.resource_checks,
               'docker': docker, 'network': prefix, 'products': {},
               'contract': json.loads((ROOT / 'sdk/contract/origin.json').read_text()),
               'containers': containers, 'status': 'starting'}
@@ -68,6 +69,8 @@ def run(args):
         container = prefix + '-' + name
         parameters = ['create', '--name', container, '--hostname', name, '--network', prefix,
             '--label', 'openavc.sdk.example=' + prefix, '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges']
+        if args.resource_checks and name == 'product2':
+            parameters += ['--tmpfs', '/data/openavc:rw,size=16m,mode=0700']
         for key, value in (environment or {}).items():
             parameters += ['--env', key + '=' + value]
         for host, internal in (ports or {}).items():
@@ -307,8 +310,12 @@ def run(args):
             with contextlib.suppress(Exception):
                 result = subprocess.run(docker + ['logs', container], capture_output=True, text=True)
                 (out / (container + '.log')).write_text(result.stdout + result.stderr)
+                volatile = args.resource_checks and container == prefix + '-product2'
+                if volatile:
+                    call(['cp', container + ':/data', str(out / (container + '-data'))])
                 call(['stop', '--time', '20', container])
-                call(['cp', container + ':/data', str(out / (container + '-data'))]) if '-product' in container else None
+                if '-product' in container and not volatile:
+                    call(['cp', container + ':/data', str(out / (container + '-data'))])
             with contextlib.suppress(Exception):
                 call(['rm', container])
         if network_created:
@@ -337,6 +344,7 @@ if __name__ == '__main__':
     parser.add_argument('--network-faults', action='store_true', help='With --check, exercise routing, interfaces and network impairments; needs Docker NET_ADMIN and netem support.')
     parser.add_argument('--equipment-ipv6', action='store_true', help='With --network-faults, use IPv6 equipment connections. Discovery is IPv4 only; management and ordinary TCP remain IPv4.')
     parser.add_argument('--authority-checks', action='store_true', help='With --check, exercise two independent controllers, shared equipment and credential refusal.')
+    parser.add_argument('--resource-checks', action='store_true', help='With --check, exercise queue capacity and full storage in a disposable peer.')
     options = parser.parse_args()
     if not 1024 <= options.port <= 65535 - options.products * 2:
         parser.error('--port must leave room for two ports per product and one controller port below 65536.')
@@ -350,6 +358,8 @@ if __name__ == '__main__':
         parser.error('--equipment-ipv6 requires --network-faults and cannot be combined with the IPv4 --faults exercise.')
     if options.authority_checks and not options.check:
         parser.error('--authority-checks requires --check.')
+    if options.resource_checks and not options.check:
+        parser.error('--resource-checks requires --check.')
     try:
         run(options)
     except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as error:

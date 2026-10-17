@@ -1,5 +1,6 @@
 """Exercise product controls with the native adapter and an installed OpenAVC."""
 import asyncio
+import errno
 import json
 import os
 from pathlib import Path
@@ -19,10 +20,25 @@ from product_checks import Client
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def free_port():
-    with socket.socket() as listener:
-        listener.bind(('127.0.0.1', 0))
-        return listener.getsockname()[1]
+def free_port(excluded):
+    # These Linux process fixtures need configured ports before their children
+    # start. Avoid both previously assigned ports and the kernel's ephemeral
+    # range, which the native service and outgoing clients use during startup.
+    first, last = map(int, Path('/proc/sys/net/ipv4/ip_local_port_range').read_text().split())
+    candidates = [port for port in range(1024, 65536)
+                  if port not in excluded and not first <= port <= last]
+    while candidates:
+        port = candidates.pop(secrets.randbelow(len(candidates)))
+        with socket.socket() as listener:
+            try:
+                listener.bind(('127.0.0.1', port))
+            except OSError as error:
+                if error.errno == errno.EADDRINUSE:
+                    continue
+                raise
+        excluded.add(port)
+        return port
+    raise RuntimeError('No available non-ephemeral port for the host fixture')
 
 
 @unittest.skipUnless(sys.platform == 'linux' and (ROOT / 'build/openavc-device-service').exists(),
@@ -33,6 +49,8 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.processes, self.logs = [], []
+        self.process_logs = {}
+        self.ports = set()
         self.addAsyncCleanup(self.shutdown)
         self.http = ClientSession(timeout=ClientTimeout(total=60))
         self.addAsyncCleanup(self.http.close)
@@ -49,7 +67,7 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
         self.product = await self.launch('hardware', [str(ROOT / 'build/example-c'), model, '-'],
             env={**os.environ, 'OPENAVC_PRODUCT_SOCKET': str(self.root / 'product.sock')})
         self.assertEqual(await self.line(self.product), 'READY 0')
-        equipment, management, server = free_port(), free_port(), free_port()
+        equipment, management, server = [self.port(name) for name in ('equipment', 'management', 'server')]
         self.config = {'identity': 'acme-host-test', 'data_dir': str(self.root / 'data'),
             'model': model, 'management_token_file': str(self.root / 'management.token'),
             'device_service': str(ROOT / 'build/openavc-device-service'), 'bridge_path': str(self.root / 'product.sock'),
@@ -65,8 +83,20 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
         self.equipment = f'https://127.0.0.1:{equipment}'
         self.server = f'http://127.0.0.1:{server}'
 
-    async def line(self, process):
-        return (await asyncio.wait_for(process.stdout.readline(), 10)).decode().strip()
+    async def line(self, process, *, allow_eof=False):
+        line = await asyncio.wait_for(process.stdout.readline(), 10)
+        if not line and not allow_eof:
+            await asyncio.wait_for(process.wait(), 10)
+            log = self.process_logs[process.pid]
+            self.fail(f'{log.stem} exited with code {process.returncode} before its next response:\n'
+                      + log.read_text())
+        return line.decode().strip()
+
+    def port(self, name):
+        port = free_port(self.ports)
+        with (self.root / 'listeners.log').open('a') as log:
+            log.write(json.dumps({'name': name, 'port': port}) + '\n')
+        return port
 
     async def test_ipv6_equipment_listener_does_not_start_ipv4_discovery(self):
         self.manager.terminate()
@@ -106,6 +136,7 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
         process = await asyncio.create_subprocess_exec(*command, stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE, stderr=log, **kwargs)
         self.processes.append(process)
+        self.process_logs[process.pid] = Path(log.name)
         return process
 
     async def shutdown(self):
@@ -243,7 +274,7 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
                 process = await self.launch('blank-identity-' + str(number),
                     [str(ROOT / 'build/example-c'), self.config['model'], str(self.root / 'server.pem')],
                     env=environment)
-                self.assertEqual(await self.line(process), '')
+                self.assertEqual(await self.line(process, allow_eof=True), '')
                 self.assertEqual(await asyncio.wait_for(process.wait(), 5), 2)
                 self.assertIn('identity', (self.root / ('blank-identity-' + str(number) + '.log')).read_text())
 
@@ -309,7 +340,8 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
             # duplicate; a shared identity is not a global controller election.
             other_config = {**self.config, 'identity': self.config['identity'],
                             'data_dir': str(other_root / 'data'), 'bridge_path': str(other_root / 'product.sock'),
-                            'equipment_port': free_port(), 'management_port': free_port()}
+                            'equipment_port': self.port('other-equipment'),
+                            'management_port': self.port('other-management')}
             other_config.pop('server_python')
             config_file = other_root / 'config.json'
             config_file.write_text(json.dumps(other_config))
@@ -335,9 +367,7 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
                 project = {'openavc_version': '0.14.0', 'project': {'id': 'independent-' + str(number),
                            'name': 'Independent system'}, 'devices': [device('own', product_port)]}
                 (data / 'project.avc').write_text(json.dumps(project))
-                port = free_port()
-                while port == int(self.config['server_environment']['OPENAVC_PORT']):
-                    port = free_port()
+                port = self.port('controller-' + str(number))
                 await self.launch('controller-' + str(number), [sys.executable, '-m', 'openavc.main'], env={
                     **os.environ, **self.config['server_environment'], 'OPENAVC_PORT': str(port),
                     'OPENAVC_DATA_DIR': str(data), 'OPENAVC_PROJECT': str(data / 'project.avc'),

@@ -106,6 +106,7 @@ jobs:
       - name: Build and exercise C and C++
         run: |
           python tools/check_docs.py
+          python tools/check_vendor_sources.py
           python doctor.py --report build/environment.json
           python try-example.py --exercise-demo
           python try-example.py --language cpp --exercise-demo

@@ -33,9 +33,17 @@ assert set(record['wheel_contents']) == {path.name for path in contents.iterdir(
 for name, sha in record['wheel_contents'].items():
     assert hashlib.sha256((contents / name).read_bytes()).hexdigest() == sha
 index = json.loads((contents / 'index.json').read_text())
+supplements = json.loads((Path(__file__).resolve().parents[1] / 'licenses/wheels/index.json').read_text())['notices']
 assert set(index['wheels']) == set(record['wheels'])
 for name, entry in index['wheels'].items():
     assert entry['sha256'] == record['wheels'][name]
+    expected_notices = [item for item in supplements if entry['sha256'] in item['wheel_sha256']]
+    for original in expected_notices:
+        matches = [item for item in entry['notices'] if item.get('origin') == original['origin']]
+        assert any(all(item.get(field) == original[field] for field in
+                       ['sha256', 'component', 'evidence', 'dependency_scope']) for item in matches), original['origin']
+    if entry['name'] == 'openavc':
+        assert any(item['sha256'] == record['core_build_inputs']['LICENSE'] for item in entry['notices'])
     with ZipFile(bundle / 'wheels' / name) as wheel:
         native = {item.filename for item in wheel.infolist()
                   if not item.is_dir() and wheel.read(item)[:4] == b'\x7fELF'}

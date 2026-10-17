@@ -1,0 +1,129 @@
+{
+  "format": 1,
+  "coverage": "Vendored source components. Optional source files are not a claim that their features are enabled; selected build options are in CMakeLists.txt. Runtime libraries supplied by the target are separate.",
+  "components": [
+    {
+      "name": "CivetWeb",
+      "version": "1.17 development snapshot",
+      "repository": "https://github.com/civetweb/civetweb",
+      "revision": "3309a6cac05335aa4371a0c3750b42fbe05d3cb4",
+      "scope": "vendored-source",
+      "files": [
+        {
+          "file": "sdk/civetweb/LICENSE.md",
+          "upstream_path": "LICENSE.md",
+          "sha256": "bf567777c38932fe77d76ffe23529e2f415ae7a5cdf8ed6200a2a0236acc8440"
+        },
+        {
+          "file": "sdk/civetweb/include/civetweb.h",
+          "upstream_path": "include/civetweb.h",
+          "sha256": "a9e4e597a6898214774847a1d2b27dcc7a5990108e4e2dc7c2cf1084a92f4f80"
+        },
+        {
+          "file": "sdk/civetweb/src/civetweb.c",
+          "upstream_path": "src/civetweb.c",
+          "sha256": "f16cdefe7e9573668406c3ba4ba4bf9d3c2b76db13ce4db42a2c04813be3ca4d"
+        },
+        {
+          "file": "sdk/civetweb/src/handle_form.inl",
+          "upstream_path": "src/handle_form.inl",
+          "sha256": "aac46718291438a5c7d80cf8ce7a8a2ee462e95a45c746a19dfbbc5f57ec51d8"
+        },
+        {
+          "file": "sdk/civetweb/src/http2.inl",
+          "upstream_path": "src/http2.inl",
+          "sha256": "87820744929dc95ae813ef5d56139f8c7fb2d89b773ad06b97cbc23b8b23860a"
+        },
+        {
+          "file": "sdk/civetweb/src/match.inl",
+          "upstream_path": "src/match.inl",
+          "sha256": "80f140cf78c4d7171360c8213da7d8022713f64000a4410f4d0d6dd36535348c"
+        },
+        {
+          "file": "sdk/civetweb/src/md5.inl",
+          "upstream_path": "src/md5.inl",
+          "sha256": "0b9c95a45d00c4aa74c2ef0de24baad7f9961a95c3d5835a262a31173d0c3916"
+        },
+        {
+          "file": "sdk/civetweb/src/mod_duktape.inl",
+          "upstream_path": "src/mod_duktape.inl",
+          "sha256": "a832248bcf7c5bd0affa235cdee9feb98909bb0d1d74ccb8b101264153ad7e29"
+        },
+        {
+          "file": "sdk/civetweb/src/mod_gnutls.inl",
+          "upstream_path": "src/mod_gnutls.inl",
+          "sha256": "d8509022c3509e1410b99f8fe31fb175cda6f87ad0842ba586e404c4b2e8ec8b"
+        },
+        {
+          "file": "sdk/civetweb/src/mod_lua.inl",
+          "upstream_path": "src/mod_lua.inl",
+          "sha256": "e86e0a85bc45b3895a4492fd7c1421b42aa34cf95587a547ebd1389d16312000"
+        },
+        {
+          "file": "sdk/civetweb/src/mod_lua_shared.inl",
+          "upstream_path": "src/mod_lua_shared.inl",
+          "sha256": "748f1b854e9b587359fcbfeb8b2f71cdf10d51d9da69141f6294fbac82f16048"
+        },
+        {
+          "file": "sdk/civetweb/src/mod_mbedtls.inl",
+          "upstream_path": "src/mod_mbedtls.inl",
+          "sha256": "e0407e6f62842f31f54cc93e82726dd05734c92c6c0d1515cb262197fe110b79"
+        },
+        {
+          "file": "sdk/civetweb/src/mod_zlib.inl",
+          "upstream_path": "src/mod_zlib.inl",
+          "sha256": "7a1b13537a965237682f5a67ae542bb047b25db942c615f92200e9f972688be2"
+        },
+        {
+          "file": "sdk/civetweb/src/openssl_dl.inl",
+          "upstream_path": "src/openssl_dl.inl",
+          "sha256": "9f83f06351bfd86493810b1c4a1413ba8c6f5c405d6a88300c722096e6a47e71"
+        },
+        {
+          "file": "sdk/civetweb/src/response.inl",
+          "upstream_path": "src/response.inl",
+          "sha256": "e6455d9739845593e18c3ae756b6791cb051f57fafd40806b65ba56e2ff7b20b"
+        },
+        {
+          "file": "sdk/civetweb/src/sha1.inl",
+          "upstream_path": "src/sha1.inl",
+          "sha256": "8955644bf6aa8ffdae8a3ab61d09eac1d8bfe0abd160edf83fbe8e1a357151e8"
+        },
+        {
+          "file": "sdk/civetweb/src/sort.inl",
+          "upstream_path": "src/sort.inl",
+          "sha256": "2a371807ed7e4b6cf078251dd36df4ea3385becafdc4dd0c50d39f5258e59f6e"
+        },
+        {
+          "file": "sdk/civetweb/src/timer.inl",
+          "upstream_path": "src/timer.inl",
+          "sha256": "dffc13c99fc70dfe755a6e6049180fcf3d098278ad208ecfce05a6fd472e3c9d"
+        },
+        {
+          "file": "sdk/civetweb/src/wolfssl_extras.inl",
+          "upstream_path": "src/wolfssl_extras.inl",
+          "sha256": "2b1426b37defd649ed48b054f42a5e32bcd39ca786f8ead0aee2f1354a9f0ca1"
+        }
+      ]
+    },
+    {
+      "name": "nlohmann/json",
+      "version": "3.12.0",
+      "repository": "https://github.com/nlohmann/json",
+      "revision": "55f93686c01528224f448c19128836e7df245f72",
+      "scope": "vendored-source",
+      "files": [
+        {
+          "file": "sdk/json/LICENSE.MIT",
+          "upstream_path": "LICENSE.MIT",
+          "sha256": "46a65cffd1ea955132d95a8dd921640714a8d6b537d2e4e482d31145ae95b603"
+        },
+        {
+          "file": "sdk/json/json.hpp",
+          "upstream_path": "single_include/nlohmann/json.hpp",
+          "sha256": "aaf127c04cb31c406e5b04a63f1ae89369fccde6d8fa7cdda1ed4f32dfc5de63"
+        }
+      ]
+    }
+  ]
+}

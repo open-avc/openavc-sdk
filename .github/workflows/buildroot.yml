@@ -69,6 +69,7 @@ jobs:
             -DOPENAVC_ADAPTER_SOURCE="$PWD/sample/example.c" > build/installed-consumer.log 2>&1
           "$buildroot_cmake" --build build/installed-consumer >> build/installed-consumer.log 2>&1
           sha256sum build/installed-consumer/hardware > build/installed-consumer.sha256
+          make -C build/firmware legal-info > build/buildroot-legal-info.log 2>&1
           python3 examples/linux/buildroot/export.py --buildroot-output build/firmware --out build/exported
           tar -czf build/firmware-example.tar.gz -C build/exported .
           sha256sum build/firmware-example.tar.gz > build/firmware-example.tar.gz.sha256
@@ -78,6 +79,7 @@ jobs:
           name: buildroot-${{ matrix.target }}
           path: |
             build/buildroot.log
+            build/buildroot-legal-info.log
             build/installed-consumer.log
             build/installed-consumer.sha256
             build/firmware/.config

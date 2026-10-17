@@ -274,6 +274,14 @@ fixed snapshots; update those selections through the [maintenance workflow](comp
 The direct native-library builder uses its host toolchain. These records do not establish
 byte-identical rebuilds or authenticate an artifact's publisher.
 
+The native source inventory is [`sdk/dependencies.json`](../sdk/dependencies.json).
+It identifies the exact CivetWeb and JSON source revisions and file hashes.
+Run `python3 tools/check_vendor_sources.py` to check a source checkout; add
+`--upstream` to compare with the original files online. Optional vendored source
+files do not imply their features are enabled. Native archives also record the
+supplied C++ runtime libraries, notices and build-time OpenSSL package identity.
+Supply the target's remaining runtime libraries through your firmware build.
+
 ## Produce a prebuilt library archive
 
 From the SDK source checkout, use Python 3.12+ and a Linux Docker engine:

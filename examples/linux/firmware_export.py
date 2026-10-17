@@ -39,12 +39,15 @@ def export_examples(target, generated, destination, builder, build_target=None):
     (kit / 'examples/linux/buildroot').mkdir()
     shutil.copy2(ROOT / 'examples/linux/buildroot/check-installed.py', kit / 'examples/linux/buildroot/check-installed.py')
     shutil.copy2(ROOT / 'LICENSE', kit)
-    shutil.copytree(ROOT / 'licenses', kit / 'licenses')
+    shutil.copytree(ROOT / 'licenses', kit / 'licenses', ignore=shutil.ignore_patterns('wheels'))
     # The firmware walkthrough consumes the same installed binaries, through
     # its standard build/ path. No compilation takes place on the target.
     (kit / 'build').symlink_to('built', target_is_directory=True)
     (kit / 'sdk/contract').mkdir(parents=True)
     shutil.copy2(ROOT / 'sdk/contract/origin.json', kit / 'sdk/contract/origin.json')
+    shutil.copy2(target / 'usr/share/openavc/dependencies.json', destination / 'native-dependencies.json')
+    if digest(destination / 'native-dependencies.json') != digest(ROOT / 'sdk/dependencies.json'):
+        raise ValueError('The installed native source inventory differs from this SDK checkout.')
     if digest(target / 'usr/share/openavc/contract/origin.json') != digest(kit / 'sdk/contract/origin.json'):
         raise ValueError('Run the exporter from the SDK checkout used by this firmware build.')
     inputs = ['generated/' + name for name in ['model.json', 'commands.h', 'commands.c',

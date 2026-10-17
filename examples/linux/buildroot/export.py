@@ -20,6 +20,9 @@ def export(output, destination):
     if not build.is_relative_to(output):
         raise ValueError('Use the output directory of this Buildroot example build.')
     config = (output / '.config').read_text()
+    legal = output / 'legal-info'
+    if not (legal / 'manifest.csv').is_file():
+        raise ValueError('Run make legal-info in the Buildroot output directory before exporting.')
     if 'BR2_PACKAGE_OPENAVC_SDK_EXAMPLES=y\n' not in config:
         raise ValueError('Enable the invented amplifier examples in the reference configuration.')
     target = output / 'target'
@@ -29,6 +32,7 @@ def export(output, destination):
                                build / 'build-target.json')
     shutil.copy2(output / '.config', destination / 'buildroot.config')
     shutil.copy2(output / 'images/rootfs.tar', destination)
+    shutil.copytree(legal, destination / 'legal-info')
     packages = json.loads(subprocess.check_output(
         ['make', '-s', '-C', str(output), 'show-info'], text=True))
     (destination / 'buildroot-packages.json').write_text(json.dumps(packages, indent=2) + '\n')

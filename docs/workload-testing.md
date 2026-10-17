@@ -26,6 +26,31 @@ consistent. Record differences that cannot be held constant. For firmware update
 compare the accepted and candidate firmware with the same workload and equipment.
 An idle example or a different development computer does not establish headroom.
 
+## Include commissioning and support work
+
+If your product runs OpenAVC, test the activities an installer may perform while
+the AV workload is active: a Discovery scan, a Device Audit, a Simulator session,
+project editing and connected panels. Record the scan scope, selected devices
+and active clients. Observe each activity separately, then the combinations your
+product needs to support. Include stopping the activity and returning to normal
+control.
+
+Keep these costs separate when comparing configurations:
+
+| State | What to measure |
+|---|---|
+| Installed | Firmware storage used by the application, web assets, Python environment and native libraries, plus writable data. Disabling a setting does not remove these files. |
+| Loaded | Memory used by the complete running processes. Shared libraries and imported modules can serve several features; their file sizes do not establish removable RAM savings. |
+| Active | CPU, memory, network traffic and temporary storage during the selected activity. Include child processes: Simulator starts a separate process when used. |
+| Accessible | The interfaces available to the installer. Hiding Programmer access leaves the server and control project running; it is not a memory-saving mode. |
+
+The supplied full-server package includes the normal OpenAVC tools and web
+interfaces. Use it intact. If your product only needs to be controlled by another
+OpenAVC server, the [device-only integration](hardware-integration.md#select-how-it-runs) does not require
+installing the server package. If the server is installed but switched off, count
+its storage separately from the resources used by the active equipment service.
+See [product controls](product-controls.md) for those settings.
+
 ## Measure resources and physical behavior together
 
 Run [the resource profiler](product-testing.md#measure-resources-on-the-target)

@@ -94,6 +94,8 @@ image or provisioning process and substitute your actual paths.
   `127.0.0.1` in that endpoint's certificate SAN, together with the product's
   network names/addresses used for remote equipment control.
 - Generate a separate management credential of at least 32 random characters.
+  The optional [per-unit provisioning helper](provisioning.md) creates and
+  retains this credential together with a stable unit identity.
   Store the credential file and private keys with access restricted to the
   product's service account. Do not give the management credential to a browser.
 - Keep `identity` stable for a unit. Use different identities for different units.

@@ -81,7 +81,7 @@ def check(args):
         return output
 
     control = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    token = (args.out / 'private/management.token').read_text().strip()
+    token = Path(config['management_token_file']).read_text().strip()
     def management(payload=None, path='/oem/settings', credential=token):
         request = urllib.request.Request('http://127.0.0.1:' + str(args.management_port) + path,
             data=json.dumps(payload).encode() if payload is not None else None,

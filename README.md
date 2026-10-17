@@ -88,6 +88,7 @@ preview diagnostics before sharing them.
 | [Product testing tools](docs/product-testing.md) | A separate product starter, command checks, resource measurements/comparisons and diagnostic previews. |
 | [Product controls](docs/product-controls.md) | Your product's management UI/API, credentials, optional server and firmware updates. |
 | [Linux firmware](docs/firmware.md) | Runnable service startup, persistent storage, systemd templates and per-unit provisioning. |
+| [Per-unit provisioning](docs/provisioning.md) | Persistent identity, management credentials, product accounts, certificates and offline startup. |
 | [Buildroot](docs/buildroot.md) and [Yocto/OpenEmbedded](docs/yocto.md) | Firmware packages and reference builds for the native SDK and Python product manager. |
 | [OpenAVC Cloud](docs/cloud.md) | Optional pairing, remote access, product permissions and firmware testing. |
 | [Protocol reference](docs/protocol.md) | Network messages, identity, authentication, outcomes and transport bounds. |

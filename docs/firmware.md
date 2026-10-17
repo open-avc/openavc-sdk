@@ -126,6 +126,10 @@ readiness, shutdown and storage behavior. The SDK does not require systemd.
 
 ## Provision each unit
 
+Use [per-unit provisioning](provisioning.md) for the reusable initialization and
+management-credential replacement helper. The staging example uses it under
+`private/unit/`; its configuration records the resulting credential-file path.
+
 Keep the model ID shared across units of the same model. Give every physical unit
 its own stable identity, derived from your factory identity or generated once and
 stored in protected persistent configuration. Do not clone the staged `private/`

@@ -7,6 +7,9 @@ on:
       - 'examples/linux/*'
       - 'check-product.py'
       - 'product_checks.py'
+      - 'provision-unit.py'
+      - 'collect-diagnostics.py'
+      - 'diagnostic_report.py'
       - 'try-example.py'
       - 'example_build.py'
       - 'inspection.py'
@@ -23,6 +26,9 @@ on:
       - 'examples/linux/*'
       - 'check-product.py'
       - 'product_checks.py'
+      - 'provision-unit.py'
+      - 'collect-diagnostics.py'
+      - 'diagnostic_report.py'
       - 'try-example.py'
       - 'example_build.py'
       - 'inspection.py'
@@ -136,6 +142,8 @@ jobs:
             chroot --userspec=65534:65534 "$1" /usr/bin/python3 /kit/examples/linux/buildroot/check-installed.py
             chroot --userspec=65534:65534 "$1" /usr/bin/env -i PATH=/usr/bin:/bin HOME=/tmp \
               /usr/bin/python3 /kit/examples/linux/check.py --out /kit/firmware-check
+            chroot --userspec=65534:65534 "$1" /usr/bin/env -i PATH=/usr/bin:/bin HOME=/tmp \
+              /usr/bin/python3 /kit/examples/linux/check-provisioning.py --out /kit/provisioning-check
           ' sh "$PWD/rootfs"
       - name: Collect product reports from the test account
         if: always()
@@ -157,5 +165,8 @@ jobs:
             rootfs/kit/firmware-check/report.json
             build/product-reports/*/report.json
             rootfs/kit/firmware-check/*.log
+            rootfs/kit/provisioning-check/report.json
+            rootfs/kit/provisioning-check/*.log
+            rootfs/kit/provisioning-check/hardware-shutdown.txt
             exported/export.json
           if-no-files-found: error

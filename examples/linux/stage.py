@@ -14,6 +14,8 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+from openavc_oem.provisioning import provision_unit  # noqa: E402
 
 
 def stage(args):
@@ -69,7 +71,7 @@ def stage(args):
                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20)
     (private / 'server.pem').write_bytes((private / 'ca.pem').read_bytes() + (private / 'key.pem').read_bytes())
     (private / 'key.pem').unlink()  # The private key is retained in server.pem.
-    (private / 'management.token').write_text(secrets.token_hex(32))
+    unit = provision_unit(private / 'unit', identity=identity)
     credentials = {'username': 'engineer', 'password': secrets.token_urlsafe(24)}
     (private / 'product-credentials.json').write_text(json.dumps(credentials, indent=2) + '\n')
     configuration = {'identity': identity, 'data_dir': str(destination / 'data'),
@@ -77,7 +79,7 @@ def stage(args):
                      'device_service': str(destination / 'program/openavc-device-service'),
                      'bridge_path': str(runtime / 'hardware.sock'),
                      'certificate': str(private / 'server.pem'), 'ca_file': str(private / 'ca.pem'),
-                     'management_token_file': str(private / 'management.token'),
+                     'management_token_file': str(unit.management_token_file),
                      'equipment_bind': '127.0.0.1', 'equipment_port': args.equipment_port,
                      'management_port': args.management_port, 'login': credentials}
     if args.with_server:

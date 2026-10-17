@@ -27,14 +27,15 @@ def export_examples(target, generated, destination, builder, build_target=None):
     for name in ['commands.h', 'commands.c']:
         shutil.copy2(generated / name, binaries / 'generated' / name)
     shutil.copy2(build_target or generated / 'build-target.json', binaries)
-    for name in ['try-example.py', 'example_build.py', 'inspection.py', 'product_checks.py', 'check-product.py']:
+    for name in ['try-example.py', 'example_build.py', 'inspection.py', 'product_checks.py', 'check-product.py',
+                 'provision-unit.py', 'collect-diagnostics.py', 'diagnostic_report.py']:
         shutil.copy2(ROOT / name, kit / name)
     (kit / 'sample').mkdir()
     shutil.copy2(ROOT / 'sample/checks.json', kit / 'sample/checks.json')
     # Exercise the installed Python package, without a source package in /kit
     # that could shadow it and make a missing firmware dependency pass.
     (kit / 'examples/linux').mkdir(parents=True)
-    for name in ['check.py', 'stage.py', 'hardware.service.in', 'management.service.in']:
+    for name in ['check.py', 'check-provisioning.py', 'stage.py', 'hardware.service.in', 'management.service.in']:
         shutil.copy2(ROOT / 'examples/linux' / name, kit / 'examples/linux' / name)
     (kit / 'examples/linux/buildroot').mkdir()
     shutil.copy2(ROOT / 'examples/linux/buildroot/check-installed.py', kit / 'examples/linux/buildroot/check-installed.py')

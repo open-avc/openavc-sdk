@@ -49,7 +49,7 @@ def check(args):
         args.runtime_dir = temporary_runtime / 'run'
     metadata = stage(args)
     config = read_json(args.out / 'private/openavc.json')
-    token = (args.out / 'private/management.token').read_text().strip()
+    token = Path(config['management_token_file']).read_text().strip()
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     client = Client('https://127.0.0.1:' + str(args.equipment_port), config['login'], config['ca_file'])
     report = {'format': 1, 'status': 'running', 'staging': metadata, 'checks': []}

@@ -92,8 +92,10 @@ directory. Initial builds download the selected compiler and package sources.
 The export retains Buildroot's `legal-info/` manifests, collected notices, source
 archives and any warnings about unavailable material. Read its `README` and
 `manifest.csv` with `buildroot-packages.json` when preparing your firmware
-inventory. Local SDK sources remain in your selected SDK checkout; Buildroot
-does not archive an overridden local source directory.
+inventory. Buildroot 2026.08 also archives the local SDK and product-manager
+source inputs. These recipes apply their source allowlists to both the build
+copy and the source archive, so an output directory inside the SDK checkout
+cannot be copied into its own archive.
 Keep Buildroot's `dl/` cache with your build inputs for subsequent offline builds.
 The local SDK source is copied using an allowlist; private SDK `build/` output
 is excluded.

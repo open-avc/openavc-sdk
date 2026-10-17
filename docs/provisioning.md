@@ -127,7 +127,9 @@ and the system clock is not changed. All traffic stays on loopback; after setup,
 the check needs no Internet connection.
 
 Use a new output directory each time. Read `report.json` for the completed checks
-and the failed step, if any. The local output includes generated private keys and
+and the failed step, if any. A TLS failure also records `certificate_verify_code`,
+the OpenSSL certificate verification error number. The check uses strict
+certificate validation on every supported Python version. The local output includes generated private keys and
 credentials under `product/private/`; keep that directory private. Share only the
 reviewed diagnostic export from `product/data/support.json`. Product processes
 stop when the check finishes, including on failure.

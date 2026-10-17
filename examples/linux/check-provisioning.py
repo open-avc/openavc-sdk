@@ -146,7 +146,9 @@ def check(args):
 
     url = 'https://127.0.0.1:' + str(args.equipment_port)
     def client(credentials=login, ca=None):
-        return Client(url, credentials, ca or config['ca_file'])
+        peer = Client(url, credentials, ca or config['ca_file'])
+        peer.tls.verify_flags |= ssl.VERIFY_X509_STRICT
+        return peer
 
     def increment(peer, expected=200):
         status, description = peer.request('/v1/description')
@@ -179,7 +181,8 @@ def check(args):
         own(directory)
         command(['openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '7',
             '-keyout', str(directory / 'ca.key'), '-out', str(directory / 'ca.pem'),
-            '-subj', '/CN=Replacement example CA'])
+            '-subj', '/CN=Replacement example CA',
+            '-addext', 'keyUsage=critical,keyCertSign,cRLSign'])
         command(['openssl', 'req', '-new', '-newkey', 'rsa:2048', '-nodes',
             '-keyout', str(directory / 'key.pem'), '-out', str(directory / 'request.pem'),
             '-subj', '/CN=Example product'])
@@ -344,6 +347,12 @@ subjectAltName = IP:127.0.0.1,DNS:localhost
         report['step'] = 'complete'
     except BaseException as error:
         report['error_type'] = type(error).__name__
+        cause = error
+        while cause is not None:
+            if isinstance(cause, ssl.SSLCertVerificationError):
+                report['certificate_verify_code'] = cause.verify_code
+                break
+            cause = cause.__cause__ or cause.__context__
         raise
     finally:
         for process in reversed(processes):

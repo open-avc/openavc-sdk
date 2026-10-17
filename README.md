@@ -95,6 +95,8 @@ preview diagnostics before sharing them.
 | [Firmware testing](docs/qualification.md) | Product-specific build, hardware, resource, recovery and cloud acceptance. |
 | [Troubleshooting](docs/troubleshooting.md) | Common failures, diagnostics and next steps. |
 
+The [manufacturer guide index](docs/index.md) groups all guides by integration task.
+
 The managed product integration targets Linux ARM64 and x86-64. The native adapter
 and device service use C/C++ and OpenSSL 3; product management uses Python 3.12 or
 newer. The optional full server adds OpenAVC's dependencies. A macOS development

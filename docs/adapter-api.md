@@ -8,6 +8,7 @@ the complete event loop and shutdown sequence; source checkouts also provide
 
 The public declarations are in [adapter.h](../sdk/include/adapter.h),
 [outcome.h](../sdk/include/outcome.h) and [endpoint.h](../sdk/include/endpoint.h).
+The [C declarations reference](c-declarations.md) includes those headers for offline reading.
 Use the generated state publishers and command callbacks for normal integration.
 The SDK's runtime, lifecycle and process-bridge headers are implementation
 interfaces, not additional firmware components you must implement.

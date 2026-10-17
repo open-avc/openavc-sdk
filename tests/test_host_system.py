@@ -125,7 +125,7 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
         saved = ROOT / 'build/host-system-logs'
         saved.mkdir(exist_ok=True)
         for log in sorted(self.root.rglob('*.log')):
-            shutil.copy2(log, saved / log.name)
+            shutil.copy2(log, saved / (self._testMethodName + '-' + log.name))
 
     async def get_settings(self):
         async with self.http.get(self.management + '/oem/settings', headers={
@@ -453,6 +453,9 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
             'hardware_after_retry': after}, indent=2) + '\n')
 
     async def test_result_and_client_capacity_refuse_excess_without_replaying(self):
+        evidence = {'status': 'failed', 'health_observations': []}
+        destination = ROOT / 'build/resource-capacity.json'
+        self.addCleanup(lambda: destination.write_text(json.dumps(evidence, indent=2) + '\n'))
         auth = BasicAuth(self.login['username'], self.login['password'])
         description = await self.equipment_response(200)
         client = secrets.token_hex(16)
@@ -467,27 +470,44 @@ class HostSystem(unittest.IsolatedAsyncioTestCase):
         for number in range(1, 133):
             self.assertEqual((await command(client, number))['outcome'], 'completed')
         before_expired = await self.hardware()
+        evidence['hardware_before_expired'] = before_expired
         self.assertEqual(before_expired['writes'], 132)
         expired = await command(client, 1, 409)
+        evidence['expired'] = expired
         self.assertEqual(expired['error'], 'request_expired')
         self.assertEqual(await self.hardware(), before_expired)
         for _ in range(127):
-            await command(secrets.token_hex(16), 1)
+            self.assertEqual((await command(secrets.token_hex(16), 1))['outcome'], 'completed')
         before_capacity = await self.hardware()
+        evidence['hardware_at_capacity'] = before_capacity
+        self.assertEqual((before_capacity['writes'], before_capacity['callbacks'],
+                          before_capacity['counter'], before_capacity['pending']), (259, 259, 259, 0))
         capacity = await command(secrets.token_hex(16), 1, 429)
+        evidence['capacity'] = capacity
         self.assertEqual(capacity['error'], 'client_capacity')
         self.assertEqual(await self.hardware(), before_capacity)
-        async with self.http.get(self.equipment + '/health', ssl=self.tls, auth=auth) as response:
-            self.assertEqual(response.status, 200)
-            health = await response.json()
-        self.assertEqual(health['result_cache'], 128)
-        self.assertEqual(health['pending'], 0)
-        await command(client, 133)
+        # Health includes the latest asynchronously sampled hardware pending
+        # count. Completion can precede that sample; require convergence without
+        # issuing another command, while preserving every observation on failure.
+        started = asyncio.get_running_loop().time()
+        async with asyncio.timeout(5):
+            while True:
+                async with self.http.get(self.equipment + '/health', ssl=self.tls, auth=auth) as response:
+                    self.assertEqual(response.status, 200)
+                    health = await response.json()
+                evidence['health_observations'].append({
+                    'elapsed_seconds': asyncio.get_running_loop().time() - started, **health})
+                self.assertEqual(health['result_cache'], 128)
+                self.assertEqual(health['quality'], 'current')
+                self.assertFalse(health['completion_uncertain'])
+                if health['pending'] == 0:
+                    break
+                await asyncio.sleep(.02)
+        self.assertEqual(await self.hardware(), before_capacity)
+        self.assertEqual((await command(client, 133))['outcome'], 'completed')
         after = await self.hardware()
         self.assertEqual((after['writes'], after['callbacks'], after['counter']), (260, 260, 260))
-        (ROOT / 'build/resource-capacity.json').write_text(json.dumps({
-            'status': 'passed', 'expired': expired, 'capacity': capacity,
-            'health_at_capacity': health, 'hardware_after': after}, indent=2) + '\n')
+        evidence.update(status='passed', health_at_capacity=health, hardware_after=after)
 
     async def test_remote_and_local_use_the_same_hardware(self):
         description = await self.equipment_response(200)

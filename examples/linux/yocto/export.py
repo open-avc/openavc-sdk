@@ -13,8 +13,16 @@ def export(rootfs, image, generated, configuration, destination):
     rootfs = rootfs.resolve(strict=True)
     generated = generated.resolve(strict=True)
     destination = destination.resolve()
+    spdx = image.with_suffix('.spdx.json')
+    packages = image.with_suffix('.manifest')
+    licenses = rootfs / 'usr/share/common-licenses'
+    if not spdx.is_file() or not packages.is_file() or not (licenses / 'license.manifest').is_file():
+        raise ValueError('Build the reference image with its SPDX record and copied license manifests before exporting.')
     binaries = export_examples(rootfs, generated, destination, 'Yocto/OpenEmbedded')
     shutil.copy2(image, destination / 'rootfs.tar')
+    shutil.copy2(spdx, destination / 'image.spdx.json')
+    shutil.copy2(packages, destination / 'image.manifest')
+    shutil.copytree(licenses, destination / 'licenses')
     shutil.copytree(configuration, destination / 'configuration')
     consumer = rootfs / 'usr/libexec/openavc-examples/installed-product'
     installed = destination / 'kit/installed-consumer'

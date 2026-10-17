@@ -1,0 +1,4 @@
+# License files from the selected SDK source checkout.
+sha256  b79a604c79149a5a0410abe01821c01b4f7dca598249ce91e8b957141012a926  LICENSE
+sha256  bf567777c38932fe77d76ffe23529e2f415ae7a5cdf8ed6200a2a0236acc8440  licenses/civetweb-LICENSE.md
+sha256  46a65cffd1ea955132d95a8dd921640714a8d6b537d2e4e482d31145ae95b603  licenses/json-LICENSE.MIT

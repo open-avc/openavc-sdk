@@ -21,7 +21,7 @@ def archive_bundle(output):
     artifact = output / ('openavc-server-linux-' + runtime['machine'] + '.tar.gz')
     with tarfile.open(artifact, 'x:gz') as archive:
         for name in ['INSTALL.txt', 'bundle.json', 'runtime.json', 'python-packages.cdx.json',
-                     'requirements.txt', 'build-image.txt', 'build-inputs', 'publisher-sboms', 'wheels']:
+                     'requirements.txt', 'build-image.txt', 'build-inputs', 'publisher-sboms', 'wheel-contents', 'wheels']:
             archive.add(output / name, arcname='openavc-server/' + name)
     with artifact.open('rb') as stream:
         sha = hashlib.file_digest(stream, 'sha256').hexdigest()
@@ -82,7 +82,10 @@ def build(args):
         'firmware or nested native/JavaScript dependencies. publisher-sboms/index.json\n'
         'lists the original component inventories supplied inside those wheels;\n'
         'an empty document list means that wheel supplied none in the standard location.\n'
-        'Their content and completeness are not verified. Hashes are not signatures.\n', encoding='utf-8')
+        'Their content and completeness are not verified. Hashes are not signatures.\n'
+        'wheel-contents/index.json identifies native files and the copied notices\n'
+        'beside it. Retain these notices in your firmware distribution. Source\n'
+        'supplements identify their original source and matching wheel hashes.\n', encoding='utf-8')
     print('Server bundle: ' + str(output))
     print('Offline installation instructions: ' + str(output / 'INSTALL.txt'))
     print('Archive: ' + str(archive_bundle(output)))

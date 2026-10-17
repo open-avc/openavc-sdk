@@ -97,6 +97,11 @@ board-support package's machine and CPU settings.
 The reference filesystem includes the native C/C++ examples, a separately
 linked product application, Python management and the checks. It is not a
 bootable board image and does not include the full OpenAVC server.
+The export includes the image's SPDX inventory, installed-package manifest and
+collected license files. The reference filesystem also contains those notices
+under `/usr/share/common-licenses`. Keep these records with the selected source
+revisions and build configuration. The inventory describes this reference image;
+generate a new one for your product's firmware configuration.
 
 `--tasks` selects concurrent BitBake tasks; each compiler invocation uses up to
 two jobs. The automated reference builds use four tasks on a four-core Linux

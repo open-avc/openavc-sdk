@@ -204,7 +204,27 @@ The original documents are copied unchanged alongside that index. It records
 each source wheel, archive member and document hash, including wheels that supply
 no documents. Use them with your software composition tools; their content,
 completeness and publisher signatures have not been verified.
-Keep both records and `build-inputs/` with your firmware build. That directory
+`wheel-contents/index.json` lists native ELF files and notice files from each
+wheel, including their hashes and original archive paths. The notice files are
+copied unchanged into the same directory. Source supplements identify the exact
+wheel hashes they accompany and the original source URL. Keep the supplied notices
+with your firmware distribution; an empty list does not mean a package has no
+notice requirements. Native file entries do not enumerate statically linked code.
+Supplement entries name nested components and explain their evidence. A
+`publisher-declared` component comes from the wheel's publisher SBOM;
+`runtime-source` or `build-only` comes from the resolved source dependency graph.
+Source reachability does not prove every component remains in a compiled binary.
+The package retains both the original publisher documents and the source notices.
+
+For SDK maintenance, [`tools/wheel-notice-sources.json`](../tools/wheel-notice-sources.json)
+pins reviewed source inputs, notice members and the wheel hashes they accompany.
+Reproduce the retained files with `python3 tools/refresh_wheel_notices.py --check`.
+The first run downloads the pinned sources into `build/notice-source-cache`;
+later runs can use `--offline`. The tool reads archives as data and verifies the
+source and notice hashes. It does not run their build scripts. When updating a
+dependency, review its sources and update this record before building the bundle.
+Normal server builds use the retained notices without these downloads.
+Keep these records and `build-inputs/` with your firmware build. That directory
 contains the Python locks, web dependency lockfiles, Dockerfile and an inventory
 of the builder's installed system packages. `build-inputs/system-inputs/` retains
 the selected Debian repositories and their signed release metadata.
@@ -253,6 +273,14 @@ of materials. The server, native Docker build and reference cross-build select s
 fixed snapshots; update those selections through the [maintenance workflow](compatibility.md).
 The direct native-library builder uses its host toolchain. These records do not establish
 byte-identical rebuilds or authenticate an artifact's publisher.
+
+The native source inventory is [`sdk/dependencies.json`](../sdk/dependencies.json).
+It identifies the exact CivetWeb and JSON source revisions and file hashes.
+Run `python3 tools/check_vendor_sources.py` to check a source checkout; add
+`--upstream` to compare with the original files online. Optional vendored source
+files do not imply their features are enabled. Native archives also record the
+supplied C++ runtime libraries, notices and build-time OpenSSL package identity.
+Supply the target's remaining runtime libraries through your firmware build.
 
 ## Produce a prebuilt library archive
 

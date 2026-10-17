@@ -44,6 +44,9 @@ for name in ['example-c', 'example-cpp', 'openavc-device-service']:
 shutil.copy2('/opt/build-packages.txt', output)
 shutil.copy2('/opt/target-packages.sha256', output)
 shutil.copytree('/opt/system-inputs', output / 'system-inputs')
+shutil.copy2(ROOT / 'sdk/dependencies.json', output)
+shutil.copy2(ROOT / 'LICENSE', output)
+shutil.copytree(ROOT / 'licenses', output / 'licenses', ignore=shutil.ignore_patterns('wheels'))
 metadata = {'format': 1, 'coverage': 'cross_compilation_only',
             'build_host': {'system': platform.system(), 'machine': platform.machine()},
             'target': {'system': 'Linux', 'machine': processor, 'reference': 'Debian 12'},

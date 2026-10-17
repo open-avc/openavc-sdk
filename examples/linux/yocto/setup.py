@@ -70,7 +70,7 @@ def setup(args):
         'PACKAGECONFIG:append:pn-openavc-sdk = " examples"\n'
         'INIT_MANAGER = "mdev-busybox"\n'
         f'BB_NUMBER_THREADS = "{args.tasks}"\nPARALLEL_MAKE = "-j2"\n'
-        'INHERIT += "rm_work"\n'
+        'INHERIT += "rm_work create-spdx"\n'
         'RM_WORK_EXCLUDE += "openavc-sdk openavc-example-image"\n'
         'BB_DISKMON_DIRS = "STOPTASKS,${TMPDIR},4G,100K HALT,${TMPDIR},2G,50K"\n'
         'BB_HASHSERVE = "auto"\nBB_SIGNATURE_HANDLER = "OEEquivHash"\n'

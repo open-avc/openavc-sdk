@@ -8,6 +8,7 @@ import subprocess
 import sys
 
 from wheel_inventory import digest, install_requirements, inventory, publisher_sboms
+from wheel_contents import collect
 
 
 def write_json(path, value):
@@ -32,6 +33,18 @@ def build(output):
     write_json(output / 'python-packages.cdx.json', bom)
     supplied = publisher_sboms(wheels, output / 'publisher-sboms')
     write_json(output / 'publisher-sboms/index.json', supplied)
+    source_notices = sdk / 'licenses/wheels'
+    supplements = json.loads((source_notices / 'index.json').read_text(encoding='utf-8'))['notices']
+    for item in supplements:
+        if item['file'] != item['sha256'] + '.txt':
+            raise ValueError('Invalid source notice filename.')
+        item['path'] = source_notices / item['file']
+    supplements.append({'path': core / 'LICENSE', 'sha256': digest(core / 'LICENSE'),
+                        'origin': 'https://github.com/open-avc/openavc/blob/' +
+                            json.loads((sdk / 'sdk/contract/origin.json').read_text())['core_head'] + '/LICENSE',
+                        'wheel_sha256': [digest(path) for path in wheels if path.name.startswith('openavc-')]})
+    contents = collect(wheels, output / 'wheel-contents', supplements)
+    write_json(output / 'wheel-contents/index.json', contents)
     (output / 'requirements.txt').write_text(install_requirements(bom), encoding='utf-8')
     inputs = output / 'build-inputs'
     inputs.mkdir()
@@ -49,6 +62,8 @@ def build(output):
     sources = {}
     for name in ['openavc_oem', 'examples/system', 'sdk/contract', 'pyproject.toml',
                  'tools/build_server.py', 'tools/server_bundle.py', 'tools/wheel_inventory.py',
+                 'tools/wheel_contents.py', 'licenses/wheels',
+                 'tools/refresh_wheel_notices.py', 'tools/wheel-notice-sources.json',
                  'tools/build_browser.mjs', 'tools/browser_inventory.mjs',
                  'tools/requirements-server.txt', 'tools/requirements-build.txt', 'tools/debian.sources']:
         source = sdk / name
@@ -59,11 +74,12 @@ def build(output):
                 'runtime': runtime,
                 'wheels': {path.name: digest(path) for path in wheels},
                 'publisher_sboms': {path.name: digest(path) for path in sorted((output / 'publisher-sboms').iterdir())},
+                'wheel_contents': {path.name: digest(path) for path in sorted((output / 'wheel-contents').iterdir())},
                 'build_inputs': {path.relative_to(inputs).as_posix(): digest(path)
                                  for path in sorted(inputs.rglob('*')) if path.is_file()},
                 'sdk_sources': sources,
                 'core_build_inputs': {name: digest(core / name) for name in [
-                    'pyproject.toml', 'openavc/web/programmer/package-lock.json',
+                    'LICENSE', 'pyproject.toml', 'openavc/web/programmer/package-lock.json',
                     'openavc/web/simulator/package-lock.json']},
                 'inventories': {name: digest(output / name) for name in ['python-packages.cdx.json', 'requirements.txt']}}
     write_json(output / 'bundle.json', metadata)

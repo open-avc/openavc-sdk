@@ -55,6 +55,8 @@ def native_build_record(build):
     for key in ('OPENSSL_SSL_LIBRARY', 'OPENSSL_CRYPTO_LIBRARY'):
         path = Path(cache[key]).resolve(strict=True)
         libraries[key] = {'file': path.name, 'sha256': digest(path)}
+        if platform.system() == 'Linux':
+            libraries[key]['build_package'] = package_origin(path)
     settings = {key: value for key, value in cache.items() if key in {
         'CMAKE_BUILD_TYPE', 'CMAKE_GENERATOR', 'CMAKE_C_FLAGS', 'CMAKE_C_FLAGS_RELEASE',
         'CMAKE_CXX_FLAGS', 'CMAKE_CXX_FLAGS_RELEASE', 'CMAKE_EXE_LINKER_FLAGS',
@@ -98,6 +100,7 @@ def package(args):
     for name in ['include', 'tools', 'contract']:
         shutil.copytree(ROOT / 'sdk' / name, destination / 'sdk' / name,
                         ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+    shutil.copy2(ROOT / 'sdk/dependencies.json', destination / 'sdk/dependencies.json')
     (destination / 'sdk/src').mkdir()
     shutil.copy2(ROOT / 'sdk/src/open_adapter.c', destination / 'sdk/src/open_adapter.c')
     for name in ['product.json', 'try-example.py', 'example_build.py', 'try-system.py', 'doctor.py', 'inspection.py', 'product_checks.py', 'check-product.py',
@@ -109,7 +112,8 @@ def package(args):
     shutil.copy2(ROOT / 'tools/supplied-README.md', destination / 'README.md')
     shutil.copy2(ROOT / 'tools/supplied-CMakeLists.txt', destination / 'CMakeLists.txt')
     (destination / 'tools').mkdir()
-    for name in ['build_server.py', 'server_bundle.py', 'wheel_inventory.py',
+    for name in ['build_server.py', 'server_bundle.py', 'wheel_inventory.py', 'wheel_contents.py',
+                 'refresh_wheel_notices.py', 'wheel-notice-sources.json',
                  'build_browser.mjs', 'browser_inventory.mjs',
                  'requirements-server.txt', 'requirements-build.txt', 'debian.sources']:
         shutil.copy2(ROOT / 'tools' / name, destination / 'tools' / name)

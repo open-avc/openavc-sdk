@@ -58,8 +58,10 @@ if(OPENAVC_INSTALL)
   install(FILES "${GENERATED}/model.json" "${GENERATED}/model.provenance.json" "${GENERATED}/provenance.json"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/openavc")
   install(FILES "${SDK}/contract/origin.json" DESTINATION "${CMAKE_INSTALL_DATADIR}/openavc/contract")
+  install(FILES "${SDK}/dependencies.json" DESTINATION "${CMAKE_INSTALL_DATADIR}/openavc")
   install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE" DESTINATION "${CMAKE_INSTALL_DATADIR}/licenses/openavc-sdk")
-  install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/licenses/" DESTINATION "${CMAKE_INSTALL_DATADIR}/licenses/openavc-sdk")
+  install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/licenses/" DESTINATION "${CMAKE_INSTALL_DATADIR}/licenses/openavc-sdk"
+    PATTERN "wheels" EXCLUDE)
 endif()
 if(OPENAVC_BUILD_EXAMPLES)
 foreach(language c cpp)

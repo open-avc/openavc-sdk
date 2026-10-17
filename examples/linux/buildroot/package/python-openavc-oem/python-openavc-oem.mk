@@ -8,5 +8,6 @@ PYTHON_OPENAVC_OEM_DEPENDENCIES = python-aiohttp python-psutil
 PYTHON_OPENAVC_OEM_OVERRIDE_SRCDIR_RSYNC_EXCLUSIONS = \
 	--include='/pyproject.toml' --include='/LICENSE' \
 	--include='/openavc_oem/***' --exclude='*'
+python-openavc-oem-legal-info: private RSYNC_VCS_EXCLUSIONS += $(PYTHON_OPENAVC_OEM_OVERRIDE_SRCDIR_RSYNC_EXCLUSIONS)
 
 $(eval $(python-package))

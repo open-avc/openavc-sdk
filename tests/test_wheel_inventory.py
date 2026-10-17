@@ -8,6 +8,8 @@ import warnings
 from zipfile import ZipFile
 
 from tools.wheel_inventory import install_requirements, inventory, publisher_sboms
+from tools.wheel_contents import collect
+from tools.refresh_wheel_notices import materialize
 
 
 class WheelInventory(unittest.TestCase):
@@ -104,6 +106,72 @@ class WheelInventory(unittest.TestCase):
                     archive.writestr('example_audio-1.2.dist-info/sboms/component.json', payload)
         with self.assertRaisesRegex(ValueError, 'repeated publisher'):
             publisher_sboms([self.wheel], Path(self.folder.name) / 'repeated')
+
+    def test_contents_preserve_notice_bytes_and_identify_native_payload_without_import(self):
+        self.write_wheel('Metadata-Version: 2.4\nName: Example\nVersion: 1\nLicense-File: LICENSE.txt\n')
+        notice = b'Copyright and license\r\n\xff'
+        elf = b'\x7fELF\x02\x01\x01' + b'\0' * 9 + b'\x03\0\xb7\0' + b'example'
+        with ZipFile(self.wheel, 'a') as archive:
+            archive.writestr('example_audio-1.2.dist-info/licenses/LICENSE.txt', notice)
+            archive.writestr('example_audio/payload', elf)
+            archive.writestr('example_audio/not-native.so', 'a text file')
+            archive.writestr('../../NOTICE', b'extra notice')
+        output = Path(self.folder.name) / 'contents'
+        row = collect([self.wheel], output)['wheels'][self.wheel.name]
+        self.assertEqual(len(row['notices']), 2)
+        supplied = next(item for item in row['notices'] if item['selection'] == 'metadata')
+        self.assertEqual((output / supplied['file']).read_bytes(), notice)
+        native, = row['native_members']
+        self.assertEqual((native['machine'], native['bits'], native['type']), (183, 64, 3))
+        self.assertEqual(native['sha256'], hashlib.sha256(elf).hexdigest())
+        self.assertFalse((Path(self.folder.name) / 'NOTICE').exists())
+
+    def test_missing_declared_notice_and_mismatched_source_supplement_are_refused(self):
+        self.write_wheel('Metadata-Version: 2.4\nName: Example\nVersion: 1\nLicense-File: missing.txt\n')
+        root = Path(self.folder.name)
+        with self.assertRaisesRegex(ValueError, 'declared license file'):
+            collect([self.wheel], root / 'missing')
+        self.write_wheel('Metadata-Version: 2.4\nName: Example\nVersion: 1\n')
+        notice = root / 'upstream.txt'
+        notice.write_bytes(b'original source notice')
+        supplement = {'path': notice, 'origin': 'https://example.invalid/source/LICENSE',
+                      'sha256': hashlib.sha256(notice.read_bytes()).hexdigest(),
+                      'wheel_sha256': ['0' * 64]}
+        with self.assertRaisesRegex(ValueError, 'does not match'):
+            collect([self.wheel], root / 'unmatched', [supplement])
+        supplement['wheel_sha256'] = [hashlib.sha256(self.wheel.read_bytes()).hexdigest()]
+        row = collect([self.wheel], root / 'matched', [supplement])['wheels'][self.wheel.name]
+        self.assertEqual(row['notices'][0]['origin'], supplement['origin'])
+        self.assertEqual(row['native_members'], [])
+        notice.write_bytes(b'changed source notice')
+        with self.assertRaisesRegex(ValueError, 'hash mismatch'):
+            collect([self.wheel], root / 'changed', [supplement])
+
+    def test_notice_sources_reproduce_bytes_offline_and_refuse_tampering(self):
+        import io
+        import tarfile
+        root = Path(self.folder.name)
+        cache = root / 'cache'
+        cache.mkdir()
+        notice = b'Original upstream notice\r\n'
+        stream = io.BytesIO()
+        with tarfile.open(fileobj=stream, mode='w') as archive:
+            item = tarfile.TarInfo('../LICENSE')
+            item.size = len(notice)
+            archive.addfile(item, io.BytesIO(notice))
+        raw = stream.getvalue()
+        sha = hashlib.sha256(raw).hexdigest()
+        (cache / sha).write_bytes(raw)
+        source = {'url': 'https://example.invalid/package.tar', 'kind': 'tar', 'sha256': sha,
+                  'component': {'name': 'example', 'version': '1'}, 'evidence': 'source',
+                  'applies_to': [{'wheel_sha256': ['a' * 64]}],
+                  'files': [{'member': '../LICENSE', 'sha256': hashlib.sha256(notice).hexdigest()}]}
+        files = materialize([source], cache, offline=True)
+        self.assertEqual(files[hashlib.sha256(notice).hexdigest() + '.txt'], notice)
+        self.assertFalse((root / 'LICENSE').exists())
+        (cache / sha).write_bytes(b'changed download')
+        with self.assertRaisesRegex(ValueError, 'Source digest mismatch'):
+            materialize([source], cache, offline=True)
 
 
 if __name__ == '__main__':

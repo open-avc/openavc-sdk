@@ -14,7 +14,7 @@ use the server selected by the kit's pin when evaluating these examples.
 
 | Component | Combination for this checkout |
 |---|---|
-| OpenAVC server, separate or product-hosted | Core commit `41dab36994f0ed0a5a3148b7fc4bc1650f23f993`, recorded in `sdk/contract/origin.json`. |
+| OpenAVC server, separate or product-hosted | Core commit `415769e5c78c56b0596f0e8aa2c292cd7fcca517`, recorded in `sdk/contract/origin.json`. |
 | Equipment protocol | `openavc-device-1`. A different protocol is refused before control. |
 | Product description and callbacks | Generate the model and compile the adapter together using this SDK checkout. |
 | Native headers, libraries and service | Use one matching source build or supplied archive for the target CPU. |
@@ -65,6 +65,26 @@ a complete software bill of materials or a reproducible-build guarantee. Apply
 your product's signing and dependency-management process before distribution.
 
 ## Evaluate an update
+
+For an offline server bundle, install it into a fresh candidate Python environment.
+Before stopping the current firmware, run `pip check` and the preflight command
+shown in its `INSTALL.txt`. Use the complete core commit selected for your firmware:
+
+```sh
+python3 -m openavc_oem.preflight --bundle /path/to/openavc-server --expect-core YOUR_CORE_COMMIT
+```
+
+A zero exit and `"status": "passed"` mean the installed OpenAVC and SDK package
+files match that bundle, including static assets. Missing, changed or leftover
+package files refuse the candidate. Standard `__pycache__` bytecode is excluded.
+The command starts no server and reads no product settings. If it refuses, keep
+the current firmware running and rebuild the candidate from the matching bundle.
+Use the command installed in the candidate environment, outside a source checkout.
+
+Supply a trusted bundle through your firmware signing process. Preflight checks
+payload consistency; it does not authenticate the bundle, qualify your hardware,
+check every dependency or prove data migration and rollback. A firmware recipe
+archive without the optional Python server is not an offline server bundle.
 
 1. Keep the currently qualified firmware and its build inputs available for
    recovery. Take a consistent backup of persistent OpenAVC data before a new

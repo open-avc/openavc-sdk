@@ -130,6 +130,29 @@ for interface in ['programmer', 'simulator']:
 assert resources.files('openavc_oem').joinpath('manager.py').is_file()
 with tempfile.TemporaryDirectory(prefix='openavc-lock-check-') as temporary:
     scratch = Path(temporary)
+    # Exercise the installed command away from this checkout, so source files
+    # cannot hide missing or mismatched delivered package contents.
+    command = [sys.executable, '-m', 'openavc_oem.preflight', '--bundle',
+               str(bundle.resolve()), '--expect-core', record['core']['core_head']]
+    preflight = subprocess.run(command, cwd=scratch, text=True, capture_output=True)
+    assert preflight.returncode == 0, preflight.stdout + preflight.stderr
+    result = json.loads(preflight.stdout)
+    assert result['status'] == 'passed'
+    assert result['core_commit'] == record['core']['core_head']
+    changed = Path(result['packages']['openavc']['origin']) / 'core/host_policy.py'
+    original = changed.read_bytes()
+    try:
+        changed.write_bytes(original + b'\n# Deliberate candidate payload mismatch.\n')
+        refused = subprocess.run(command, cwd=scratch, text=True, capture_output=True)
+        assert refused.returncode == 1, refused.stdout + refused.stderr
+        assert json.loads(refused.stdout)['status'] == 'refused'
+        assert 'core/host_policy.py' in refused.stdout
+    finally:
+        changed.write_bytes(original)
+    assert changed.read_bytes() == original
+    result['mismatched_candidate'] = json.loads(refused.stdout)
+    result['original_source_restored'] = True
+    (bundle / 'installed-preflight.json').write_text(json.dumps(result, indent=2) + '\n')
     bad_lock = scratch / 'changed-hash.txt'
     name = next(iter(locked))
     bad_lock.write_text(f'{name}=={locked[name][0]} --hash=sha256:{"0" * 64}\n')

@@ -198,6 +198,7 @@ jobs:
             build/package/package-build.log
             build/package/build-image.txt
             build/server-bundle/*.json
+            build/server-extracted/openavc-server/installed-preflight.json
             build/server-bundle/*.tar.gz
             build/server-bundle/*.sha256
             build/server-bundle/build-image.txt

@@ -13,7 +13,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Match
 
 from openavc.api.auth import (
-    _basic, check_ws_auth, get_ws_auth_subprotocol,
+    _basic, websocket_authority, get_ws_auth_subprotocol,
     require_claimed_auth, require_programmer_auth,
 )
 from openavc.api.host_policy import interface_disabled_response, resolve_endpoint_policy
@@ -24,8 +24,18 @@ CLOSE = 4013
 
 
 def authenticated(scope):
-    conn = HTTPConnection(scope)
-    return check_ws_auth(dict(conn.query_params), dict(conn.headers), cloud_secret=cloud_session_secret(conn))
+    # This is host-policy classification, not client activity. Retain the
+    # original grant: watching a connection must neither renew an idle token
+    # nor repeatedly hash its password or switch to a different credential.
+    key = "openavc_oem.interface_authority"
+    if key not in scope:
+        conn = HTTPConnection(scope)
+        scope[key] = websocket_authority(
+            dict(conn.query_params), dict(conn.headers),
+            cloud_secret=cloud_session_secret(conn), refresh_session=False,
+        )
+    authority = scope[key]
+    return authority is not None and authority()
 
 
 class Policy:

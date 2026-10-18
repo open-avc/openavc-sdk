@@ -14,7 +14,7 @@ use the server selected by the kit's pin when evaluating these examples.
 
 | Component | Combination for this checkout |
 |---|---|
-| OpenAVC server, separate or product-hosted | Core commit `bd3e70407e1043f20d80742e5ee666b1ab29ffa0`, recorded in `sdk/contract/origin.json`. |
+| OpenAVC server, separate or product-hosted | Core commit `41dab36994f0ed0a5a3148b7fc4bc1650f23f993`, recorded in `sdk/contract/origin.json`. |
 | Equipment protocol | `openavc-device-1`. A different protocol is refused before control. |
 | Product description and callbacks | Generate the model and compile the adapter together using this SDK checkout. |
 | Native headers, libraries and service | Use one matching source build or supplied archive for the target CPU. |

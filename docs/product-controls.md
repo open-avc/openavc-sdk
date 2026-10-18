@@ -197,6 +197,13 @@ an error together with `state`; show that error and the actual state in your UI.
 Do not show a running server solely because `server` is true. Use
 `server_running`, `server_responsive` and `interfaces_observed`.
 
+The checkboxes show the saved choices. `interfaces_observed` is `null` until
+the running server confirms them. When it is present, its `revision`,
+`programmer` and `panel` must match the saved values before your UI reports
+those access settings as applied or offers an enabled interface link. If
+confirmation fails, keep the saved choices visible, show the returned error
+and offer **Retry settings**. The supplied product page demonstrates these states.
+
 | Field | Effect |
 |---|---|
 | `equipment` | Set equipment discovery and remote access together. Recommended primary control. |

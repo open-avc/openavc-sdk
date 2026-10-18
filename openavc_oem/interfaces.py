@@ -9,13 +9,14 @@ from .host_policy import FileHostPolicy
 
 from fastapi import HTTPException, Request
 from starlette.requests import HTTPConnection
-from starlette.responses import HTMLResponse, JSONResponse
+from starlette.responses import JSONResponse
 from starlette.routing import Match
 
 from openavc.api.auth import (
     _basic, check_ws_auth, get_ws_auth_subprotocol,
     require_claimed_auth, require_programmer_auth,
 )
+from openavc.api.host_policy import interface_disabled_response, resolve_endpoint_policy
 from openavc.utils.request_origin import cloud_session_secret, is_local_console_request
 
 STATE = Path(os.environ["OPENAVC_INTERFACE_STATE"])
@@ -103,8 +104,10 @@ class Policy:
                     return "panel"
                 return "render"
             return "programmer"
-        # A redirect/404 never opens a bypass into an unclassified handler.
-        return "programmer"
+        # Let the canonical route declaration classify method refusals and
+        # redirects too. Unmatched requests still use Programmer permission.
+        declared = resolve_endpoint_policy({**scope, "app": self.app})
+        return declared.resolve(scope).value
 
     def allowed(self, scope, category=None):
         state = self.state()
@@ -186,11 +189,11 @@ class Interfaces:
             if not self.policy.allowed(scope, category):
                 revoked.set()
                 raise asyncio.CancelledError
+            await send(message)
             if message["type"] == "http.response.start":
                 started = True
             if message["type"] == "http.response.body" and not message.get("more_body", False):
                 ended = True
-            await send(message)
 
         async def watch():
             while not revoked.is_set():
@@ -236,18 +239,7 @@ class Interfaces:
                 await send({"type": "websocket.close", "code": 4014 if auth_required else CLOSE,
                             "reason": "Sign in to the Programmer to use Preview." if auth_required else "This interface is disabled in product management."})
             else:
-                message = "This interface is disabled in product management."
-                if "text/html" in HTTPConnection(scope).headers.get("accept", ""):
-                    response = HTMLResponse(
-                        '<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1">'
-                        '<title>OpenAVC interface disabled</title><style>body{font:18px system-ui;background:#f4f6f5;color:#192d28;max-width:640px;margin:12vh auto;padding:24px}p{line-height:1.6}a{color:#214f40}</style>'
-                        '<h1>OpenAVC interface disabled</h1><p>' + message + '</p><p>Use this product’s management interface to change access settings.</p></html>',
-                        status_code=403,
-                    )
-                else:
-                    response = JSONResponse({"detail": message, "code": "interface_disabled"}, status_code=403)
-                response.headers["Cache-Control"] = "no-store"
-                await response(scope, receive, send)
+                await interface_disabled_response(scope)(scope, receive, send)
             return
         if scope["type"] == "http":
             try:
@@ -263,11 +255,11 @@ class Interfaces:
 
         async def guarded_send(message):
             nonlocal accepted, closed
+            await send(message)
             if message["type"] == "websocket.accept":
                 accepted = True
             if message["type"] == "websocket.close":
                 closed = True
-            await send(message)
 
         async def guarded_receive():
             message = await receive()
@@ -288,12 +280,15 @@ class Interfaces:
         watcher = asyncio.create_task(watch())
         try:
             await asyncio.wait({application, watcher}, return_when=asyncio.FIRST_COMPLETED)
-            if revoked.is_set() and accepted and not closed:
-                await send({"type": "websocket.close", "code": CLOSE, "reason": "This interface is disabled in product management."})
             if not application.done():
                 application.cancel()
             with suppress(asyncio.CancelledError):
                 await application
+            # The inner connection may already be closing under core policy.
+            # Let its cancellation/cleanup settle before deciding whether this
+            # owner still owes a close; never cancel a close after counting it.
+            if revoked.is_set() and accepted and not closed:
+                await send({"type": "websocket.close", "code": CLOSE, "reason": "This interface is disabled in product management."})
         finally:
             watcher.cancel()
             with suppress(asyncio.CancelledError):

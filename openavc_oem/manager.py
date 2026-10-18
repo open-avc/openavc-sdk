@@ -24,6 +24,9 @@ from ._protocol import MAX_MESSAGE_BYTES
 class PolicySaveUncertain(OSError):
     """A saved policy has not completed all persistence barriers."""
 
+class PolicyApplyPending(RuntimeError):
+    """The server reports that saved interface settings are still applying."""
+
 def durable(path, value):
     save_json(path, value)
 
@@ -402,17 +405,22 @@ class ProductManager:
             self.core_url + "/api/host/interfaces", ssl=self.core_tls(),
             headers={"Authorization": "Bearer " + self.core_control_token}
         ) as response:
-            response.raise_for_status()
             applied = await response.json()
-            if applied.get("observed") is not True:
-                raise RuntimeError("OpenAVC has not finished applying the saved access settings.")
             expected = {
                 key: self.state[key] for key in ("revision", "programmer", "panel")
             }
-            if any(
+            matches = not any(
                 type(applied.get(key)) is not type(value) or applied.get(key) != value
                 for key, value in expected.items()
-            ):
+            )
+            if response.status == 503 and applied.get("observed") is False and matches:
+                raise PolicyApplyPending(
+                    "Settings were saved. OpenAVC is still applying access changes. Retry settings to confirm."
+                )
+            response.raise_for_status()
+            if applied.get("observed") is not True:
+                raise RuntimeError("OpenAVC has not finished applying the saved access settings.")
+            if not matches:
                 raise RuntimeError("OpenAVC did not acknowledge the saved settings.")
             self.interfaces_observed = expected
 
@@ -514,6 +522,8 @@ class ProductManager:
                     self.retry_setting = field
                 if isinstance(exc, web.HTTPException):
                     self.error, status = exc.text, exc.status
+                elif isinstance(exc, PolicyApplyPending):
+                    self.error, status = str(exc), 503
                 elif phase == "cleanup":
                     self.retry_setting = field
                     self.error = "Could not confirm storage cleanup. Settings remain saved. Check product storage and retry settings."

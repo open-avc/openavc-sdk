@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Request
 from openavc.api.host_policy import HostPolicyMiddleware, validate_policies
 from openavc.core.host_policy import HostCategory
 from openavc_oem.host_policy import FileHostPolicy
-from openavc_oem.manager import ProductManager
+from openavc_oem.manager import PolicyApplyPending, ProductManager
 from openavc_oem.state import defaults
 
 
@@ -124,6 +124,7 @@ class HostPolicyTests(unittest.IsolatedAsyncioTestCase):
 
         class Response:
             payload = {}
+            status = 200
             async def __aenter__(self):
                 return self
             async def __aexit__(self, *args):
@@ -152,3 +153,12 @@ class HostPolicyTests(unittest.IsolatedAsyncioTestCase):
         response.payload = {**expected, 'observed': True}
         await ProductManager.confirm_interfaces(manager)
         self.assertEqual(manager.interfaces_observed, expected)
+        response.status = 503
+        response.payload = {**expected, 'observed': False, 'pending_commits': 1}
+        with self.assertRaises(PolicyApplyPending):
+            await ProductManager.confirm_interfaces(manager)
+        self.assertIsNone(manager.interfaces_observed)
+        response.payload['revision'] = 3
+        with self.assertRaises(RuntimeError) as error:
+            await ProductManager.confirm_interfaces(manager)
+        self.assertNotIsInstance(error.exception, PolicyApplyPending)

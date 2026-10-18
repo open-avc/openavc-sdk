@@ -404,6 +404,8 @@ class ProductManager:
         ) as response:
             response.raise_for_status()
             applied = await response.json()
+            if applied.get("observed") is not True:
+                raise RuntimeError("OpenAVC has not finished applying the saved access settings.")
             expected = {
                 key: self.state[key] for key in ("revision", "programmer", "panel")
             }

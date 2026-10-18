@@ -5,5 +5,6 @@ import os
 from openavc import main
 from .interfaces import install
 
-install(main.app, os.environ['OPENAVC_DEVICE_ID'])
+interfaces = install(main.app, os.environ['OPENAVC_DEVICE_ID'])
+main.configure_host_policy(interfaces.host_policy)
 main.main()

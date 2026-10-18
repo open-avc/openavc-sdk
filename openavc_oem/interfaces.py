@@ -5,7 +5,7 @@ import hmac
 import os
 from contextlib import suppress
 from pathlib import Path
-from .state import read_state
+from .host_policy import FileHostPolicy
 
 from fastapi import HTTPException, Request
 from starlette.requests import HTTPConnection
@@ -33,13 +33,10 @@ class Policy:
         self.identity = identity
         self.connections = {}
         self.control_token = os.environ.get("OPENAVC_HOST_CONTROL_TOKEN", "")
+        self.host_policy = FileHostPolicy(STATE, identity, self.control_token)
 
     def state(self):
-        # Atomic, host-owned file. Missing/invalid policy denies both surfaces.
-        try:
-            return read_state(STATE, self.identity)
-        except (OSError, ValueError, KeyError):
-            return {"programmer": False, "panel": False, "revision": None}
+        return self.host_policy.settings()
 
     async def authenticate_body(self, scope):
         """Run declared canonical guards before FastAPI parses protected bodies."""
@@ -74,7 +71,7 @@ class Policy:
             module = getattr(endpoint, "__module__", "")
             name = getattr(endpoint, "__name__", "")
             key = module.removeprefix("openavc.api.") + ":" + name
-            if key == "openavc_oem.interfaces:apply_policy":
+            if key == "openavc_oem.host_policy:apply_policy":
                 return "host"
             if key in {
                 "routes.system:health_check", "routes.system:startup_status",
@@ -311,9 +308,6 @@ def install(app, identity):
 
     policy.cloud_policy = install_cloud_policy(policy)
 
-    async def apply_policy(request: Request):
-        return await policy.apply()
-
-    app.add_api_route("/api/host/interfaces", apply_policy, methods=["POST"])
+    policy.host_policy.install_endpoint(app, policy.apply)
     app.add_middleware(Interfaces, policy=policy)
     return policy

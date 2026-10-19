@@ -1,7 +1,9 @@
 """A staged mismatch must refuse without touching active firmware or data."""
 import hashlib
+import importlib.util
 import json
 import os
+import py_compile
 from pathlib import Path
 import subprocess
 import sys
@@ -155,7 +157,9 @@ class ServerPreflight(unittest.TestCase):
                                  '--setup-source', str(source)],
                                 cwd=self.root, env=env, capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
-        return json.loads(result.stdout)
+        report = json.loads(result.stdout)
+        self.assertFalse(report['activation_authorized'])
+        return report
 
     def test_optional_sources_use_canonical_leaf_and_bind_checked_wheel(self):
         source, _, _ = self.setup_source_fixture()
@@ -187,6 +191,25 @@ class ServerPreflight(unittest.TestCase):
         self.repack_candidates()
         report = self.source_cli(source, 1)
         self.assertIn('no setup source qualification resource', report['detail'])
+
+    def test_unchecked_bytecode_cannot_replace_verified_source(self):
+        source, _, _ = self.setup_source_fixture()
+        source.write_text('raise AssertionError("unknown installed code must not execute")\n')
+        marker = self.root / 'cache-ran'
+        replacement = self.root / 'replacement.py'
+        replacement.write_text('from pathlib import Path\n'
+                               f'Path({str(marker)!r}).write_text("unexpected execution")\n')
+        for relative in ['__init__.py', 'drivers/__init__.py', 'drivers/spec.py',
+                         'drivers/setup_compatibility.py', 'drivers/setup_preflight.py']:
+            with self.subTest(module=relative):
+                cache = Path(importlib.util.cache_from_source(str(self.packages['openavc'] / relative)))
+                cache.parent.mkdir(exist_ok=True)
+                py_compile.compile(str(replacement), cfile=str(cache), doraise=True,
+                                   invalidation_mode=py_compile.PycInvalidationMode.UNCHECKED_HASH)
+                self.assertTrue(cache.is_file())
+                report = self.source_cli(source, 1)
+                self.assertEqual(report['setup_sources']['sources'][0]['reason'], 'unknown_source')
+                self.assertFalse(marker.exists())
 
 
 if __name__ == '__main__':

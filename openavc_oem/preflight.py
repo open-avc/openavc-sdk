@@ -13,7 +13,9 @@ from importlib.util import find_spec
 import json
 from pathlib import Path, PurePosixPath
 import re
+import subprocess
 import sys
+import tempfile
 from zipfile import BadZipFile, ZipFile
 
 
@@ -102,18 +104,31 @@ def check(bundle, expected_core, *, setup_sources=None):
         raise ValueError('The server bundle must contain both OpenAVC and its manufacturer integration.')
     report = {'status': 'passed', 'core_commit': expected_core, 'packages': checked}
     if setup_sources is not None:
-        # Use the installed matching core's owner only after its complete
-        # payload matches the trusted bundle. Never vendor a second evaluator.
-        from openavc.drivers import setup_preflight
-
+        # Invoke the matching core without site hooks, inherited module state,
+        # or installed bytecode caches (which the payload check excludes).
+        # -B alone prevents writes but still reads an existing unchecked cache.
         core_root = Path(checked['openavc']['origin'])
-        if Path(setup_preflight.__file__).resolve() != core_root / 'drivers/setup_preflight.py':
-            raise ValueError('The setup evaluator is not from the checked core package.')
-        setup = setup_preflight.check_sources(
-            setup_sources, resource=core_root / 'drivers/setup-compatibility.json',
-            expected_resource_sha256=setup_resource_sha,
-            target_sha256=checked['openavc']['wheel_sha256'],
-        )
+        if not setup_sources:
+            raise ValueError('Supply the inventoried setup source paths.')
+        with tempfile.TemporaryDirectory(prefix='openavc-setup-preflight-') as cache:
+            command = [sys.executable, '-I', '-S', '-B', '-X', 'pycache_prefix=' + cache, '-c',
+                       'import sys; sys.path.insert(0, sys.argv.pop(1)); '
+                       'from openavc.drivers.setup_preflight import main; sys.exit(main())',
+                       str(core_root.parent),
+                       '--resource', str(core_root / 'drivers/setup-compatibility.json'),
+                       '--expect-resource', setup_resource_sha,
+                       '--target-sha256', checked['openavc']['wheel_sha256']]
+            for source in setup_sources:
+                command.extend(['--source', str(source)])
+            result = subprocess.run(command, capture_output=True, text=True, timeout=60)
+        try:
+            setup = json.loads(result.stdout)
+        except (ValueError, TypeError):
+            raise ValueError('The checked core setup evaluator did not return a report.') from None
+        if (result.returncode not in (0, 1) or type(setup) is not dict
+                or setup.get('activation_authorized') is not False
+                or setup.get('status') != ('passed' if result.returncode == 0 else 'refused')):
+            raise ValueError('The checked core setup evaluator did not return a valid disposition.')
         report.update(status=setup['status'], setup_sources=setup,
                       scope='package_payloads_and_supplied_primary_sources',
                       activation_authorized=False)
@@ -132,8 +147,11 @@ def main():
     try:
         result = check(args.bundle.resolve(strict=True), args.expect_core,
                        setup_sources=args.setup_source)
-    except (OSError, ValueError, KeyError, TypeError, BadZipFile) as error:
-        print(json.dumps({'status': 'refused', 'detail': str(error)}))
+    except (OSError, ValueError, KeyError, TypeError, BadZipFile, subprocess.TimeoutExpired) as error:
+        result = {'status': 'refused', 'detail': str(error)}
+        if args.setup_source is not None:
+            result['activation_authorized'] = False
+        print(json.dumps(result))
         return 1
     print(json.dumps(result, indent=2))
     return 0 if result['status'] == 'passed' else 1

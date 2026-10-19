@@ -124,7 +124,7 @@ class CandidateCheck:
                     Path(packages['openavc']['origin']) / 'system_config.py',
                     Path(packages['openavc_oem']['origin']) / '__init__.py',
                     Path(packages['openavc_oem']['origin']) / 'server.py']
-        if any("# code object from '" + str(path) + "'" not in lines for path in imported):
+        if any('# code object from ' + str(path) not in lines for path in imported):
             raise ValueError('The old server import observations are incomplete. Keep the current installation.')
         (self.evidence / f'old-server-imports-{self.observations}.log').write_bytes(logs)
         self.observations += 1
@@ -225,14 +225,15 @@ class CandidateCheck:
         baseline = assess('baseline', 'assessed')
         # A new inactive library file challenges reuse of the first assessment.
         # It is retained on refusal, never installed or deleted to force a pass.
-        library = self.data / 'server/saved_projects'
-        library.mkdir(exist_ok=True)
-        refused_source = library / 'candidate-check-unknown.zip'
+        library = self.data / 'server/saved_projects/candidate-check-unknown'
+        library.mkdir(parents=True, exist_ok=False)
+        refused_source = library / 'bundle.zip'
         with ZipFile(refused_source, 'x') as archive:
             archive.writestr('drivers/acme_candidate_unknown.py',
                              'raise RuntimeError("inactive candidate check source must not run")\n')
         if os.getuid() == 0:
             identity = self.data.stat()
+            os.chown(library.parent, identity.st_uid, identity.st_gid)
             os.chown(library, identity.st_uid, identity.st_gid)
             os.chown(refused_source, identity.st_uid, identity.st_gid)
         original = refused_source.read_bytes()

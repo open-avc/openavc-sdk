@@ -155,6 +155,18 @@ mode still returns `"status": "passed"` on success. Retain the original working
 installation on refusal and satisfy the report's remaining obligations through
 your existing firmware operation.
 
+Qualify setup clients before restarting an existing installation. An older open
+Programmer page can lose unsent setup fields when restart expires its sign-in;
+the server has not received those values and cannot restore them. The retained-input
+handoff applies to a submitted request with valid authentication, not an unsent
+form across session loss. Complete or cancel setup before an update and keep an
+affected update blocked when its client transition is unqualified.
+
+Custom setup clients must use the protected prepare, start, status, retrieval and
+acknowledgement protocol. An older single-request setup call must not be treated
+as a successful action or retried as a new pairing attempt after a refusal or lost
+response. Source and package checks do not qualify these client behaviors.
+
 1. Keep the currently qualified firmware and its build inputs available for
    recovery. Take a consistent backup of persistent OpenAVC data before a new
    firmware version first opens it.

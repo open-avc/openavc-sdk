@@ -106,9 +106,10 @@ class CandidateCheck:
             raise ValueError('Candidate preflight returned an invalid disposition. Keep the current server running.')
         return report
 
-    def before_manager_launch(self):
+    def before_manager_launch(self, log_path):
         self.journal = self.data / 'logs/recovery.jsonl'
         self.journal_offset = self.journal.stat().st_size
+        self.manager_log = log_path
 
     def observe(self, manager, hardware, management, *, role='installed'):
         if manager.poll() is not None or hardware.poll() is not None:
@@ -117,7 +118,15 @@ class CandidateCheck:
         config_path = self.config_path if role == 'installed' else self.candidate_config_path
         config_bytes = self.config_bytes if role == 'installed' else encoded(self.candidate_config)
         bundle = self.old_bundle if role == 'installed' else self.new_bundle
-        children = [child for child in psutil.Process(manager.pid).children()
+        manager_process = psutil.Process(manager.pid)
+        manager_command = [python, '-m', 'openavc_oem', '--config', str(config_path)]
+        manager_environment = manager_process.environ()
+        if (manager_process.cmdline() != manager_command or manager_process.cwd() != str(self.data)
+                or manager_environment != self.environment
+                or not any(item.fd == 2 and item.path == str(self.manager_log)
+                           for item in manager_process.open_files())):
+            raise ValueError('The current Manager launch differs from the retained example selection.')
+        children = [child for child in manager_process.children()
                     if child.cmdline() == [python, '-m', 'openavc_oem.server']]
         if len(children) != 1:
             raise ValueError('The example cannot identify its running server. Keep the current installation.')
@@ -153,22 +162,33 @@ class CandidateCheck:
                     Path(packages['openavc_oem']['origin']) / '__init__.py',
                     Path(packages['openavc_oem']['origin']) / 'server.py']
         if any('# code object from ' + str(path) not in lines for path in imported):
-            raise ValueError('The old server import observations are incomplete. Keep the current installation.')
+            raise ValueError('The server import observations are incomplete. Keep the current installation.')
+        manager_imported = [Path(packages['openavc_oem']['origin']) / name
+                            for name in ('__init__.py', '__main__.py', 'manager.py')]
+        manager_logs = self.manager_log.read_bytes()
+        manager_lines = manager_logs.decode('utf-8', errors='strict').splitlines()
+        if any('# code object from ' + str(path) not in manager_lines for path in manager_imported):
+            raise ValueError('The Manager import observations are incomplete. Keep the current installation.')
         (self.evidence / f'{role}-server-imports-{self.observations}.log').write_bytes(logs)
+        (self.evidence / f'{role}-manager-imports-{self.observations}.log').write_bytes(manager_logs)
         self.observations += 1
         for name, package in packages.items():
             root = Path(package['origin'])
             with ZipFile(bundle / 'wheels' / package['wheel']) as wheel:
-                for path in imported:
+                for path in [*imported, *manager_imported]:
                     if path.is_relative_to(root):
                         if path.read_bytes() != wheel.read(name + '/' + path.relative_to(root).as_posix()):
                             raise ValueError('Observed server source differs from its retained bundle.')
+        manager_launch = {'command': manager_process.cmdline(), 'cwd': manager_process.cwd(),
+                          'environment_sha256': sha(encoded(manager_environment)),
+                          'package_observations': {str(path): sha(path.read_bytes()) for path in manager_imported}}
         launch = {'command': core.cmdline(), 'cwd': core.cwd(),
                   'environment_sha256': sha(encoded(environment)),
                   'package_observations': {str(path): sha(path.read_bytes()) for path in imported}}
         return {'manager_pid': manager.pid, 'hardware_pid': hardware.pid,
+                'manager_created': manager_process.create_time(), 'manager_launch': manager_launch,
                 'server_pid': core.pid, 'server_created': core.create_time(),
-                'launch': launch, 'effective_launch_sha256': sha(encoded(launch))}
+                'launch': launch, 'effective_launch_sha256': sha(encoded({'manager': manager_launch, 'server': launch}))}
 
     def selection(self, observation):
         old_root = Path(self.packages['installed']['packages']['openavc']['origin'])
@@ -176,7 +196,7 @@ class CandidateCheck:
         # This binds a planned candidate launch, not a claim that it ran. Future
         # tokens/listener handles and operation exclusion remain the owner's job.
         planned = {'command': [self.new_python, '-m', 'openavc_oem.server'],
-                   'cwd': str(self.data), 'config_sha256': sha(encoded(self.candidate_config)),
+                   'cwd': str(self.data), 'config_sha256': sha(self.candidate_config_path.read_bytes()),
                    'package_root': str(new_root), 'state': 'not_started'}
         attempt = {'old': observation, 'planned_candidate': planned, 'recovery': self.recovery,
                    'candidate_bundle_sha256': sha((self.new_bundle / 'bundle.json').read_bytes())}
@@ -184,7 +204,7 @@ class CandidateCheck:
         return FirmwareSetupSelection(sha(encoded(attempt)),
             ServerSelection(sha(self.config_bytes), observation['effective_launch_sha256'],
                             Path(self.old_python), self.data, old_root, old_root.parent),
-            ServerSelection(sha(encoded(self.candidate_config)), sha(encoded(planned)),
+            ServerSelection(sha(self.candidate_config_path.read_bytes()), sha(encoded(planned)),
                             Path(self.new_python), self.data, new_root, new_root.parent),
             (), sha(encoded(self.recovery)))
 
@@ -203,6 +223,9 @@ class CandidateCheck:
         if not ready:
             raise ValueError('The old server is not responsive before candidate assessment.')
         try:
+            self.write_candidate_config()
+            if self.candidate_config_path.read_bytes() != encoded(self.candidate_config):
+                raise ValueError('The prepared candidate configuration differs from its selection.')
             self.verify_packages()
             return self.assess_sources(manager, hardware, management, refuse_unknown=refuse_unknown)
         finally:

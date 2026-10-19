@@ -234,7 +234,7 @@ def check(args):
         stop(manager)
         assert hardware.poll() is None
         if candidate:
-            candidate.before_manager_launch()
+            candidate.before_manager_launch(evidence / 'management-2.log')
         manager = launch('management-2', manager_command, environment)
         state = management()
         assert state['settings_valid'] and marker.read_text() == 'retained\n'
@@ -326,10 +326,13 @@ def check(args):
                 original_private = {str(path): hashlib.sha256(path.read_bytes()).hexdigest()
                                     for path in (args.out / 'private').rglob('*') if path.is_file()}
                 old_state = management()
+                project_path = args.out / 'data/server/project.avc'
+                project_before = project_path.read_bytes()
+                (evidence / 'project-before-transition.avc').write_bytes(project_before)
                 stop(manager)
                 assert hardware.poll() is None
-                candidate_config = candidate.write_candidate_config()
-                candidate.before_manager_launch()
+                candidate_config = candidate.candidate_config_path
+                candidate.before_manager_launch(evidence / 'management-candidate.log')
                 manager = launch('management-candidate', [candidate.new_python, '-m', 'openavc_oem',
                                  '--config', str(candidate_config)], environment)
                 wait_for(lambda: management().get('server_responsive')
@@ -340,6 +343,13 @@ def check(args):
                     assert new_state[field] == old_state[field]
                 assert server_api('/api/auth/required')[0]['state'] == 'required'
                 assert server_api('/api/state/var.firmware_check')[0]['value'] == 17
+                assert project_path.read_bytes() == project_before
+                project, etag = server_api('/api/project')
+                project['project']['description'] = 'Edited by the candidate server transition check'
+                server_api('/api/project', project, 'PUT', {'If-Match': etag})
+                project_edited = project_path.read_bytes()
+                assert project_edited != project_before
+                (evidence / 'project-edited-by-candidate.avc').write_bytes(project_edited)
                 wait_for(lambda: server_api('/api/devices/local')[0]['connected'])
                 server_api('/api/devices/local/command', {'command': 'increment', 'params': {}})
                 wait_for(lambda: server_api('/api/devices/local')[0]['state'].get('counter') == 1)
@@ -348,18 +358,20 @@ def check(args):
                 assert restricted['programmer'] is False
                 stop(manager)
                 assert hardware.poll() is None
-                project_after = (args.out / 'data/server/project.avc').read_bytes()
-                candidate.before_manager_launch()
+                assert project_path.read_bytes() == project_edited
+                candidate.before_manager_launch(evidence / 'management-returned.log')
                 manager = launch('management-returned', manager_command, environment)
                 wait_for(lambda: management().get('server_responsive')
                          and management()['process_logs']['queued_chunks'] == 0)
                 returned_origin = candidate.observe(manager, hardware, management)
                 returned = management()
                 assert returned['identity'] == old_state['identity'] and returned['programmer'] is False
-                assert (args.out / 'data/server/project.avc').read_bytes() == project_after
+                assert project_path.read_bytes() == project_edited
+                (evidence / 'project-after-return.avc').write_bytes(project_path.read_bytes())
                 management({'revision': returned['revision'], 'field': 'programmer', 'enabled': old_state['programmer']})
                 assert server_api('/api/auth/required')[0]['state'] == 'required'
                 assert server_api('/api/state/var.firmware_check')[0]['value'] == 29
+                assert server_api('/api/project')[0]['project']['description'] == project['project']['description']
                 wait_for(lambda: server_api('/api/devices/local')[0]['connected'])
                 server_api('/api/devices/local/command', {'command': 'increment', 'params': {}})
                 wait_for(lambda: server_api('/api/devices/local')[0]['state'].get('counter') == 2)
@@ -369,6 +381,10 @@ def check(args):
                     'candidate_origin': new_origin, 'returned_origin': returned_origin,
                     'candidate_started': True, 'current_access_restriction_retained': True,
                     'post_transition_value_retained_on_return': 29, 'hardware_effects': 2,
+                    'old_project_preserved_on_candidate_start': True,
+                    'candidate_project_edit_retained_on_return': True,
+                    'project_before_sha256': hashlib.sha256(project_before).hexdigest(),
+                    'project_edited_sha256': hashlib.sha256(project_edited).hexdigest(),
                     'original_private_configuration_unchanged': True,
                     'project_restore_performed': False, 'activation_authorized': False,
                     'installation_complete': False}

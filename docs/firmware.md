@@ -272,9 +272,9 @@ directory. This separate mode assesses the unchanged source set, stops its old
 manager, then starts the candidate manager and server with the candidate Python
 environment and a separate configuration. It verifies their actual imported
 package paths, retained identity, sign-in and saved variable, and an independently
-counted hardware command. After changing the saved value and disabling Programmer
-access, it stops the candidate and returns to the old environment. The new value,
-project bytes and access restriction must survive; a second hardware command is
+counted hardware command. After editing the project, changing the saved value and
+disabling Programmer access, it stops the candidate and returns to the old environment. The new value,
+edited project and access restriction must survive; a second hardware command is
 checked after explicitly restoring Programmer access for the test.
 
 The transition mode does not insert or remove the unknown-source refusal fixture.

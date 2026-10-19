@@ -8,6 +8,9 @@ your product description with the other versioned inputs of your firmware build.
 Product management is included by default, with Buildroot's Python, aiohttp and
 psutil packages. It provides equipment discovery, product authentication and the
 on/off controls. The native adapter and device service are separate processes.
+Use aiohttp 3.14.4 or newer and yarl 1.25.1 or newer in product firmware.
+For Buildroot 2026.08, apply the supplied recipe patch shown below before the
+first build. It updates those packages and their source and license hashes.
 The optional full OpenAVC server is packaged separately; see
 [building the server bundle](building.md#build-the-optional-server-bundle).
 The reference filesystem uses Python 3.14; the current offline server bundle
@@ -80,6 +83,8 @@ mkdir -p build
 curl --fail --location https://buildroot.org/downloads/buildroot-2026.08.tar.xz -o build/buildroot.tar.xz
 echo '87aaca4164ea9d5c8085854953018263f7963f07c22e73a2a2185cc98c581c34  build/buildroot.tar.xz' | sha256sum -c -
 tar -xf build/buildroot.tar.xz -C build
+patch --dry-run -d build/buildroot-2026.08 -p1 --forward < examples/linux/buildroot/patches/0001-update-python-http-dependencies.patch
+patch -d build/buildroot-2026.08 -p1 --forward < examples/linux/buildroot/patches/0001-update-python-http-dependencies.patch
 make -C build/buildroot-2026.08 O="$PWD/build/firmware" \
   BR2_EXTERNAL="$PWD/examples/linux/buildroot" openavc_aarch64_defconfig
 make -C build/firmware -j2
@@ -92,7 +97,8 @@ directory. Initial builds download the selected compiler and package sources.
 The export retains Buildroot's `legal-info/` manifests, collected notices, source
 archives and any warnings about unavailable material. Read its `README` and
 `manifest.csv` with `buildroot-packages.json` when preparing your firmware
-inventory. Buildroot 2026.08 also archives the local SDK and product-manager
+inventory. The reference recipe patch is included in `buildroot-patches/`.
+Buildroot 2026.08 also archives the local SDK and product-manager
 source inputs. These recipes apply their source allowlists to both the build
 copy and the source archive, so an output directory inside the SDK checkout
 cannot be copied into its own archive.

@@ -5,6 +5,11 @@ adapter, device service and Python product manager. Use it with the Wrynose
 release series and the `meta-oe` and `meta-python` layers from meta-openembedded.
 It targets Linux ARM64 and x86-64.
 
+The layer supplies aiohttp 3.14.4 and yarl 1.25.1 recipes for product management.
+Keep those versions or newer when another product layer selects dependencies;
+the product-manager package requires aiohttp 3.14.4 or newer. The recipes retain
+the source hashes and license notices with the firmware build.
+
 The optional full OpenAVC server is supplied separately. The reference build
 uses Python 3.14, while the current [offline server archive](building.md#build-the-optional-server-bundle)
 requires Python 3.12. Include a matching Python/server environment and qualify

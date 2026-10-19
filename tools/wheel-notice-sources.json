@@ -4816,8 +4816,8 @@
     },
     {
       "kind": "tar",
-      "url": "https://files.pythonhosted.org/packages/58/d9/22ce5786ac0c1653ae8b6c23bded02c1686d11f0dbb45b31ce128e0df985/aiohttp-3.14.3.tar.gz",
-      "sha256": "9491196535a88924a60afd5b5f434b5b203b6cc616250878dbdb223a8f7844bc",
+      "url": "https://files.pythonhosted.org/packages/93/2f/6a91adaa2dc26877d6ed2f54c0370c8910f019db7d77c5c6a194611e93ea/aiohttp-3.14.4.tar.gz",
+      "sha256": "831fc5bd39ec2517851e348f613ddb5447a47cf4b71cb09845af7ad7ed45d8f9",
       "component": {
         "name": "llhttp",
         "version": "9.4.2"
@@ -4826,17 +4826,17 @@
       "applies_to": [
         {
           "package": "aiohttp",
-          "version": "3.14.3",
+          "version": "3.14.4",
           "wheel_sha256": [
-            "543906c127fb1d929b95076db19b83fa2d46751006ff1e23b093aa5ac4d8db42",
-            "f631fe87a6f30df5fbe6d79640b25e4cffb38c31c7fb6f10871517b84b0f8c1a"
+            "322e3d741b3133bcbb981a41d4f9b8ac3545c18de49c662c2b1f4e1c770b98ad",
+            "c5e93ab6e6330dce40f5b43996f1fc5f2543296d263a5e4b59ff09e73870b7d8"
           ],
           "dependency_scope": "bundled-native"
         }
       ],
       "files": [
         {
-          "member": "aiohttp-3.14.3/vendor/llhttp/LICENSE",
+          "member": "aiohttp-3.14.4/vendor/llhttp/LICENSE",
           "sha256": "628168d68bb5a8a17e0bbefb3bd74e326e1edc20583d76f52f457c82c921867d"
         }
       ]

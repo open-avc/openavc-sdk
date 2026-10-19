@@ -33,6 +33,7 @@ def export(output, destination):
     shutil.copy2(output / '.config', destination / 'buildroot.config')
     shutil.copy2(output / 'images/rootfs.tar', destination)
     shutil.copytree(legal, destination / 'legal-info')
+    shutil.copytree(Path(__file__).parent / 'patches', destination / 'buildroot-patches')
     packages = json.loads(subprocess.check_output(
         ['make', '-s', '-C', str(output), 'show-info'], text=True))
     (destination / 'buildroot-packages.json').write_text(json.dumps(packages, indent=2) + '\n')

@@ -64,6 +64,8 @@ jobs:
           curl --fail --location https://buildroot.org/downloads/buildroot-2026.08.tar.xz -o build/buildroot.tar.xz
           echo '87aaca4164ea9d5c8085854953018263f7963f07c22e73a2a2185cc98c581c34  build/buildroot.tar.xz' | sha256sum -c -
           tar -xf build/buildroot.tar.xz -C build
+          patch --dry-run -d build/buildroot-2026.08 -p1 --forward < examples/linux/buildroot/patches/0001-update-python-http-dependencies.patch
+          patch -d build/buildroot-2026.08 -p1 --forward < examples/linux/buildroot/patches/0001-update-python-http-dependencies.patch
       - name: Build the package and reference filesystem
         run: |
           make -C build/buildroot-2026.08 O="$PWD/build/firmware" BR2_EXTERNAL="$PWD/examples/linux/buildroot" openavc_${{ matrix.target }}_defconfig

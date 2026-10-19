@@ -1,0 +1,59 @@
+--- a/package/python-aiohttp/python-aiohttp.mk
++++ b/package/python-aiohttp/python-aiohttp.mk
+@@ -4,12 +4,12 @@
+ #
+ ################################################################################
+ 
+-PYTHON_AIOHTTP_VERSION = 3.13.5
++PYTHON_AIOHTTP_VERSION = 3.14.4
+ PYTHON_AIOHTTP_SOURCE = aiohttp-$(PYTHON_AIOHTTP_VERSION).tar.gz
+-PYTHON_AIOHTTP_SITE = https://files.pythonhosted.org/packages/77/9a/152096d4808df8e4268befa55fba462f440f14beab85e8ad9bf990516918
++PYTHON_AIOHTTP_SITE = https://files.pythonhosted.org/packages/93/2f/6a91adaa2dc26877d6ed2f54c0370c8910f019db7d77c5c6a194611e93ea
+ PYTHON_AIOHTTP_SETUP_TYPE = setuptools
+-PYTHON_AIOHTTP_LICENSE = Apache-2.0
+-PYTHON_AIOHTTP_LICENSE_FILES = LICENSE.txt
++PYTHON_AIOHTTP_LICENSE = Apache-2.0, MIT
++PYTHON_AIOHTTP_LICENSE_FILES = LICENSE.txt vendor/llhttp/LICENSE
+ PYTHON_AIOHTTP_CPE_ID_VENDOR = aiohttp
+ PYTHON_AIOHTTP_CPE_ID_PRODUCT = aiohttp
+ 
+--- a/package/python-aiohttp/python-aiohttp.hash
++++ b/package/python-aiohttp/python-aiohttp.hash
+@@ -1,5 +1,5 @@
+-# md5, sha256 from https://pypi.org/pypi/aiohttp/json
+-md5  eb22a738fd03b7b009286e048a015780  aiohttp-3.13.5.tar.gz
+-sha256  9d98cc980ecc96be6eb4c1994ce35d28d8b1f5e5208a23b421187d1209dbb7d1  aiohttp-3.13.5.tar.gz
++# sha256 from https://pypi.org/pypi/aiohttp/3.14.4/json
++sha256  831fc5bd39ec2517851e348f613ddb5447a47cf4b71cb09845af7ad7ed45d8f9  aiohttp-3.14.4.tar.gz
+ # Locally computed sha256 checksums
+-sha256  9f80d0db7d755a941db4572172c270ecbd8f082ba215ddd095985942ed94a9eb  LICENSE.txt
++sha256  2e4be5fc6c4c72a466fcb665d726e049a6891981fe536c4f04b6366749461d23  LICENSE.txt
++sha256  628168d68bb5a8a17e0bbefb3bd74e326e1edc20583d76f52f457c82c921867d  vendor/llhttp/LICENSE
+--- a/package/python-yarl/python-yarl.mk
++++ b/package/python-yarl/python-yarl.mk
+@@ -4,11 +4,11 @@
+ #
+ ################################################################################
+ 
+-PYTHON_YARL_VERSION = 1.23.0
++PYTHON_YARL_VERSION = 1.25.1
+ PYTHON_YARL_SOURCE = yarl-$(PYTHON_YARL_VERSION).tar.gz
+-PYTHON_YARL_SITE = https://files.pythonhosted.org/packages/23/6e/beb1beec874a72f23815c1434518bfc4ed2175065173fb138c3705f658d4
++PYTHON_YARL_SITE = https://files.pythonhosted.org/packages/75/16/e8be8e2fb175bbf41a0680381a319f1199fae256588241a2ac8677eafb49
+ PYTHON_YARL_LICENSE = Apache-2.0
+-PYTHON_YARL_LICENSE_FILES = LICENSE
++PYTHON_YARL_LICENSE_FILES = LICENSE NOTICE
+ PYTHON_YARL_SETUP_TYPE = setuptools
+ PYTHON_YARL_DEPENDENCIES = \
+ 	host-python-cython \
+--- a/package/python-yarl/python-yarl.hash
++++ b/package/python-yarl/python-yarl.hash
+@@ -1,5 +1,5 @@
+-# md5, sha256 from https://pypi.org/pypi/yarl/json
+-md5  323301056acefbfe0d57e8ab8ba33eb3  yarl-1.23.0.tar.gz
+-sha256  53b1ea6ca88ebd4420379c330aea57e258408dd0df9af0992e5de2078dc9f5d5  yarl-1.23.0.tar.gz
++# sha256 from https://pypi.org/pypi/yarl/1.25.1/json
++sha256  03dd38de09bc213e9a8b29761eec33ee1d5318dac0e49d8af36e4d27830e23a7  yarl-1.25.1.tar.gz
+ # Locally computed sha256 checksums
+ sha256  cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30  LICENSE
++sha256  56d6ac6c8105c0a51304c21db060e361af9a8ea0af9a75c239c28b5d13693838  NOTICE

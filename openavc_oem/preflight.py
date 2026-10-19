@@ -1,16 +1,17 @@
 """Check an installed candidate against its trusted offline server bundle.
 
 Run in the candidate Python environment before stopping the current firmware.
-By default this reads package files only. Optional setup-source paths add the
-canonical read-only eligibility check for a host-supplied snapshot. Neither mode
-starts OpenAVC or grants firmware activation. The host owns bundle authenticity,
-complete installation discovery and firmware acceptance.
+By default this reads package files only. Supplied source paths or an explicit
+server selection add a canonical read-only source assessment in the verified
+candidate child. No mode starts OpenAVC or grants firmware activation. The host
+owns bundle authenticity, actual launch association and firmware acceptance.
 """
 import argparse
 from email.parser import BytesParser
 import hashlib
 from importlib.util import find_spec
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 import subprocess
@@ -62,7 +63,32 @@ def check_payload(wheel, package, root):
     return len(expected)
 
 
-def check(bundle, expected_core, *, setup_sources=None):
+_PACKAGE_BOOTSTRAP = '''import importlib.util, pathlib, sys
+roots = [pathlib.Path(sys.argv.pop(1)), pathlib.Path(sys.argv.pop(1))]
+for name, root in zip(('openavc', 'openavc_oem'), roots):
+    spec = importlib.util.spec_from_file_location(name, root / '__init__.py',
+                                               submodule_search_locations=[str(root)])
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+'''
+
+_CENSUS_CHILD = '''import json
+from openavc_oem.setup_inventory import selection_from_payload, assess_server_selection
+raw = sys.stdin.buffer.read(262145)
+result = assess_server_selection(selection_from_payload(raw),
+    resource=pathlib.Path(sys.argv[1]), expected_resource_sha256=sys.argv[2], target_sha256=sys.argv[3])
+result['evaluator'] = {'python': sys.executable,
+    'core_module': sys.modules['openavc.drivers.setup_preflight'].__file__,
+    'sdk_module': sys.modules['openavc_oem.setup_inventory'].__file__}
+print(json.dumps(result))
+sys.exit(1 if result['status'] == 'refused' else 0)
+'''
+
+
+def check(bundle, expected_core, *, setup_sources=None, setup_selection=None):
+    if setup_sources is not None and setup_selection is not None:
+        raise ValueError('Select either supplied source paths or the fixed server census.')
     if not re.fullmatch(r'[0-9a-f]{40}', expected_core):
         raise ValueError('Supply the complete core commit from your qualified firmware build.')
     record = json.loads((bundle / 'bundle.json').read_text(encoding='utf-8'))
@@ -95,7 +121,7 @@ def check(bundle, expected_core, *, setup_sources=None):
             root = package_root(package)
             checked[package] = {'origin': str(root), 'wheel': name, 'wheel_sha256': sha,
                                 'checked_files': check_payload(wheel, package, root)}
-            if package == 'openavc' and setup_sources is not None:
+            if package == 'openavc' and (setup_sources is not None or setup_selection is not None):
                 member = 'openavc/drivers/setup-compatibility.json'
                 if member not in wheel.namelist():
                     raise ValueError('The selected core has no setup source qualification resource.')
@@ -103,32 +129,77 @@ def check(bundle, expected_core, *, setup_sources=None):
     if set(checked) != set(packages.values()):
         raise ValueError('The server bundle must contain both OpenAVC and its manufacturer integration.')
     report = {'status': 'passed', 'core_commit': expected_core, 'packages': checked}
-    if setup_sources is not None:
+    if setup_sources is not None or setup_selection is not None:
         # Invoke the matching core without site hooks, inherited module state,
         # or installed bytecode caches (which the payload check excludes).
         # -B alone prevents writes but still reads an existing unchecked cache.
+        # Bootstrap exact packages; never put unchecked sibling directories on
+        # the child's search path, even when the two packages live separately.
         core_root = Path(checked['openavc']['origin'])
-        if not setup_sources:
+        sdk_root = Path(checked['openavc_oem']['origin'])
+        if setup_sources is not None and not setup_sources:
             raise ValueError('Supply the inventoried setup source paths.')
+        selection = None
+        if setup_selection is not None:
+            from openavc_oem.setup_inventory import selection_record
+            selection = selection_record(setup_selection)
+            candidate = setup_selection.candidate
+            if (candidate.package_root.resolve(strict=True) != core_root
+                    or candidate.app_root.resolve(strict=True) != core_root.parent
+                    or os.path.normcase(str(candidate.server_python.absolute()))
+                    != os.path.normcase(str(Path(sys.executable).absolute()))):
+                raise ValueError('Run the census with the selected candidate Python and verified package/app roots.')
         with tempfile.TemporaryDirectory(prefix='openavc-setup-preflight-') as cache:
+            child = (_CENSUS_CHILD if selection is not None else
+                     'from openavc.drivers.setup_preflight import main; sys.exit(main())')
             command = [sys.executable, '-I', '-S', '-B', '-X', 'pycache_prefix=' + cache, '-c',
-                       'import sys; sys.path.append(sys.argv.pop(1)); '
-                       'from openavc.drivers.setup_preflight import main; sys.exit(main())',
-                       str(core_root.parent),
-                       '--resource', str(core_root / 'drivers/setup-compatibility.json'),
-                       '--expect-resource', setup_resource_sha,
-                       '--target-sha256', checked['openavc']['wheel_sha256']]
-            for source in setup_sources:
-                command.extend(['--source', str(source)])
-            result = subprocess.run(command, capture_output=True, text=True, timeout=60)
+                       _PACKAGE_BOOTSTRAP + child, str(core_root), str(sdk_root)]
+            if selection is not None:
+                command.extend([str(core_root / 'drivers/setup-compatibility.json'), setup_resource_sha,
+                                checked['openavc']['wheel_sha256']])
+                # Canonical JSON is also the core assessment's selection hash.
+                # ASCII escaping keeps text-mode pipes byte-identical on Windows.
+                payload = json.dumps(selection, sort_keys=True, separators=(',', ':'), allow_nan=False)
+                if len(payload.encode('utf-8')) > 262144:
+                    raise ValueError('The firmware selection request exceeds its byte limit.')
+            else:
+                payload = None
+                command.extend(['--resource', str(core_root / 'drivers/setup-compatibility.json'),
+                                '--expect-resource', setup_resource_sha,
+                                '--target-sha256', checked['openavc']['wheel_sha256']])
+                for source in setup_sources:
+                    command.extend(['--source', str(source)])
+            result = subprocess.run(command, input=payload, capture_output=True, text=True, timeout=60)
         try:
             setup = json.loads(result.stdout)
         except (ValueError, TypeError):
             raise ValueError('The checked core setup evaluator did not return a report.') from None
         if (result.returncode not in (0, 1) or type(setup) is not dict
                 or setup.get('activation_authorized') is not False
-                or setup.get('status') != ('passed' if result.returncode == 0 else 'refused')):
+                or setup.get('status') != (('assessed' if selection is not None else 'passed')
+                                          if result.returncode == 0 else 'refused')):
             raise ValueError('The checked core setup evaluator did not return a valid disposition.')
+        if selection is not None:
+            sources = setup.get('sources', {})
+            if (setup.get('schema') != 'sdk-server-setup-assessment/v1'
+                    or setup.get('installation_complete') is not False
+                    or setup.get('profile_roles_observed') is not True
+                    or setup.get('selection') != selection
+                    or setup.get('selection_sha256') != hashlib.sha256(payload.encode('utf-8')).hexdigest()
+                    or type(sources) is not dict
+                    or sources.get('installation_complete') is not False
+                    or sources.get('activation_authorized') is not False
+                    or sources.get('target_sha256') != checked['openavc']['wheel_sha256']
+                    or sources.get('resource_sha256') != setup_resource_sha
+                    or setup.get('evaluator') != {
+                        'python': sys.executable,
+                        'core_module': str(core_root / 'drivers/setup_preflight.py'),
+                        'sdk_module': str(sdk_root / 'setup_inventory.py')}):
+                raise ValueError('The candidate census report differs from the selected payload or request.')
+            report.update(status=setup['status'], setup_inventory=setup,
+                          scope='package_payloads_and_selected_server_census',
+                          installation_complete=False, activation_authorized=False)
+            return report
         report.update(status=setup['status'], setup_sources=setup,
                       scope='package_payloads_and_supplied_primary_sources',
                       activation_authorized=False)

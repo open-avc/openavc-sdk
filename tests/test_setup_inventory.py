@@ -7,7 +7,10 @@ import tempfile
 import unittest
 from zipfile import ZipFile
 
-from openavc_oem.setup_inventory import FirmwareSetupSelection, ServerSelection, assess_server_selection
+from openavc_oem.setup_inventory import (
+    FirmwareSetupSelection, ServerSelection, assess_server_selection,
+    selection_from_payload, selection_from_record, selection_record,
+)
 
 
 class SetupInventory(unittest.TestCase):
@@ -126,6 +129,29 @@ class SetupInventory(unittest.TestCase):
         changed = self.assess(replace(self.selection, candidate=replace(
             self.selection.candidate, config_sha256='7' * 64)))
         self.assertNotEqual(changed['selection_sha256'], result['selection_sha256'])
+
+    def test_child_request_round_trip_is_closed_and_has_no_verification_override(self):
+        record = selection_record(self.selection)
+        self.assertEqual(selection_from_record(json.loads(json.dumps(record))), self.selection)
+        for mutate in (lambda x: x.update(verified=True),
+                       lambda x: x['launches']['installed'].update(password='must-not-cross'),
+                       lambda x: x.update(pending_imports=None),
+                       lambda x: x.update(pending_imports=['/tmp/source.zip'] * 33)):
+            value = json.loads(json.dumps(record))
+            mutate(value)
+            with self.assertRaises(ValueError):
+                selection_from_record(value)
+
+    def test_child_request_refuses_duplicate_fields_and_counts_utf8_bytes(self):
+        record = selection_record(self.selection)
+        payload = json.dumps(record).encode('utf-8')
+        self.assertEqual(selection_from_payload(payload), self.selection)
+        duplicate = payload[:-1] + b',"attempt_sha256":"' + b'8' * 64 + b'"}'
+        with self.assertRaisesRegex(ValueError, 'repeats'):
+            selection_from_payload(duplicate)
+        oversized = ('"' + '\u00e9' * 131072 + '"').encode('utf-8')
+        with self.assertRaisesRegex(ValueError, 'byte limit'):
+            selection_from_payload(oversized)
 
 
 if __name__ == '__main__':

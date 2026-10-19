@@ -113,8 +113,15 @@ built-in drivers and templates, and saved project bundles. It preserves aliases
 and refuses missing required directories or changed persistent data locations.
 
 `assess_server_selection` uses the canonical core evaluator on the captured
-bytes without importing installed drivers. Run it only in the qualified candidate
-environment; this API does not select or validate that environment. Its
+bytes without importing installed drivers. To bind the assessment to the checked
+candidate packages, pass the typed selection as `setup_selection` to
+`openavc_oem.preflight.check(bundle_path, expected_core, setup_selection=selection)`.
+Run this in the selected candidate Python environment. The function verifies both
+packages against the bundle, checks the selected candidate Python/package/app
+locations, then captures and evaluates in an isolated child using those exact
+package files. Supplied-source mode and fixed-selection mode are mutually exclusive.
+The lower-level `assess_server_selection` function alone does not select or
+validate its Python environment. Its
 `profile_roles_observed` field applies to the supplied selection. An `empty`
 source eligibility value means those locations contained no primary Python
 drivers; it does not prove an empty complete installation. The overall result

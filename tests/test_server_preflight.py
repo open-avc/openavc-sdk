@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from dataclasses import replace
 from unittest.mock import patch
 from zipfile import ZipFile
 
@@ -220,6 +221,95 @@ class ServerPreflight(unittest.TestCase):
             'raise RuntimeError("candidate module shadowed the standard library")\n')
         report = check(self.bundle, 'a' * 40, setup_sources=[source])
         self.assertEqual(report['setup_sources']['status'], 'passed')
+        self.assertFalse(marker.exists())
+
+    def census_fixture(self):
+        from openavc.drivers import setup_inventory, source_names
+        import openavc_oem.setup_inventory as adapter
+        source, _, _ = self.setup_source_fixture()
+        core = self.packages['openavc']
+        for module in (setup_inventory, source_names):
+            (core / 'drivers' / Path(module.__file__).name).write_bytes(Path(module.__file__).read_bytes())
+        (self.packages['openavc_oem'] / 'setup_inventory.py').write_bytes(Path(adapter.__file__).read_bytes())
+        data = self.root / 'product-data'
+        (data / 'server/driver_repo').mkdir(parents=True)
+        (data / 'server/driver_repo/installed.py').write_bytes(source.read_bytes())
+        old = self.root / 'old-package/openavc'
+        for root in (old, core):
+            (root / 'drivers/definitions').mkdir(parents=True, exist_ok=True)
+            (root / 'templates').mkdir(exist_ok=True)
+        self.repack_candidates()
+        selection = adapter.FirmwareSetupSelection(
+            '1' * 64,
+            adapter.ServerSelection('2' * 64, '3' * 64, self.root / 'old-python', data, old, old.parent),
+            adapter.ServerSelection('4' * 64, '5' * 64, Path(sys.executable), data, core, core.parent),
+            (), '6' * 64)
+        return selection, data / 'server/driver_repo/installed.py'
+
+    def test_fixed_census_runs_in_the_checked_child_and_binds_payload_and_request(self):
+        selection, source = self.census_fixture()
+        selection = replace(selection, installed=replace(
+            selection.installed, server_python=self.root / 'old-\u00e9-python'))
+        with patch('openavc.drivers.setup_preflight.assess_capture', side_effect=AssertionError('parent evaluator')):
+            report = check(self.bundle, 'a' * 40, setup_selection=selection)
+        self.assertEqual(report['status'], 'assessed')
+        self.assertFalse(report['activation_authorized'])
+        self.assertFalse(report['installation_complete'])
+        census = report['setup_inventory']
+        self.assertEqual(census['sources']['source_eligibility'], 'passed')
+        self.assertEqual(census['sources']['target_sha256'], report['packages']['openavc']['wheel_sha256'])
+        self.assertEqual(census['evaluator']['core_module'], str(self.packages['openavc'] / 'drivers/setup_preflight.py'))
+        source.write_bytes(b'unknown source must not execute')
+        self.assertEqual(check(self.bundle, 'a' * 40, setup_selection=selection)['status'], 'refused')
+
+    def test_census_rejects_wrong_candidate_before_reading_the_product(self):
+        selection, _ = self.census_fixture()
+        # Missing installed/data roots would fail capture; mismatch must be
+        # detected first, without discovering or executing the old interpreter.
+        installed = replace(selection.installed, product_data=self.root / 'missing-data')
+        for field in ('package_root', 'app_root', 'server_python'):
+            candidate = replace(selection.candidate, **{field: self.root})
+            with self.subTest(field=field):
+                with self.assertRaisesRegex(ValueError, 'selected candidate'):
+                    check(self.bundle, 'a' * 40, setup_selection=replace(
+                        selection, installed=installed, candidate=candidate))
+        with self.assertRaisesRegex(ValueError, 'either'):
+            check(self.bundle, 'a' * 40, setup_selection=selection, setup_sources=[])
+
+    def test_census_child_does_not_search_unchecked_sibling_packages_or_modules(self):
+        selection, _ = self.census_fixture()
+        sdk_parent = self.root / 'separate-sdk'
+        sdk_parent.mkdir()
+        old_sdk = self.packages['openavc_oem']
+        moved = sdk_parent / 'openavc_oem'
+        old_sdk.rename(moved)
+        self.packages['openavc_oem'] = moved
+        marker = self.root / 'unchecked-import'
+        code = f'from pathlib import Path\nPath({str(marker)!r}).write_text("bad")\nraise AssertionError("unchecked import")\n'
+        # Either parent ordering exposes an unchecked sibling. Neither parent
+        # may become an import search root in the isolated child.
+        for path in (old_sdk / '__init__.py', sdk_parent / 'openavc/__init__.py',
+                     sdk_parent / 'json.py', selection.candidate.app_root / 'argparse.py'):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(code)
+        report = check(self.bundle, 'a' * 40, setup_selection=selection)
+        self.assertEqual(report['status'], 'assessed')
+        self.assertEqual(report['setup_inventory']['evaluator']['sdk_module'], str(moved / 'setup_inventory.py'))
+        self.assertFalse(marker.exists())
+
+    def test_census_ignores_unchecked_sdk_and_core_bytecode(self):
+        selection, _ = self.census_fixture()
+        marker = self.root / 'unchecked-cache'
+        replacement = self.root / 'cache-payload.py'
+        replacement.write_text(f'from pathlib import Path\nPath({str(marker)!r}).write_text("bad")\n')
+        for path in (self.packages['openavc_oem'] / 'setup_inventory.py',
+                     self.packages['openavc'] / 'drivers/setup_inventory.py'):
+            cache = Path(importlib.util.cache_from_source(str(path)))
+            cache.parent.mkdir(exist_ok=True)
+            py_compile.compile(str(replacement), cfile=str(cache), doraise=True,
+                               invalidation_mode=py_compile.PycInvalidationMode.UNCHECKED_HASH)
+        report = check(self.bundle, 'a' * 40, setup_selection=selection)
+        self.assertEqual(report['status'], 'assessed')
         self.assertFalse(marker.exists())
 
 

@@ -8,6 +8,7 @@ and candidate selections retained by the owning firmware operation.
 """
 from dataclasses import asdict, dataclass
 from pathlib import Path
+import json
 import re
 
 
@@ -56,6 +57,68 @@ def _launch(selection):
             for key, value in asdict(selection).items()}
 
 
+def selection_record(selection: FirmwareSetupSelection) -> dict:
+    """Serialize only closed selection facts, never a capture or credential config."""
+    if type(selection) is not FirmwareSetupSelection:
+        raise ValueError('Supply an explicit firmware setup selection.')
+    _digest(selection.attempt_sha256)
+    _digest(selection.recovery_selection_sha256)
+    launches = {'installed': _launch(selection.installed), 'candidate': _launch(selection.candidate)}
+    if (type(selection.pending_imports) is not tuple or len(selection.pending_imports) > 32
+            or any(not isinstance(path, Path) for path in selection.pending_imports)):
+        raise ValueError('Supply the explicit bounded pending-import selection, including an empty tuple.')
+    for path in selection.pending_imports:
+        _path(path)
+    return {'schema': 'sdk-server-selection/v1',
+            'attempt_sha256': selection.attempt_sha256, 'launches': launches,
+            'pending_imports': [str(path) for path in selection.pending_imports],
+            'recovery_selection_sha256': selection.recovery_selection_sha256}
+
+
+def selection_from_record(record: dict) -> FirmwareSetupSelection:
+    """Decode the bounded internal candidate-child request, not source observations."""
+    if (type(record) is not dict or set(record) != {
+            'schema', 'attempt_sha256', 'launches', 'pending_imports', 'recovery_selection_sha256'}
+            or record['schema'] != 'sdk-server-selection/v1'
+            or type(record['launches']) is not dict
+            or set(record['launches']) != {'installed', 'candidate'}
+            or type(record['pending_imports']) is not list or len(record['pending_imports']) > 32
+            or any(type(path) is not str for path in record['pending_imports'])):
+        raise ValueError('The firmware server selection is incomplete or unsupported.')
+    launches = []
+    for name in ('installed', 'candidate'):
+        value = record['launches'][name]
+        if (type(value) is not dict or set(value) != {
+                'config_sha256', 'effective_launch_sha256', 'server_python',
+                'product_data', 'package_root', 'app_root'}
+                or any(type(item) is not str for item in value.values())):
+            raise ValueError('The firmware launch selection is incomplete or unsupported.')
+        launches.append(ServerSelection(value['config_sha256'], value['effective_launch_sha256'],
+                                        *(Path(value[key]) for key in (
+                                            'server_python', 'product_data', 'package_root', 'app_root'))))
+    result = FirmwareSetupSelection(record['attempt_sha256'], *launches,
+                                    tuple(Path(path) for path in record['pending_imports']),
+                                    record['recovery_selection_sha256'])
+    selection_record(result)
+    return result
+
+
+def selection_from_payload(payload: bytes) -> FirmwareSetupSelection:
+    """Read a closed, bounded UTF-8 request from the verified candidate parent."""
+    if type(payload) is not bytes or len(payload) > 262144:
+        raise ValueError('The firmware selection request exceeds its byte limit.')
+
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError('The firmware selection request repeats a field.')
+            result[key] = value
+        return result
+
+    return selection_from_record(json.loads(payload.decode('utf-8'), object_pairs_hook=unique))
+
+
 def assess_server_selection(selection: FirmwareSetupSelection, *, resource: Path,
                             expected_resource_sha256: str, target_sha256: str) -> dict:
     """Derive every fixed role and assess captured bytes without installation approval.
@@ -68,17 +131,8 @@ def assess_server_selection(selection: FirmwareSetupSelection, *, resource: Path
     from openavc.drivers.setup_inventory import capture_source_inputs
     from openavc.drivers.setup_preflight import assess_capture
 
-    if type(selection) is not FirmwareSetupSelection:
-        raise ValueError('Supply an explicit firmware setup selection.')
-    _digest(selection.attempt_sha256)
-    _digest(selection.recovery_selection_sha256)
+    facts = selection_record(selection)
     old, new = selection.installed, selection.candidate
-    launches = {'installed': _launch(old), 'candidate': _launch(new)}
-    if (type(selection.pending_imports) is not tuple or len(selection.pending_imports) > 32
-            or any(not isinstance(path, Path) for path in selection.pending_imports)):
-        raise ValueError('Supply the explicit bounded pending-import selection, including an empty tuple.')
-    for path in selection.pending_imports:
-        _path(path)
     if not old.product_data.samefile(new.product_data):
         raise ValueError('The selected server data directory changes; qualify its migration before replacement.')
     data_identity = old.product_data.stat()
@@ -110,9 +164,6 @@ def assess_server_selection(selection: FirmwareSetupSelection, *, resource: Path
     assessment = assess_capture(capture, resource=resource,
                                 expected_resource_sha256=expected_resource_sha256,
                                 target_sha256=target_sha256)
-    facts = {'attempt_sha256': selection.attempt_sha256, 'launches': launches,
-             'pending_imports': [str(path) for path in selection.pending_imports],
-             'recovery_selection_sha256': selection.recovery_selection_sha256}
     return {
         'schema': 'sdk-server-setup-assessment/v1', 'profile': 'sdk-python-server/v1',
         'scope': 'supplied_sdk_server_selection',

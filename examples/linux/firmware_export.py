@@ -35,7 +35,8 @@ def export_examples(target, generated, destination, builder, build_target=None):
     # Exercise the installed Python package, without a source package in /kit
     # that could shadow it and make a missing firmware dependency pass.
     (kit / 'examples/linux').mkdir(parents=True)
-    for name in ['check.py', 'check-provisioning.py', 'stage.py', 'hardware.service.in', 'management.service.in']:
+    for name in ['check.py', 'candidate_check.py', 'check-provisioning.py', 'stage.py',
+                 'hardware.service.in', 'management.service.in']:
         shutil.copy2(ROOT / 'examples/linux' / name, kit / 'examples/linux' / name)
     (kit / 'examples/linux/buildroot').mkdir()
     shutil.copy2(ROOT / 'examples/linux/buildroot/check-installed.py', kit / 'examples/linux/buildroot/check-installed.py')

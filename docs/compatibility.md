@@ -133,6 +133,28 @@ flags as false and name the outstanding launch association, package, client,
 recovery and cutover obligations. This API neither adds a pre-stop hook to an
 existing updater nor replaces the installed-package preflight above.
 
+An updater running outside candidate Python can write `selection_record(selection)`
+as JSON to a protected file, then invoke the candidate's installed command:
+
+```sh
+python3 -m openavc_oem.preflight --bundle /path/to/openavc-server \
+  --expect-core YOUR_CORE_COMMIT --setup-selection /protected/server-selection.json
+```
+
+Use the selected candidate environment and retain the report before stopping or
+changing the current server. The file contains only the schema's path and identity
+fields, not configuration contents, passwords or arbitrary environment values.
+The command accepts at most 262,144 bytes and rejects duplicate or unknown fields.
+Do not combine `--setup-selection` and `--setup-source`.
+
+In selection mode, exit zero means `"status": "assessed"`: the selected source
+census completed without a source refusal. It does **not** mean that replacement
+is approved. `installation_complete` and `activation_authorized` remain false.
+Exit one means refusal; an invalid command line exits two. The existing package-only
+mode still returns `"status": "passed"` on success. Retain the original working
+installation on refusal and satisfy the report's remaining obligations through
+your existing firmware operation.
+
 1. Keep the currently qualified firmware and its build inputs available for
    recovery. Take a consistent backup of persistent OpenAVC data before a new
    firmware version first opens it.

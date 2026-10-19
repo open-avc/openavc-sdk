@@ -319,6 +319,49 @@ class ServerPreflight(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'output byte limit'):
                 check(self.bundle, 'a' * 40, setup_selection=selection)
 
+    def selection_cli(self, payload, expected, *, extra=()):
+        path = self.root / 'selection.json'
+        path.write_bytes(payload)
+        environment = {key: value for key, value in os.environ.items()
+                       if not key.startswith(('OPENAVC_', 'PYTHON'))}
+        environment['PYTHONPATH'] = str(self.root / 'candidate')
+        result = subprocess.run([sys.executable, '-m', 'openavc_oem.preflight',
+                                 '--bundle', str(self.bundle), '--expect-core', 'a' * 40,
+                                 '--setup-selection', str(path), *extra],
+                                cwd=self.root, env=environment, capture_output=True,
+                                text=True, timeout=15)
+        self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+        self.assertEqual(path.read_bytes(), payload)
+        if expected == 2:
+            self.assertFalse(result.stdout)
+            return result.stderr
+        report = json.loads(result.stdout)
+        self.assertIs(report['activation_authorized'], False)
+        self.assertIs(report['installation_complete'], False)
+        return report
+
+    def test_selection_command_preserves_assessed_refused_and_package_dispositions(self):
+        from openavc_oem.setup_inventory import selection_record
+        selection, source = self.census_fixture()
+        payload = json.dumps(selection_record(selection)).encode()
+        report = self.selection_cli(payload, 0)
+        self.assertEqual(report['status'], 'assessed')
+        self.assertEqual(report['setup_inventory']['selection'], selection_record(selection))
+        source.write_bytes(b'unknown source must not execute')
+        report = self.selection_cli(payload, 1)
+        self.assertEqual(report['status'], 'refused')
+        self.assertEqual(report['setup_inventory']['sources']['source_eligibility'], 'refused')
+        self.assertEqual(check(self.bundle, 'a' * 40)['status'], 'passed')
+
+    def test_selection_command_refuses_malformed_oversized_and_ambiguous_modes(self):
+        self.census_fixture()
+        for payload in (b'{"schema":1,"schema":2}', b'{"activation_authorized":true}',
+                        b'\xff', b' ' * 262145):
+            with self.subTest(length=len(payload)):
+                self.assertEqual(self.selection_cli(payload, 1)['status'], 'refused')
+        error = self.selection_cli(b'{}', 2, extra=('--setup-source', str(self.root / 'source.py')))
+        self.assertIn('not allowed with argument', error)
+
 
 class EvaluatorTransport(unittest.TestCase):
     def run_child(self, code, payload=None, *, output_limit=16384, error_limit=4096, timeout=5):

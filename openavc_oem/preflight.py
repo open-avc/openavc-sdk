@@ -15,6 +15,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import stat
 import subprocess
 import sys
 import tempfile
@@ -284,20 +285,34 @@ def main():
                         help='Extracted, trusted offline server bundle directory')
     parser.add_argument('--expect-core', required=True,
                         help='Complete core commit selected for this firmware build')
-    parser.add_argument('--setup-source', action='append', type=Path,
-                        help='Explicit regular Python source in a protected installation snapshot; repeat per source')
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument('--setup-source', action='append', type=Path,
+                           help='Explicit regular Python source in a protected installation snapshot; repeat per source')
+    selection.add_argument('--setup-selection', type=Path,
+                           help='Protected SDK server selection JSON emitted by the firmware update owner')
     args = parser.parse_args()
     try:
+        selected = None
+        if args.setup_selection is not None:
+            from openavc_oem.setup_inventory import selection_from_payload
+            if not args.setup_selection.is_file():
+                raise ValueError('Supply a protected regular server selection file.')
+            with args.setup_selection.open('rb') as stream:
+                if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                    raise ValueError('Supply a protected regular server selection file.')
+                selected = selection_from_payload(stream.read(262145))
         result = check(args.bundle.resolve(strict=True), args.expect_core,
-                       setup_sources=args.setup_source)
+                       setup_sources=args.setup_source, setup_selection=selected)
     except (OSError, ValueError, KeyError, TypeError, BadZipFile, subprocess.TimeoutExpired) as error:
         result = {'status': 'refused', 'detail': str(error)}
-        if args.setup_source is not None:
+        if args.setup_source is not None or args.setup_selection is not None:
             result['activation_authorized'] = False
+        if args.setup_selection is not None:
+            result['installation_complete'] = False
         print(json.dumps(result))
         return 1
     print(json.dumps(result, indent=2))
-    return 0 if result['status'] == 'passed' else 1
+    return 0 if result['status'] in ('passed', 'assessed') else 1
 
 
 if __name__ == '__main__':

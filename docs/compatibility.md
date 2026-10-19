@@ -162,8 +162,8 @@ handoff applies to a submitted request with valid authentication, not an unsent
 form across session loss. Complete or cancel setup before an update and keep an
 affected update blocked when its client transition is unqualified.
 
-Custom setup clients must use the protected prepare, start, status, retrieval and
-acknowledgement protocol. An older single-request setup call must not be treated
+Custom setup clients must use the protected [setup request sequence](#setup-requests-from-your-application).
+An older single-request setup call must not be treated
 as a successful action or retried as a new pairing attempt after a refusal or lost
 response. Source and package checks do not qualify these client behaviors.
 
@@ -195,6 +195,41 @@ format is not assumed readable by an older server. The
 [firmware guide](firmware.md#firmware-updates-rollback-and-reset) describes the
 storage and shutdown boundaries; qualify interrupted update and recovery using
 your actual updater.
+
+## Setup requests from your application
+
+Use the server's authenticated Programmer API for commissioning actions. Keep
+current authorization on every request. A result capability does not replace
+authentication and becomes unusable when its original permission is revoked.
+The device and action IDs come from the installed driver's setup declaration.
+
+Every request below is a JSON `POST`. Replace `{device}` and `{action}` with those
+IDs, and supply the action's declared inputs in `params`.
+
+| Request | Body | Response to retain |
+|---|---|---|
+| `/api/devices/{device}/actions/{action}/prepare` | `{"params": {}}` | `run_id` and `capability`; preparation starts no device work. |
+| `/api/devices/{device}/actions/{action}/start` | `{"capability": "...", "params": {}}` | Current run status; use the exact inputs retained at preparation. |
+| `/api/setup-actions/status` | `{"capability": "..."}` | `status`, `progress`, `result` and `secret`; wait for `status: "terminal"`. |
+| `/api/setup-actions/retrieve` | `{"capability": "..."}` | When `secret.state` is `available`, explicit retrieval returns `generation` and credential `values`. |
+| `/api/setup-actions/acknowledge` | `{"capability": "...", "generation": 1}` | Acknowledge the generation actually retrieved after the operator has used it. |
+
+Retain the capability in memory before sending Start. If the Start response is
+lost, request status using that same capability. Repeating Start with the same
+capability and unchanged inputs does not start another action. A new preparation
+is a different attempt; do not use it to recover an uncertain physical result.
+
+Status and progress contain no generated credential values. A failed save can
+leave a generated credential available for retrieval; check both the result and
+`secret.state`. If a retrieval response is lost, retrieve again before
+acknowledging. Acknowledgement clears that credential generation.
+
+Keep capabilities and retrieved credentials out of URLs, logs and persistent
+browser storage. Expiry, revocation or process loss can make the result
+unavailable. On `410`, check the device and report the unavailable result; do not
+automatically pair again. On `401` or `403`, resolve authorization before any
+further action. The older single-request invoke endpoint does not start setup
+for a non-browser client; update that client to this sequence.
 
 ## How upstream changes are checked
 

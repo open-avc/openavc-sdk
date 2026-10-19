@@ -4,6 +4,7 @@ from email.parser import BytesParser
 import hashlib
 from importlib import metadata, resources
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -153,6 +154,54 @@ with tempfile.TemporaryDirectory(prefix='openavc-lock-check-') as temporary:
     result['mismatched_candidate'] = json.loads(refused.stdout)
     result['original_source_restored'] = True
     (bundle / 'installed-preflight.json').write_text(json.dumps(result, indent=2) + '\n')
+    # Exercise the literal installed selection command, not the checkout API.
+    # This same-build fixture tests admission only, never a running upgrade.
+    from openavc_oem.setup_inventory import FirmwareSetupSelection, ServerSelection, selection_record
+
+    data = scratch / 'product'
+    data.mkdir()
+    package_root = Path(result['packages']['openavc']['origin'])
+    selected = ServerSelection(hashlib.sha256(b'fixture-config').hexdigest(),
+        hashlib.sha256(b'fixture-planned-launch').hexdigest(), Path(sys.executable),
+        data, package_root, package_root.parent)
+    selection = selection_record(FirmwareSetupSelection(
+        hashlib.sha256(b'fixture-attempt').hexdigest(), selected, selected, (),
+        hashlib.sha256(b'fixture-no-activation').hexdigest()))
+    selection_path = scratch / 'selection.json'
+    selection_path.write_text(json.dumps(selection))
+    selected_command = [*command, '--setup-selection', str(selection_path)]
+    selection_checks = {}
+
+    def selected_run(name, expected):
+        response = subprocess.run(selected_command, cwd=scratch, text=True, capture_output=True, timeout=90)
+        report = json.loads(response.stdout)
+        assert response.returncode == (1 if expected == 'refused' else 0), response.stdout + response.stderr
+        assert report['status'] == expected and report['activation_authorized'] is False
+        assert report.get('installation_complete') is not True
+        if expected == 'assessed':
+            assert report['setup_inventory']['selection'] == selection
+            assert report['packages'] == result['packages']
+        selection_checks[name] = report
+
+    selected_run('baseline', 'assessed')
+    archive_path = data / 'server/saved_projects/unknown/bundle.zip'
+    archive_path.parent.mkdir(parents=True)
+    unknown = b'raise RuntimeError("an inactive source must not execute")\n'
+    with ZipFile(archive_path, 'x') as archive:
+        archive.writestr('drivers/acme_unqualified.py', unknown)
+    archive_before = archive_path.read_bytes()
+    selected_run('unknown_inactive_source', 'refused')
+    assert hashlib.sha256(unknown).hexdigest() in json.dumps(selection_checks['unknown_inactive_source'])
+    assert archive_path.read_bytes() == archive_before
+    selection_path.write_text('[' * 2000 + '0' + ']' * 2000)
+    selected_run('excessive_nesting', 'refused')
+    selection_path.unlink()
+    if hasattr(os, 'mkfifo'):
+        os.mkfifo(selection_path)
+        selected_run('nonregular_selection', 'refused')
+    (bundle / 'installed-selection.json').write_text(json.dumps({
+        'scope': 'same_build_conditional_command_no_activation', 'checks': selection_checks,
+        'unknown_source_preserved': True}, indent=2) + '\n')
     bad_lock = scratch / 'changed-hash.txt'
     name = next(iter(locked))
     bad_lock.write_text(f'{name}=={locked[name][0]} --hash=sha256:{"0" * 64}\n')

@@ -186,6 +186,16 @@ jobs:
           build/offline-environment/bin/python -m pip check
           build/offline-environment/bin/python tests/check_server_bundle.py build/server-extracted/openavc-server
           python build/extracted/openavc-sdk/collect-diagnostics.py --server-bundle build/server-extracted/openavc-server --out build/server-bundle-support.json
+      - name: Check installed candidate admission and same-build server return
+        run: |
+          python -m venv build/offline-return-environment
+          build/offline-return-environment/bin/python -m pip install --no-index --find-links=build/server-extracted/openavc-server/wheels --require-hashes -r build/server-extracted/openavc-server/requirements.txt
+          build/offline-return-environment/bin/python -m pip check
+          candidate="$GITHUB_WORKSPACE/build/offline-environment/bin/python"
+          installed="$GITHUB_WORKSPACE/build/offline-return-environment/bin/python"
+          bundle="$GITHUB_WORKSPACE/build/server-extracted/openavc-server"
+          "$candidate" build/extracted/openavc-sdk/examples/linux/check.py --with-server --python "$installed" --installed-bundle "$bundle" --candidate-python "$candidate" --candidate-bundle "$bundle" --out build/firmware-candidate-assessment
+          "$candidate" build/extracted/openavc-sdk/examples/linux/check.py --with-server --server-transition --python "$installed" --installed-bundle "$bundle" --candidate-python "$candidate" --candidate-bundle "$bundle" --out build/firmware-server-transition
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -199,6 +209,7 @@ jobs:
             build/package/build-image.txt
             build/server-bundle/*.json
             build/server-extracted/openavc-server/installed-preflight.json
+            build/server-extracted/openavc-server/installed-selection.json
             build/server-bundle/*.tar.gz
             build/server-bundle/*.sha256
             build/server-bundle/build-image.txt
@@ -239,6 +250,12 @@ jobs:
             build/extracted/openavc-sdk/build/resource-comparison.json
             build/extracted/openavc-sdk/build/runtime-support.json
             build/firmware-*/*.log
+            build/firmware-*/*.avc
+            build/firmware-*/candidate-assessment/*.stdout
+            build/firmware-*/candidate-assessment/*.stderr
+            build/firmware-*/candidate-assessment/*-command.json
+            build/firmware-*/candidate-assessment/*-imports-*.log
+            build/firmware-*/candidate-assessment/pre-teardown-preservation.json
             build/extracted/openavc-sdk/build/firmware-*/report.json
             build/extracted/openavc-sdk/build/support-preview.json
             build/extracted/openavc-sdk/build/firmware-*/product-*/report.json

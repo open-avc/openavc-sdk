@@ -210,6 +210,9 @@ jobs:
             build/server-bundle/*.json
             build/server-extracted/openavc-server/installed-preflight.json
             build/server-extracted/openavc-server/installed-selection.json
+            build/server-extracted/openavc-server/installed-selection-evidence/*-command.json
+            build/server-extracted/openavc-server/installed-selection-evidence/*.stdout
+            build/server-extracted/openavc-server/installed-selection-evidence/*.stderr
             build/server-bundle/*.tar.gz
             build/server-bundle/*.sha256
             build/server-bundle/build-image.txt
@@ -256,6 +259,9 @@ jobs:
             build/firmware-*/candidate-assessment/*-command.json
             build/firmware-*/candidate-assessment/*-imports-*.log
             build/firmware-*/candidate-assessment/pre-teardown-preservation.json
+            build/firmware-*/candidate-assessment/attempt.json
+            build/firmware-*/candidate-assessment/selection.json
+            build/firmware-*/product/data/logs/recovery.jsonl
             build/extracted/openavc-sdk/build/firmware-*/report.json
             build/extracted/openavc-sdk/build/support-preview.json
             build/extracted/openavc-sdk/build/firmware-*/product-*/report.json

@@ -171,9 +171,19 @@ with tempfile.TemporaryDirectory(prefix='openavc-lock-check-') as temporary:
     selection_path.write_text(json.dumps(selection))
     selected_command = [*command, '--setup-selection', str(selection_path)]
     selection_checks = {}
+    selection_evidence = bundle / 'installed-selection-evidence'
+    selection_evidence.mkdir(exist_ok=True)
 
     def selected_run(name, expected):
-        response = subprocess.run(selected_command, cwd=scratch, text=True, capture_output=True, timeout=90)
+        (selection_evidence / (name + '-command.json')).write_text(json.dumps(selected_command) + '\n')
+        try:
+            response = subprocess.run(selected_command, cwd=scratch, capture_output=True, timeout=90)
+        except subprocess.TimeoutExpired as error:
+            (selection_evidence / (name + '.stdout')).write_bytes(error.stdout or b'')
+            (selection_evidence / (name + '.stderr')).write_bytes(error.stderr or b'')
+            raise
+        (selection_evidence / (name + '.stdout')).write_bytes(response.stdout)
+        (selection_evidence / (name + '.stderr')).write_bytes(response.stderr)
         report = json.loads(response.stdout)
         assert response.returncode == (1 if expected == 'refused' else 0), response.stdout + response.stderr
         assert report['status'] == expected and report['activation_authorized'] is False

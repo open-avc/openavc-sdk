@@ -102,6 +102,27 @@ before replacing anything. An existing updater does not gain this check merely
 by installing a newer server. Keep affected upgrades blocked until their actual
 admission and recovery paths have been qualified.
 
+For an SDK-managed Python server, the `openavc_oem.setup_inventory` Python API
+also provides a conditional source census. The firmware owner supplies a
+`FirmwareSetupSelection` containing both `ServerSelection` values, explicit
+pending project bundles (an empty tuple is meaningful), and the identities of
+its staging attempt and recovery selection. Configuration and effective launch
+identities are SHA-256 values; do not pass passwords or environment dictionaries.
+The function derives persistent and retained driver directories, both packages'
+built-in drivers and templates, and saved project bundles. It preserves aliases
+and refuses missing required directories or changed persistent data locations.
+
+`assess_server_selection` uses the canonical core evaluator on the captured
+bytes without importing installed drivers. Run it only in the qualified candidate
+environment; this API does not select or validate that environment. Its
+`profile_roles_observed` field applies to the supplied selection. An `empty`
+source eligibility value means those locations contained no primary Python
+drivers; it does not prove an empty complete installation. The overall result
+is `assessed` or `refused`, never upgrade approval. Reports retain both authority
+flags as false and name the outstanding launch association, package, client,
+recovery and cutover obligations. This API neither adds a pre-stop hook to an
+existing updater nor replaces the installed-package preflight above.
+
 1. Keep the currently qualified firmware and its build inputs available for
    recovery. Take a consistent backup of persistent OpenAVC data before a new
    firmware version first opens it.

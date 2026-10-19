@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from dataclasses import replace
 from unittest.mock import patch
@@ -311,6 +312,65 @@ class ServerPreflight(unittest.TestCase):
         report = check(self.bundle, 'a' * 40, setup_selection=selection)
         self.assertEqual(report['status'], 'assessed')
         self.assertFalse(marker.exists())
+
+    def test_census_refuses_when_the_actual_child_report_exceeds_the_cap(self):
+        selection, _ = self.census_fixture()
+        with patch.object(preflight, '_REPORT_BYTES', 128):
+            with self.assertRaisesRegex(ValueError, 'output byte limit'):
+                check(self.bundle, 'a' * 40, setup_selection=selection)
+
+
+class EvaluatorTransport(unittest.TestCase):
+    def run_child(self, code, payload=None, *, output_limit=16384, error_limit=4096, timeout=5):
+        children = []
+        original = subprocess.Popen
+        threads_before = set(threading.enumerate())
+
+        def tracked(*args, **kwargs):
+            process = original(*args, **kwargs)
+            children.append(process)
+            return process
+
+        try:
+            with patch.object(preflight, '_REPORT_BYTES', output_limit), \
+                    patch.object(preflight, '_ERROR_BYTES', error_limit), \
+                    patch.object(preflight, '_CHILD_TIMEOUT', timeout), \
+                    patch.object(preflight.subprocess, 'Popen', side_effect=tracked):
+                return preflight._run_evaluator([sys.executable, '-I', '-S', '-c', code], payload)
+        finally:
+            self.assertEqual(len(children), 1)
+            self.assertIsNotNone(children[0].poll())
+            self.assertTrue(children[0].stdin.closed)
+            self.assertTrue(children[0].stdout.closed)
+            self.assertTrue(children[0].stderr.closed)
+            self.assertEqual(set(threading.enumerate()), threads_before)
+
+    def test_duplex_request_and_exact_output_limit_preserve_utf8(self):
+        payload = '\u00e9' * 100000
+        result = self.run_child(
+            'import sys; sys.stderr.buffer.write(b"x" * 4096); '
+            'sys.stderr.flush(); data=sys.stdin.buffer.read(); '
+            'sys.stdout.buffer.write(data)', payload, output_limit=len(payload.encode()))
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, payload)
+        self.assertEqual(result.stderr, 'x' * 4096)
+
+    def test_stdout_and_stderr_overflow_refuse_and_reap(self):
+        for stream in ('stdout', 'stderr'):
+            with self.subTest(stream=stream):
+                with self.assertRaisesRegex(ValueError, 'output byte limit'):
+                    self.run_child(f'import sys,time; sys.{stream}.buffer.write(b"x" * 65536); '
+                                   f'sys.{stream}.flush(); time.sleep(5)')
+
+    def test_timeout_refuses_and_reaps_even_with_unconsumed_request(self):
+        with self.assertRaisesRegex(ValueError, 'time limit'):
+            self.run_child('import time; time.sleep(5)', 'x' * 262144, timeout=0.2)
+
+    def test_invalid_encoding_refuses_and_nonzero_result_is_preserved(self):
+        with self.assertRaisesRegex(ValueError, 'invalid UTF-8'):
+            self.run_child('import sys; sys.stdout.buffer.write(b"\\xff")')
+        result = self.run_child('import sys; print("refused"); sys.exit(1)')
+        self.assertEqual((result.returncode, result.stdout), (1, 'refused\n'))
 
 
 if __name__ == '__main__':

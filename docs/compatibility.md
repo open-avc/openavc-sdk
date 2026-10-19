@@ -120,6 +120,9 @@ Run this in the selected candidate Python environment. The function verifies bot
 packages against the bundle, checks the selected candidate Python/package/app
 locations, then captures and evaluates in an isolated child using those exact
 package files. Supplied-source mode and fixed-selection mode are mutually exclusive.
+The evaluator refuses reports larger than 32 MiB, error output larger than 64 KiB,
+or an evaluation lasting more than 60 seconds. Keep the operating firmware running
+on refusal; retain the selected files for investigation.
 The lower-level `assess_server_selection` function alone does not select or
 validate its Python environment. Its
 `profile_roles_observed` field applies to the supplied selection. An `empty`

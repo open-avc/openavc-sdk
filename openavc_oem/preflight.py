@@ -7,6 +7,7 @@ candidate child. No mode starts OpenAVC or grants firmware activation. The host
 owns bundle authenticity, actual launch association and firmware acceptance.
 """
 import argparse
+import contextlib
 from email.parser import BytesParser
 import hashlib
 from importlib.util import find_spec
@@ -17,6 +18,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import threading
 from zipfile import BadZipFile, ZipFile
 
 
@@ -84,6 +86,76 @@ result['evaluator'] = {'python': sys.executable,
 print(json.dumps(result))
 sys.exit(1 if result['status'] == 'refused' else 0)
 '''
+
+
+_REPORT_BYTES = 32 * 1024 * 1024
+_ERROR_BYTES = 64 * 1024
+_CHILD_TIMEOUT = 60
+
+
+def _run_evaluator(command, payload):
+    """Drain both pipes with finite storage and reap the child on every outcome."""
+    output, errors = bytearray(), bytearray()
+    failures = []
+    with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE) as process:
+        def stop():
+            with contextlib.suppress(ProcessLookupError):
+                process.kill()
+
+        def read(stream, retained, limit):
+            try:
+                with stream:
+                    while chunk := stream.read1(65536):
+                        if len(retained) + len(chunk) > limit:
+                            failures.append('The setup evaluator exceeded its output byte limit.')
+                            stop()
+                            return
+                        retained.extend(chunk)
+            except OSError:
+                failures.append('The setup evaluator output could not be read.')
+                stop()
+
+        def write():
+            try:
+                with process.stdin:
+                    if payload is not None:
+                        process.stdin.write(payload.encode('utf-8'))
+            except BrokenPipeError:
+                # A refusing or failed child may exit before consuming input.
+                pass
+            except OSError:
+                failures.append('The setup evaluator request could not be written.')
+                stop()
+
+        workers = [threading.Thread(target=read, args=(process.stdout, output, _REPORT_BYTES)),
+                   threading.Thread(target=read, args=(process.stderr, errors, _ERROR_BYTES)),
+                   threading.Thread(target=write)]
+        started = []
+        try:
+            for worker in workers:
+                worker.start()
+                started.append(worker)
+            process.wait(timeout=_CHILD_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            failures.append('The setup evaluator exceeded its time limit.')
+            stop()
+        except BaseException:
+            stop()
+            raise
+        finally:
+            # Only the verified, non-spawning evaluator runs here. Joining its
+            # pipe readers also catches overflow after the child has exited.
+            process.wait()
+            for worker in started:
+                worker.join()
+        if failures:
+            raise ValueError(failures[0])
+        try:
+            return subprocess.CompletedProcess(command, process.returncode,
+                                               output.decode('utf-8'), errors.decode('utf-8'))
+        except UnicodeDecodeError:
+            raise ValueError('The setup evaluator returned invalid UTF-8.') from None
 
 
 def check(bundle, expected_core, *, setup_sources=None, setup_selection=None):
@@ -169,7 +241,7 @@ def check(bundle, expected_core, *, setup_sources=None, setup_selection=None):
                                 '--target-sha256', checked['openavc']['wheel_sha256']])
                 for source in setup_sources:
                     command.extend(['--source', str(source)])
-            result = subprocess.run(command, input=payload, capture_output=True, text=True, timeout=60)
+            result = _run_evaluator(command, payload)
         try:
             setup = json.loads(result.stdout)
         except (ValueError, TypeError):

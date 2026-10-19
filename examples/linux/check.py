@@ -23,6 +23,12 @@ from product_checks import Client, read_json  # noqa: E402
 
 
 def check(args):
+    candidate_options = (args.candidate_python, args.candidate_bundle, args.installed_bundle)
+    candidate_check = any(value is not None for value in candidate_options)
+    if candidate_check and (not all(value is not None for value in candidate_options)
+                            or not args.with_server or args.update or args.storage_recovery):
+        raise ValueError('For candidate assessment, supply --with-server, --installed-bundle, '
+                         '--candidate-python and --candidate-bundle; run other update/recovery exercises separately.')
     alternate = ROOT / ('build/example-cpp' if args.language == 'c' else 'build/example-c')
     if args.update and not alternate.is_file():
         raise ValueError('For --update, build both C and C++ examples from a source checkout first. See docs/firmware.md.')
@@ -119,6 +125,11 @@ def check(args):
     hardware_environment = {**environment, 'OPENAVC_PRODUCT_SOCKET': config['bridge_path'],
                             'OPENAVC_DEVICE_ID': config['identity']}
     manager_command = [str(args.python), '-m', 'openavc_oem', '--config', str(args.out / 'private/openavc.json')]
+    candidate = None
+    if candidate_check:
+        from candidate_check import CandidateCheck
+        candidate = CandidateCheck(args, evidence, args.out / 'private/openavc.json', environment)
+        environment = candidate.environment
     def observe_reconnect(name):
         log = (evidence / (name + '.log')).open('w')
         streams.append(log)
@@ -207,7 +218,7 @@ def check(args):
             assert state['server_running'] and state['equipment']['reserved_locally']
             assert not state['equipment']['remote_access_active'] and not state['equipment']['discovery_active']
             report['checks'].append('full_server_starts_and_reserves_hardware')
-        if (args.update or args.storage_recovery) and args.with_server:
+        if (args.update or args.storage_recovery or candidate_check) and args.with_server:
             wait_for(lambda: management()['server_responsive'])
             server_api('/api/auth/setup', server_account)
             (evidence / 'server-login.json').write_text(json.dumps(server_account) + '\n')
@@ -220,6 +231,8 @@ def check(args):
         marker.write_text('retained\n')
         stop(manager)
         assert hardware.poll() is None
+        if candidate:
+            candidate.before_manager_launch()
         manager = launch('management-2', manager_command, environment)
         state = management()
         assert state['settings_valid'] and marker.read_text() == 'retained\n'
@@ -298,6 +311,11 @@ def check(args):
                     'private_configuration_unchanged': True, 'permissions_disabled_after_repair_and_restart': True,
                     'account_and_saved_variable_retained': args.with_server, 'damaged_input_retained': True})
                 report['checks'].append(fault + '_refused_control_and_recovered_without_resetting_product')
+        if candidate:
+            wait_for(lambda: management().get('server_responsive')
+                     and management()['process_logs']['queued_chunks'] == 0)
+            report['candidate_assessment'] = candidate.exercise(manager, hardware, management)
+            report['checks'].append('candidate_assessed_and_changed_source_refused_before_stop')
         stop(manager)
         assert hardware.poll() is None
         stopped = stop(hardware)
@@ -415,6 +433,9 @@ if __name__ == '__main__':
     command = parser()
     command.add_argument('--update', action='store_true', help='From a source checkout, replace the hardware example and roll back its program/project data with writers stopped.')
     command.add_argument('--storage-recovery', action='store_true', help='Damage only this disposable example\'s settings and check authenticated repair, retained data and disabled access.')
+    command.add_argument('--installed-bundle', type=Path, help='Trusted complete bundle installed in --python for candidate assessment')
+    command.add_argument('--candidate-python', type=Path, help='Separately installed candidate Python environment; assessment only')
+    command.add_argument('--candidate-bundle', type=Path, help='Trusted complete candidate bundle; requires --with-server and --installed-bundle')
     try:
         check(command.parse_args())
     except ValueError as error:

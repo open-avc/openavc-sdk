@@ -226,6 +226,46 @@ does not interrupt physical storage writes, remove power, repair a filesystem or
 perform a factory reset. Repeat those checks through your product's storage and
 recovery facilities.
 
+### Assess a server candidate before stopping the example
+
+Install the trusted old and candidate complete server bundles into separate fresh
+Python environments using each bundle's `INSTALL.txt`. Keep both environments
+and bundle directories. Build the C hardware example from this SDK checkout,
+then run on an isolated Linux host:
+
+```sh
+/opt/candidate/server-python/bin/python examples/linux/check.py --with-server \
+  --python /opt/old/server-python/bin/python \
+  --installed-bundle /opt/old/openavc-server \
+  --candidate-python /opt/candidate/server-python/bin/python \
+  --candidate-bundle /opt/candidate/openavc-server \
+  --out build/firmware-candidate
+```
+
+Replace the example paths with the environments and bundles you installed. Run
+this exercise separately from `--update` and `--storage-recovery`. It creates its
+own product data and processes; it does not inspect or restart an existing product.
+The old server starts with verbose Python import observations and a fresh cache
+prefix. These observations associate its selected package paths with the running
+process. Missing observations, changed launch facts and refused payloads fail the
+exercise. Both bundle identities remain separate from the native example's build.
+
+While the old server is responsive, the check invokes the candidate's installed
+`preflight --setup-selection` command. It then adds an unknown Python source to
+an inactive project-library archive and requires a fresh assessment to refuse it.
+The archive stays in the disposable data directory. The report records unchanged
+old processes, project, settings, credentials and source bytes before explicit
+fixture teardown. Complete command output and import observations are under
+`candidate-assessment/`; keep this output private.
+
+This exercise never starts the candidate server or authorizes replacement.
+`assessed` means the selected source census completed; both authority flags remain
+false. A manufacturer updater must call assessment before its own first stop or
+write, establish the actual launch and recovery selections, exclude writers and
+recheck before cutover. Qualify the candidate's running behavior and complete
+recovery separately. An old updater that lacks this call is not covered by the
+example.
+
 ### Run the application update and rollback example
 
 On an isolated Linux host, use a source checkout and build both hardware examples:

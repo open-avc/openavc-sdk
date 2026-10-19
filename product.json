@@ -57,9 +57,8 @@
       "label": "Set Gain",
       "params": {
         "channel": {
-          "type": "integer",
-          "min": 1,
-          "max": 4,
+          "type": "child_id",
+          "child_type": "channel",
           "required": true
         },
         "gain": {
@@ -74,9 +73,8 @@
       "label": "Set Mute",
       "params": {
         "channel": {
-          "type": "integer",
-          "min": 1,
-          "max": 4,
+          "type": "child_id",
+          "child_type": "channel",
           "required": true
         },
         "mute": {

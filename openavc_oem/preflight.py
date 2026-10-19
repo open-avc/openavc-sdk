@@ -295,9 +295,10 @@ def main():
         selected = None
         if args.setup_selection is not None:
             from openavc_oem.setup_inventory import selection_from_payload
-            if not args.setup_selection.is_file():
-                raise ValueError('Supply a protected regular server selection file.')
-            with args.setup_selection.open('rb') as stream:
+            # Validate the opened object. A pathname check followed by a
+            # blocking open can hang if a regular file is replaced by a FIFO.
+            flags = os.O_RDONLY | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_BINARY', 0)
+            with os.fdopen(os.open(args.setup_selection, flags), 'rb') as stream:
                 if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
                     raise ValueError('Supply a protected regular server selection file.')
                 selected = selection_from_payload(stream.read(262145))

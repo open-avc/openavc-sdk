@@ -362,6 +362,40 @@ class ServerPreflight(unittest.TestCase):
         error = self.selection_cli(b'{}', 2, extra=('--setup-source', str(self.root / 'source.py')))
         self.assertIn('not allowed with argument', error)
 
+    @unittest.skipUnless(hasattr(os, 'mkfifo'), 'POSIX FIFO replacement control')
+    def test_selection_command_checks_the_opened_object_before_reading(self):
+        from openavc_oem.setup_inventory import selection_record
+        selection, _ = self.census_fixture()
+        path = self.root / 'selection.json'
+        path.write_text(json.dumps(selection_record(selection)))
+        marker = self.root / 'fifo-replaced'
+        code = '''import os, pathlib, sys
+from openavc_oem.preflight import main
+original = os.open
+selected, marker = pathlib.Path(sys.argv.pop(1)), pathlib.Path(sys.argv.pop(1))
+def replace_at_open(path, flags, *args, **kwargs):
+    if pathlib.Path(path) == selected:
+        selected.unlink()
+        os.mkfifo(selected)
+        marker.write_text("replaced")
+    return original(path, flags, *args, **kwargs)
+os.open = replace_at_open
+sys.exit(main())
+'''
+        environment = {key: value for key, value in os.environ.items()
+                       if not key.startswith(('OPENAVC_', 'PYTHON'))}
+        environment['PYTHONPATH'] = str(self.root / 'candidate')
+        result = subprocess.run([sys.executable, '-c', code, str(path), str(marker),
+                                 '--bundle', str(self.bundle), '--expect-core', 'a' * 40,
+                                 '--setup-selection', str(path)], cwd=self.root,
+                                env=environment, capture_output=True, text=True, timeout=5)
+        self.assertEqual(marker.read_text(), 'replaced')
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        report = json.loads(result.stdout)
+        self.assertIn('regular server selection file', report['detail'])
+        self.assertFalse(report['activation_authorized'])
+        self.assertFalse(report['installation_complete'])
+
 
 class EvaluatorTransport(unittest.TestCase):
     def run_child(self, code, payload=None, *, output_limit=16384, error_limit=4096, timeout=5):

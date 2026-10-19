@@ -7,7 +7,7 @@ An OpenAVC version number alone does not identify the tested source combination.
 
 The current kit is an engineering preview without a versioned SDK release.
 Use a committed SDK checkout and retain its commit ID with your firmware build.
-The public OpenAVC release you already use may predate manufacturer integration;
+An OpenAVC release before v0.37.0 predates manufacturer integration;
 use the server selected by the kit's pin when evaluating these examples.
 
 ## Select matching components

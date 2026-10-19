@@ -356,7 +356,7 @@ class ServerPreflight(unittest.TestCase):
     def test_selection_command_refuses_malformed_oversized_and_ambiguous_modes(self):
         self.census_fixture()
         for payload in (b'{"schema":1,"schema":2}', b'{"activation_authorized":true}',
-                        b'\xff', b' ' * 262145):
+                        b'\xff', b' ' * 262145, b'[' * 10000 + b'0' + b']' * 10000):
             with self.subTest(length=len(payload)):
                 self.assertEqual(self.selection_cli(payload, 1)['status'], 'refused')
         error = self.selection_cli(b'{}', 2, extra=('--setup-source', str(self.root / 'source.py')))

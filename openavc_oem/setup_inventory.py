@@ -116,7 +116,11 @@ def selection_from_payload(payload: bytes) -> FirmwareSetupSelection:
             result[key] = value
         return result
 
-    return selection_from_record(json.loads(payload.decode('utf-8'), object_pairs_hook=unique))
+    try:
+        record = json.loads(payload.decode('utf-8'), object_pairs_hook=unique)
+    except RecursionError:
+        raise ValueError('The firmware selection request is nested too deeply.') from None
+    return selection_from_record(record)
 
 
 def assess_server_selection(selection: FirmwareSetupSelection, *, resource: Path,

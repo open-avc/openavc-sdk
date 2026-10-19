@@ -152,6 +152,8 @@ class SetupInventory(unittest.TestCase):
         oversized = ('"' + '\u00e9' * 131072 + '"').encode('utf-8')
         with self.assertRaisesRegex(ValueError, 'byte limit'):
             selection_from_payload(oversized)
+        with self.assertRaisesRegex(ValueError, 'nested too deeply'):
+            selection_from_payload(b'[' * 10000 + b'0' + b']' * 10000)
 
 
 if __name__ == '__main__':

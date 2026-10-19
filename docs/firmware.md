@@ -258,13 +258,30 @@ old processes, project, settings, credentials and source bytes before explicit
 fixture teardown. Complete command output and import observations are under
 `candidate-assessment/`; keep this output private.
 
-This exercise never starts the candidate server or authorizes replacement.
+Without `--server-transition`, this exercise never starts the candidate server.
 `assessed` means the selected source census completed; both authority flags remain
 false. A manufacturer updater must call assessment before its own first stop or
 write, establish the actual launch and recovery selections, exclude writers and
 recheck before cutover. Qualify the candidate's running behavior and complete
 recovery separately. An old updater that lacks this call is not covered by the
 example.
+
+For an orderly transition between server versions with the same project and
+settings formats, add `--server-transition` and choose another fresh `--out`
+directory. This separate mode assesses the unchanged source set, stops its old
+manager, then starts the candidate manager and server with the candidate Python
+environment and a separate configuration. It verifies their actual imported
+package paths, retained identity, sign-in and saved variable, and an independently
+counted hardware command. After changing the saved value and disabling Programmer
+access, it stops the candidate and returns to the old environment. The new value,
+project bytes and access restriction must survive; a second hardware command is
+checked after explicitly restoring Programmer access for the test.
+
+The transition mode does not insert or remove the unknown-source refusal fixture.
+It restores no project archive and tests no format migration, interrupted update,
+accepted operation retirement or power loss. Use only qualified, trusted bundles
+on a disposable host with no other writers. A successful test is not approval to
+downgrade a product to an older version with known security limitations.
 
 ### Run the application update and rollback example
 

@@ -36,6 +36,7 @@ class CandidateCheck:
         self.data = Path(self.config['data_dir'])
         self.old_python = str(args.python)
         self.new_python = os.path.abspath(args.candidate_python)
+        self.transition = args.server_transition
         self.old_bundle = args.installed_bundle.absolute()
         self.new_bundle = args.candidate_bundle.absolute()
         # This is a fresh, explicitly instrumented launch, not discovery of an
@@ -49,6 +50,17 @@ class CandidateCheck:
         self.packages = {}
         self.observations = 0
         self.candidate_config = {**self.config, 'server_python': self.new_python}
+        self.candidate_config_path = self.evidence / 'candidate-config.json'
+
+    def write_candidate_config(self):
+        """Retain a separate candidate config; never replace the old config."""
+        self.candidate_config_path.write_bytes(encoded(self.candidate_config))
+        self.candidate_config_path.chmod(0o600)
+        if os.getuid() == 0:
+            identity = self.data.stat()
+            os.chown(self.evidence, identity.st_uid, identity.st_gid)
+            os.chown(self.candidate_config_path, identity.st_uid, identity.st_gid)
+        return self.candidate_config_path
 
     def verify_packages(self):
         for name, python, bundle in (('installed', self.old_python, self.old_bundle),
@@ -60,7 +72,9 @@ class CandidateCheck:
             if result.get('status') != 'passed' or result.get('core_commit') != core:
                 raise ValueError('The selected installed server payload was refused. Read candidate-assessment.')
             self.packages[name] = result
-        self.recovery = {'policy': 'assessment_only_keep_current_server',
+        self.recovery = {'policy': ('same_format_return_keep_current_data' if self.transition
+                                    else 'assessment_only_keep_current_server'),
+                         'project_restore_planned': False,
                          'config_sha256': sha(self.config_bytes),
                          'python': self.old_python,
                          'bundle_sha256': sha((self.old_bundle / 'bundle.json').read_bytes())}
@@ -96,11 +110,15 @@ class CandidateCheck:
         self.journal = self.data / 'logs/recovery.jsonl'
         self.journal_offset = self.journal.stat().st_size
 
-    def observe(self, manager, hardware, management):
+    def observe(self, manager, hardware, management, *, role='installed'):
         if manager.poll() is not None or hardware.poll() is not None:
             raise ValueError('The current example processes stopped before candidate assessment.')
+        python = self.old_python if role == 'installed' else self.new_python
+        config_path = self.config_path if role == 'installed' else self.candidate_config_path
+        config_bytes = self.config_bytes if role == 'installed' else encoded(self.candidate_config)
+        bundle = self.old_bundle if role == 'installed' else self.new_bundle
         children = [child for child in psutil.Process(manager.pid).children()
-                    if child.cmdline() == [self.old_python, '-m', 'openavc_oem.server']]
+                    if child.cmdline() == [python, '-m', 'openavc_oem.server']]
         if len(children) != 1:
             raise ValueError('The example cannot identify its running server. Keep the current installation.')
         core = children[0]
@@ -121,9 +139,9 @@ class CandidateCheck:
                 or environment.get('PYTHONVERBOSE') != '1'
                 or environment.get('PYTHONDONTWRITEBYTECODE') != '1'
                 or environment.get('PYTHONPYCACHEPREFIX') != self.environment['PYTHONPYCACHEPREFIX']
-                or self.config_path.read_bytes() != self.config_bytes):
+                or config_path.read_bytes() != config_bytes):
             raise ValueError('The current server launch differs from the retained example selection.')
-        packages = self.packages['installed']['packages']
+        packages = self.packages[role]['packages']
         # First-launch verbose imports plus a fresh unused cache prefix give
         # observed source paths, tied to this manager's direct child and logs.
         log_paths = [self.data / 'logs' / ('core-0.log' + suffix) for suffix in ('.2', '.1', '')]
@@ -136,15 +154,15 @@ class CandidateCheck:
                     Path(packages['openavc_oem']['origin']) / 'server.py']
         if any('# code object from ' + str(path) not in lines for path in imported):
             raise ValueError('The old server import observations are incomplete. Keep the current installation.')
-        (self.evidence / f'old-server-imports-{self.observations}.log').write_bytes(logs)
+        (self.evidence / f'{role}-server-imports-{self.observations}.log').write_bytes(logs)
         self.observations += 1
         for name, package in packages.items():
             root = Path(package['origin'])
-            with ZipFile(self.old_bundle / 'wheels' / package['wheel']) as wheel:
+            with ZipFile(bundle / 'wheels' / package['wheel']) as wheel:
                 for path in imported:
                     if path.is_relative_to(root):
                         if path.read_bytes() != wheel.read(name + '/' + path.relative_to(root).as_posix()):
-                            raise ValueError('Observed old server source differs from its retained bundle.')
+                            raise ValueError('Observed server source differs from its retained bundle.')
         launch = {'command': core.cmdline(), 'cwd': core.cwd(),
                   'environment_sha256': sha(encoded(environment)),
                   'package_observations': {str(path): sha(path.read_bytes()) for path in imported}}
@@ -179,14 +197,14 @@ class CandidateCheck:
         return [{'pid': process.pid, 'created': process.create_time(), 'command': process.cmdline()}
                 for process in [*processes, children[0]]]
 
-    def exercise(self, manager, hardware, management):
+    def exercise(self, manager, hardware, management, *, refuse_unknown=True):
         processes = self.process_ids(manager, hardware)
         ready = management().get('server_responsive') is True
         if not ready:
             raise ValueError('The old server is not responsive before candidate assessment.')
         try:
             self.verify_packages()
-            return self.assess_sources(manager, hardware, management)
+            return self.assess_sources(manager, hardware, management, refuse_unknown=refuse_unknown)
         finally:
             # check.py tears down its disposable fixture after this method.
             # Preserve this observation even when the CLI crashes or refuses
@@ -203,7 +221,7 @@ class CandidateCheck:
             if not observation.get('processes_unchanged') or not observation.get('server_responsive'):
                 raise ValueError('The original server did not remain available during candidate assessment.')
 
-    def assess_sources(self, manager, hardware, management):
+    def assess_sources(self, manager, hardware, management, *, refuse_unknown=True):
         before = self.observe(manager, hardware, management)
         if not management().get('server_responsive'):
             raise ValueError('The old server is not responsive before candidate assessment.')
@@ -233,6 +251,10 @@ class CandidateCheck:
                     'activation_authorized': False, 'installation_complete': False}
 
         baseline = assess('baseline', 'assessed')
+        if not refuse_unknown:
+            return {'scope': 'owned_example_pre_stop_transition_assessment',
+                    'baseline': baseline, 'old_processes': before,
+                    'activation_authorized': False, 'installation_complete': False}
         # A new inactive library file challenges reuse of the first assessment.
         # It is retained on refusal, never installed or deleted to force a pass.
         library = self.data / 'server/saved_projects/candidate-check-unknown'

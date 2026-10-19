@@ -25,6 +25,8 @@ from product_checks import Client, read_json  # noqa: E402
 def check(args):
     candidate_options = (args.candidate_python, args.candidate_bundle, args.installed_bundle)
     candidate_check = any(value is not None for value in candidate_options)
+    if args.server_transition and not candidate_check:
+        raise ValueError('--server-transition requires the installed and candidate bundle selections.')
     if candidate_check and (not all(value is not None for value in candidate_options)
                             or not args.with_server or args.update or args.storage_recovery):
         raise ValueError('For candidate assessment, supply --with-server, --installed-bundle, '
@@ -314,12 +316,70 @@ def check(args):
         if candidate:
             wait_for(lambda: management().get('server_responsive')
                      and management()['process_logs']['queued_chunks'] == 0)
-            report['candidate_assessment'] = candidate.exercise(manager, hardware, management)
-            report['checks'].append('candidate_assessed_and_changed_source_refused_before_stop')
+            report['candidate_assessment'] = candidate.exercise(
+                manager, hardware, management, refuse_unknown=not args.server_transition)
+            if not args.server_transition:
+                report['checks'].append('candidate_assessed_and_changed_source_refused_before_stop')
+            else:
+                # This disposable, same-format exercise selects the candidate
+                # explicitly. A census result is not a production cutover grant.
+                original_private = {str(path): hashlib.sha256(path.read_bytes()).hexdigest()
+                                    for path in (args.out / 'private').rglob('*') if path.is_file()}
+                old_state = management()
+                stop(manager)
+                assert hardware.poll() is None
+                candidate_config = candidate.write_candidate_config()
+                candidate.before_manager_launch()
+                manager = launch('management-candidate', [candidate.new_python, '-m', 'openavc_oem',
+                                 '--config', str(candidate_config)], environment)
+                wait_for(lambda: management().get('server_responsive')
+                         and management()['process_logs']['queued_chunks'] == 0)
+                new_origin = candidate.observe(manager, hardware, management, role='candidate')
+                new_state = management()
+                for field in ('identity', 'server', 'programmer', 'panel', 'discovery', 'remote_access'):
+                    assert new_state[field] == old_state[field]
+                assert server_api('/api/auth/required')[0]['state'] == 'required'
+                assert server_api('/api/state/var.firmware_check')[0]['value'] == 17
+                wait_for(lambda: server_api('/api/devices/local')[0]['connected'])
+                server_api('/api/devices/local/command', {'command': 'increment', 'params': {}})
+                wait_for(lambda: server_api('/api/devices/local')[0]['state'].get('counter') == 1)
+                server_api('/api/state/var.firmware_check', {'value': 29}, 'PUT')
+                restricted = management({'revision': new_state['revision'], 'field': 'programmer', 'enabled': False})
+                assert restricted['programmer'] is False
+                stop(manager)
+                assert hardware.poll() is None
+                project_after = (args.out / 'data/server/project.avc').read_bytes()
+                candidate.before_manager_launch()
+                manager = launch('management-returned', manager_command, environment)
+                wait_for(lambda: management().get('server_responsive')
+                         and management()['process_logs']['queued_chunks'] == 0)
+                returned_origin = candidate.observe(manager, hardware, management)
+                returned = management()
+                assert returned['identity'] == old_state['identity'] and returned['programmer'] is False
+                assert (args.out / 'data/server/project.avc').read_bytes() == project_after
+                management({'revision': returned['revision'], 'field': 'programmer', 'enabled': old_state['programmer']})
+                assert server_api('/api/auth/required')[0]['state'] == 'required'
+                assert server_api('/api/state/var.firmware_check')[0]['value'] == 29
+                wait_for(lambda: server_api('/api/devices/local')[0]['connected'])
+                server_api('/api/devices/local/command', {'command': 'increment', 'params': {}})
+                wait_for(lambda: server_api('/api/devices/local')[0]['state'].get('counter') == 2)
+                assert all(hashlib.sha256(Path(path).read_bytes()).hexdigest() == value
+                           for path, value in original_private.items())
+                report['server_transition'] = {'scope': 'orderly_same_format_disposable_example',
+                    'candidate_origin': new_origin, 'returned_origin': returned_origin,
+                    'candidate_started': True, 'current_access_restriction_retained': True,
+                    'post_transition_value_retained_on_return': 29, 'hardware_effects': 2,
+                    'original_private_configuration_unchanged': True,
+                    'project_restore_performed': False, 'activation_authorized': False,
+                    'installation_complete': False}
+                report['checks'].append('candidate_server_and_return_preserve_data_access_and_control')
         stop(manager)
         assert hardware.poll() is None
         stopped = stop(hardware)
         (evidence / 'hardware-final-stop.log').write_bytes(stopped)
+        if args.server_transition:
+            assert b'STATE 2 2 0 ' in stopped
+            report['checks'].append('hardware_counter_confirms_both_server_transition_commands')
         if args.storage_recovery:
             assert b'STATE 0 0 0 ' in stopped
             report['checks'].append('hardware_counter_confirms_refused_commands_were_not_executed')
@@ -436,6 +496,7 @@ if __name__ == '__main__':
     command.add_argument('--installed-bundle', type=Path, help='Trusted complete bundle installed in --python for candidate assessment')
     command.add_argument('--candidate-python', type=Path, help='Separately installed candidate Python environment; assessment only')
     command.add_argument('--candidate-bundle', type=Path, help='Trusted complete candidate bundle; requires --with-server and --installed-bundle')
+    command.add_argument('--server-transition', action='store_true', help='In a fresh candidate fixture, start the selected same-format server and return while retaining new data; no production activation approval')
     try:
         check(command.parse_args())
     except ValueError as error:

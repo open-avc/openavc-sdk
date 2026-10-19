@@ -1,20 +1,26 @@
 """A staged mismatch must refuse without touching active firmware or data."""
 import hashlib
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 from zipfile import ZipFile
 
 from openavc_oem.preflight import check
+import openavc_oem.preflight as preflight
 
 
 class ServerPreflight(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
+        # macOS's default temporary directory passes through /var -> /private/var.
+        # The source checker deliberately refuses symlinked snapshot ancestors.
+        self.root = Path(self.temporary.name).resolve()
         self.bundle = self.root / 'bundle'
         (self.bundle / 'wheels').mkdir(parents=True)
         self.active = self.root / 'active'
@@ -104,6 +110,83 @@ class ServerPreflight(unittest.TestCase):
         self.save_record()
         with self.assertRaisesRegex(ValueError, 'both OpenAVC'):
             check(self.bundle, 'a' * 40)
+
+    def setup_source_fixture(self):
+        # Use the installed pinned core's actual pure evaluator in a separate
+        # process. Only the qualification data and source are invented here.
+        from openavc.drivers import setup_preflight, setup_compatibility, spec
+
+        for module in (setup_preflight, setup_compatibility, spec):
+            target = self.packages['openavc'] / 'drivers' / Path(module.__file__).name
+            target.parent.mkdir(exist_ok=True)
+            target.write_bytes(Path(module.__file__).read_bytes())
+        (self.packages['openavc'] / 'drivers/__init__.py').write_text('')
+        (self.packages['openavc_oem'] / 'preflight.py').write_bytes(Path(preflight.__file__).read_bytes())
+        source = self.root / 'installed.py'
+        source.write_text('raise AssertionError("installed source must not execute")\n')
+        resource = {'schema': 'setup-compatibility-resource/v1', 'source_revision': 'b' * 40,
+                    'descriptors': [], 'source_coverage': [{
+                        'source_sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
+                        'driver_id': 'acme', 'driver_version': '1.0', 'declaration_sha256': 'c' * 64,
+                        'actions': [{'action_id': 'pair', 'action_sha256': 'd' * 64,
+                                     'result_contract': 'setup/v1'}]}]}
+        resource_path = self.packages['openavc'] / 'drivers/setup-compatibility.json'
+        resource_path.write_text(json.dumps(resource))
+        self.repack_candidates()
+        return source, resource, resource_path
+
+    def repack_candidates(self):
+        for distribution, package in [('openavc', 'openavc'), ('openavc-oem', 'openavc_oem')]:
+            path = self.bundle / 'wheels' / (package + '-0.0.0-py3-none-any.whl')
+            with ZipFile(path, 'w') as wheel:
+                wheel.writestr(package + '-0.0.0.dist-info/METADATA', 'Name: ' + distribution + '\n')
+                for source in self.packages[package].rglob('*'):
+                    if source.is_file() and '__pycache__' not in source.parts:
+                        wheel.write(source, package + '/' + source.relative_to(self.packages[package]).as_posix())
+            self.record['wheels'][path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        self.save_record()
+
+    def source_cli(self, source, expected):
+        env = {k: v for k, v in os.environ.items() if not k.startswith(('OPENAVC_', 'PYTHON'))}
+        env.update(PYTHONPATH=str(self.root / 'candidate'),
+                   OPENAVC_DATA_DIR=str(self.active), OPENAVC_LOG_DIR=str(self.active / 'logs'))
+        result = subprocess.run([sys.executable, '-m', 'openavc_oem.preflight',
+                                 '--bundle', str(self.bundle), '--expect-core', 'a' * 40,
+                                 '--setup-source', str(source)],
+                                cwd=self.root, env=env, capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+        return json.loads(result.stdout)
+
+    def test_optional_sources_use_canonical_leaf_and_bind_checked_wheel(self):
+        source, _, _ = self.setup_source_fixture()
+        report = self.source_cli(source, 0)
+        self.assertEqual(report['setup_sources']['status'], 'passed')
+        self.assertFalse(report['activation_authorized'])
+        self.assertFalse(report['setup_sources']['activation_authorized'])
+        self.assertEqual(report['setup_sources']['target_sha256'], report['packages']['openavc']['wheel_sha256'])
+        self.assertEqual(report['setup_sources']['scope'], 'supplied_primary_sources')
+        source.write_text('raise AssertionError("unknown code must not execute either")\n')
+        report = self.source_cli(source, 1)
+        self.assertEqual(report['status'], 'refused')
+        self.assertEqual(report['setup_sources']['sources'][0]['reason'], 'unknown_source')
+
+    def test_package_mismatch_precedes_source_check_and_unmapped_actions_refuse(self):
+        source, resource, path = self.setup_source_fixture()
+        path.write_text('{}')
+        refused = self.source_cli(source, 1)
+        self.assertIn('files differ', refused['detail'])
+        resource['source_coverage'][0]['actions'][0]['result_contract'] = None
+        path.write_text(json.dumps(resource))
+        self.repack_candidates()
+        report = self.source_cli(source, 1)
+        self.assertEqual(report['setup_sources']['sources'][0]['coverage']['unsupported_actions'], ['pair'])
+
+    def test_missing_resource_does_not_pass_as_an_empty_installation(self):
+        source, _, resource = self.setup_source_fixture()
+        resource.unlink()
+        self.repack_candidates()
+        report = self.source_cli(source, 1)
+        self.assertIn('no setup source qualification resource', report['detail'])
 
 
 if __name__ == '__main__':

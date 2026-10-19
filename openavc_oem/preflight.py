@@ -1,8 +1,10 @@
 """Check an installed candidate against its trusted offline server bundle.
 
 Run in the candidate Python environment before stopping the current firmware.
-This reads package files only; it neither starts OpenAVC nor accesses product data.
-The bundle's authenticity and complete firmware acceptance belong to the host.
+By default this reads package files only. Optional setup-source paths add the
+canonical read-only eligibility check for a host-supplied snapshot. Neither mode
+starts OpenAVC or grants firmware activation. The host owns bundle authenticity,
+complete installation discovery and firmware acceptance.
 """
 import argparse
 from email.parser import BytesParser
@@ -58,7 +60,7 @@ def check_payload(wheel, package, root):
     return len(expected)
 
 
-def check(bundle, expected_core):
+def check(bundle, expected_core, *, setup_sources=None):
     if not re.fullmatch(r'[0-9a-f]{40}', expected_core):
         raise ValueError('Supply the complete core commit from your qualified firmware build.')
     record = json.loads((bundle / 'bundle.json').read_text(encoding='utf-8'))
@@ -69,6 +71,7 @@ def check(bundle, expected_core):
         raise ValueError('The server bundle has no wheel inventory.')
     packages = {'openavc': 'openavc', 'openavc-oem': 'openavc_oem'}
     checked = {}
+    setup_resource_sha = None
     for name, sha in files.items():
         if Path(name).name != name or '\\' in name or not name.endswith('.whl'):
             raise ValueError('Invalid wheel name in the server bundle.')
@@ -90,9 +93,31 @@ def check(bundle, expected_core):
             root = package_root(package)
             checked[package] = {'origin': str(root), 'wheel': name, 'wheel_sha256': sha,
                                 'checked_files': check_payload(wheel, package, root)}
+            if package == 'openavc' and setup_sources is not None:
+                member = 'openavc/drivers/setup-compatibility.json'
+                if member not in wheel.namelist():
+                    raise ValueError('The selected core has no setup source qualification resource.')
+                setup_resource_sha = hashlib.sha256(wheel.read(member)).hexdigest()
     if set(checked) != set(packages.values()):
         raise ValueError('The server bundle must contain both OpenAVC and its manufacturer integration.')
-    return {'status': 'passed', 'core_commit': expected_core, 'packages': checked}
+    report = {'status': 'passed', 'core_commit': expected_core, 'packages': checked}
+    if setup_sources is not None:
+        # Use the installed matching core's owner only after its complete
+        # payload matches the trusted bundle. Never vendor a second evaluator.
+        from openavc.drivers import setup_preflight
+
+        core_root = Path(checked['openavc']['origin'])
+        if Path(setup_preflight.__file__).resolve() != core_root / 'drivers/setup_preflight.py':
+            raise ValueError('The setup evaluator is not from the checked core package.')
+        setup = setup_preflight.check_sources(
+            setup_sources, resource=core_root / 'drivers/setup-compatibility.json',
+            expected_resource_sha256=setup_resource_sha,
+            target_sha256=checked['openavc']['wheel_sha256'],
+        )
+        report.update(status=setup['status'], setup_sources=setup,
+                      scope='package_payloads_and_supplied_primary_sources',
+                      activation_authorized=False)
+    return report
 
 
 def main():
@@ -101,14 +126,17 @@ def main():
                         help='Extracted, trusted offline server bundle directory')
     parser.add_argument('--expect-core', required=True,
                         help='Complete core commit selected for this firmware build')
+    parser.add_argument('--setup-source', action='append', type=Path,
+                        help='Explicit regular Python source in a protected installation snapshot; repeat per source')
     args = parser.parse_args()
     try:
-        result = check(args.bundle.resolve(strict=True), args.expect_core)
+        result = check(args.bundle.resolve(strict=True), args.expect_core,
+                       setup_sources=args.setup_source)
     except (OSError, ValueError, KeyError, TypeError, BadZipFile) as error:
         print(json.dumps({'status': 'refused', 'detail': str(error)}))
         return 1
     print(json.dumps(result, indent=2))
-    return 0
+    return 0 if result['status'] == 'passed' else 1
 
 
 if __name__ == '__main__':

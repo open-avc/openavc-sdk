@@ -14,7 +14,7 @@ use the server selected by the kit's pin when evaluating these examples.
 
 | Component | Combination for this checkout |
 |---|---|
-| OpenAVC server, separate or product-hosted | Core commit `a72322448be0b322798d7aba17c28a5c77de6df0`, recorded in `sdk/contract/origin.json`. |
+| OpenAVC server, separate or product-hosted | Core commit `db4805cd5a5d7cbeb0ebb4e68ec931975eef879c`, recorded in `sdk/contract/origin.json`. |
 | Equipment protocol | `openavc-device-1`. A different protocol is refused before control. |
 | Product description and callbacks | Generate the model and compile the adapter together using this SDK checkout. |
 | Native headers, libraries and service | Use one matching source build or supplied archive for the target CPU. |
@@ -85,6 +85,22 @@ Supply a trusted bundle through your firmware signing process. Preflight checks
 payload consistency; it does not authenticate the bundle, qualify your hardware,
 check every dependency or prove data migration and rollback. A firmware recipe
 archive without the optional Python server is not an offline server bundle.
+
+To check an explicitly inventoried snapshot of installed Python drivers, add one
+`--setup-source /protected/snapshot/driver.py` per primary source. The command
+first verifies the candidate packages, then uses that exact core's bundled setup
+qualification resource. Unknown, edited or unsupported sources refuse the check
+without importing them. Preserve the JSON report with the target wheel hash and
+snapshot hashes.
+
+This optional check covers only the files supplied. It does not discover missing
+drivers, saved project bundles or backups, qualify their dependencies or older
+clients, or authorize replacement. Its report always says
+`"activation_authorized": false`. Your updater must inventory every relevant
+source, preserve the operating firmware on refusal, and recheck the snapshot
+before replacing anything. An existing updater does not gain this check merely
+by installing a newer server. Keep affected upgrades blocked until their actual
+admission and recovery paths have been qualified.
 
 1. Keep the currently qualified firmware and its build inputs available for
    recovery. Take a consistent backup of persistent OpenAVC data before a new

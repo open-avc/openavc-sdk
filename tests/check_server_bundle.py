@@ -159,7 +159,7 @@ with tempfile.TemporaryDirectory(prefix='openavc-lock-check-') as temporary:
     from openavc_oem.setup_inventory import FirmwareSetupSelection, ServerSelection, selection_record
 
     data = scratch / 'product'
-    data.mkdir()
+    (data / 'server').mkdir(parents=True)
     package_root = Path(result['packages']['openavc']['origin'])
     selected = ServerSelection(hashlib.sha256(b'fixture-config').hexdigest(),
         hashlib.sha256(b'fixture-planned-launch').hexdigest(), Path(sys.executable),

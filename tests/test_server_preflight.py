@@ -211,6 +211,17 @@ class ServerPreflight(unittest.TestCase):
                 self.assertEqual(report['setup_sources']['sources'][0]['reason'], 'unknown_source')
                 self.assertFalse(marker.exists())
 
+    def test_child_keeps_standard_library_ahead_of_candidate_packages(self):
+        source, _, _ = self.setup_source_fixture()
+        marker = self.root / 'shadow-ran'
+        (self.root / 'candidate/argparse.py').write_text(
+            'from pathlib import Path\n'
+            f'Path({str(marker)!r}).write_text("unexpected execution")\n'
+            'raise RuntimeError("candidate module shadowed the standard library")\n')
+        report = check(self.bundle, 'a' * 40, setup_sources=[source])
+        self.assertEqual(report['setup_sources']['status'], 'passed')
+        self.assertFalse(marker.exists())
+
 
 if __name__ == '__main__':
     unittest.main()

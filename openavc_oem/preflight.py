@@ -112,7 +112,7 @@ def check(bundle, expected_core, *, setup_sources=None):
             raise ValueError('Supply the inventoried setup source paths.')
         with tempfile.TemporaryDirectory(prefix='openavc-setup-preflight-') as cache:
             command = [sys.executable, '-I', '-S', '-B', '-X', 'pycache_prefix=' + cache, '-c',
-                       'import sys; sys.path.insert(0, sys.argv.pop(1)); '
+                       'import sys; sys.path.append(sys.argv.pop(1)); '
                        'from openavc.drivers.setup_preflight import main; sys.exit(main())',
                        str(core_root.parent),
                        '--resource', str(core_root / 'drivers/setup-compatibility.json'),

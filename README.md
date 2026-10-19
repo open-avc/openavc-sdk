@@ -109,7 +109,7 @@ other products; the SDK does not automatically select a server or take over if i
 ## Upstream compatibility
 
 For evaluation, use the OpenAVC revision built by the supplied system example.
-OpenAVC v0.36.0 does not include SDK equipment support. A separate server that
+OpenAVC releases before v0.37.0 do not include SDK equipment support. A separate server that
 will control your product also needs the compatible revision below; an existing
 OpenAVC installation is not necessarily compatible with this preview.
 

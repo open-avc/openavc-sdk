@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import tempfile
 from zipfile import ZipFile
 
 import psutil
@@ -67,12 +68,21 @@ class CandidateCheck:
     def invoke(self, name, command):
         # Only the selected trusted bundle's CLI runs here. Its evaluator has
         # finite output storage; this outer deadline also covers package checks.
-        result = subprocess.run(command, cwd=self.data, env={
-            key: value for key, value in self.environment.items() if not key.startswith('PYTHON')},
-            stdin=subprocess.DEVNULL, capture_output=True, timeout=150)
+        # -B prevents writes but still reads existing caches. A fresh prefix
+        # applies to the CLI itself, as well as its separately isolated child.
+        with tempfile.TemporaryDirectory(prefix='cli-cache-', dir=self.evidence) as cache:
+            command = [command[0], '-X', 'pycache_prefix=' + cache, *command[1:]]
+            (self.evidence / (name + '-command.json')).write_bytes(encoded(command))
+            try:
+                result = subprocess.run(command, cwd=self.data, env={
+                    key: value for key, value in self.environment.items() if not key.startswith('PYTHON')},
+                    stdin=subprocess.DEVNULL, capture_output=True, timeout=150)
+            except subprocess.TimeoutExpired as error:
+                (self.evidence / (name + '.stdout')).write_bytes(error.stdout or b'')
+                (self.evidence / (name + '.stderr')).write_bytes(error.stderr or b'')
+                raise ValueError('Candidate preflight timed out. Keep the current server running.') from None
         (self.evidence / (name + '.stdout')).write_bytes(result.stdout)
         (self.evidence / (name + '.stderr')).write_bytes(result.stderr)
-        (self.evidence / (name + '-command.json')).write_bytes(encoded(command))
         try:
             report = json.loads(result.stdout)
         except (ValueError, RecursionError):

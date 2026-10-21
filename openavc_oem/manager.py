@@ -629,7 +629,7 @@ class ProductManager:
         except ValueError:
             valid = False
         if not valid:
-            refused(web.HTTPUnauthorized, 'Enter this product’s username and password in its connection settings.')
+            refused(web.HTTPUnauthorized, 'The product refused the username and password.')
         if not self.state['remote_access']:
             refused(web.HTTPForbidden, 'Remote device access is disabled in product management.')
 

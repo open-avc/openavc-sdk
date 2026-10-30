@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/open-avc/openavc",
-  "core_head": "bc8411109bebba1c1def926c8cb66702f1c24a6c",
+  "core_head": "574b9676ad1204a674f84d46477c479457ccfd5a",
   "files": {
     "__init__.py": {
       "sha256": "da6420723411b11727e17835b82ff14fd61d65de470665d9c5260d422266fdbc"
@@ -18,7 +18,7 @@
       "sha256": "c86b70f11676d824fd6506efec993369cec73c8eb95c24a6ff5ff76f11d3ed39"
     },
     "drivers/spec.py": {
-      "sha256": "10d9b7f59b5180d96be4bdb1e1191b359c4bf58055f266dca8e9b1d2a097e742"
+      "sha256": "6203bc7b5a59e50cfd8e63755368fbf079f9044fad66cd2c0750c9a837f0cb7f"
     },
     "utils/__init__.py": {
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -28,7 +28,7 @@
     }
   },
   "dns_sources": {
-    "openavc/discovery/mdns_scanner.py": "c87c31f0039f1662f4f9e8f2395ba0036677cc7bba0c3f7d6ef9b7bcbd02d5e8",
+    "openavc/discovery/mdns_scanner.py": "6105c5097d58e053834f6609e7bbac73b96ea6573f589ecc769ef588e4b6b74a",
     "openavc/discovery/mdns_advertiser.py": "7d13923def068edae0ee7ef5c467eceddb13d442d87a371c709f6891b6a1a759"
   }
 }

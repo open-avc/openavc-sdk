@@ -128,13 +128,13 @@ class BuildEvidence(unittest.TestCase):
     def test_failed_build_keeps_previous_cache_and_is_not_retried(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            old = root / 'example'
+            old = root / 'cross-x86_64'
             old.mkdir()
             (old / 'index.json').write_text('original')
             with patch.dict(os.environ, {'OPENAVC_BUILD_CACHE': folder}), \
                  patch('tools.build_support.run_logged', side_effect=subprocess.CalledProcessError(1, 'docker')) as run:
                 with self.assertRaises(subprocess.CalledProcessError):
-                    build_image(['docker'], ['.'], root / 'build.log', 'example')
+                    build_image(['docker'], ['.'], root / 'build.log', 'cross-x86_64')
             run.assert_called_once()
             self.assertEqual((old / 'index.json').read_text(), 'original')
             self.assertEqual(list(root.iterdir()), [old])

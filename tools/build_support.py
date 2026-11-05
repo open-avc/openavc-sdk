@@ -34,7 +34,7 @@ def build_image(docker, arguments, log_path, scope):
     location = os.environ.get('OPENAVC_BUILD_CACHE')
     if not location:
         return run_logged(docker + ['build', '--progress=plain', *arguments], log_path, scope)
-    if not re.fullmatch(r'[a-z0-9-]+', scope):
+    if not re.fullmatch(r'[a-z0-9][a-z0-9_-]*', scope):
         raise ValueError('Invalid SDK build cache name.')
     root = Path(location).resolve()
     root.mkdir(parents=True, exist_ok=True)

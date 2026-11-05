@@ -9,6 +9,8 @@ import shutil
 import subprocess
 import sys
 
+from build_support import build_image, show_failure
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -19,10 +21,9 @@ def build(args):
     output.mkdir(parents=True, exist_ok=False)
     docker = ['docker', *(['--context', args.docker_context] if args.docker_context else [])]
     image_file = output / 'build-image.txt'
-    with (output / 'image-build.log').open('w') as log:
-        subprocess.run(docker + ['build', '--iidfile', str(image_file), '-f',
-                                str(ROOT / 'examples/linux/native/Dockerfile'), str(ROOT)],
-                       stdout=log, stderr=subprocess.STDOUT, check=True)
+    build_image(docker, ['--iidfile', str(image_file), '-f',
+                         str(ROOT / 'examples/linux/native/Dockerfile'), str(ROOT)],
+                output / 'image-build.log', 'native-image')
     image = image_file.read_text().strip()
     if not re.fullmatch(r'sha256:[0-9a-f]{64}', image):
         raise ValueError('Docker did not record a valid build image ID.')
@@ -40,6 +41,7 @@ def build(args):
         # Preserve compiler output on a failed package build before removing its container.
         copied = subprocess.run(docker + ['cp', name + ':/tmp/output/.', str(output)], check=False)
         if attached.returncode or state['Status'] != 'exited' or state['ExitCode'] or copied.returncode:
+            show_failure(output / 'package-build.log', 'Native package build')
             raise RuntimeError('Native package build failed. Read package-build.log and build.log.')
     finally:
         with contextlib.suppress(subprocess.SubprocessError):

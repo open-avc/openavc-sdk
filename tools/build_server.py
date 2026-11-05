@@ -11,6 +11,8 @@ import subprocess
 import sys
 import tarfile
 
+from build_support import build_image, run_logged, show_failure
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -36,10 +38,9 @@ def build(args):
     output.mkdir(parents=True, exist_ok=False)
     docker = ['docker', *(['--context', args.docker_context] if args.docker_context else [])]
     image_file = output / 'build-image.txt'
-    with (output / 'build.log').open('w') as log:
-        subprocess.run(docker + ['build', '--target', 'server-runtime', '--iidfile', str(image_file),
-                                '-f', str(ROOT / 'examples/system/Dockerfile'), str(ROOT)],
-                       stdout=log, stderr=subprocess.STDOUT, check=True)
+    build_image(docker, ['--target', 'server-runtime', '--iidfile', str(image_file),
+                         '-f', str(ROOT / 'examples/system/Dockerfile'), str(ROOT)],
+                output / 'build.log', 'system-image')
     image = image_file.read_text(encoding='utf-8').strip()
     if not re.fullmatch(r'sha256:[0-9a-f]{64}', image):
         raise ValueError('Docker did not record a valid build image ID. Read build.log.')
@@ -48,10 +49,10 @@ def build(args):
         subprocess.run(docker + ['create', '--name', name, '--network', 'none', image,
                                 '/opt/sdk/tools/server_bundle.py', '/output'],
                        check=True, stdout=subprocess.DEVNULL)
-        with (output / 'wheel-build.log').open('w') as log:
-            subprocess.run(docker + ['start', '--attach', name], check=True, stdout=log, stderr=subprocess.STDOUT)
+        run_logged(docker + ['start', '--attach', name], output / 'wheel-build.log', 'Server wheel assembly')
         exit_code = subprocess.check_output(docker + ['inspect', '--format', '{{.State.ExitCode}}', name], text=True).strip()
         if exit_code != '0':
+            show_failure(output / 'wheel-build.log', 'Server wheel assembly')
             raise RuntimeError('The server bundle build failed. Read wheel-build.log.')
         subprocess.run(docker + ['cp', name + ':/output/.', str(output)], check=True)
     finally:

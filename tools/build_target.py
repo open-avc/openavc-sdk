@@ -9,6 +9,8 @@ import shutil
 import subprocess
 import tarfile
 
+from build_support import build_image
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -20,10 +22,9 @@ def build(args):
     docker = ['docker', *(['--context', args.docker_context] if args.docker_context else [])]
     identity = out / 'image-id.txt'
     name = 'openavc-cross-' + secrets.token_hex(6)
-    with (out / 'build.log').open('w') as log:
-        subprocess.run(docker + ['build', '--iidfile', str(identity), '--build-arg', 'TARGET=' + args.target,
-                                 '-f', str(ROOT / 'examples/linux/cross/Dockerfile'), str(ROOT)],
-                       check=True, stdout=log, stderr=subprocess.STDOUT)
+    build_image(docker, ['--iidfile', str(identity), '--build-arg', 'TARGET=' + args.target,
+                         '-f', str(ROOT / 'examples/linux/cross/Dockerfile'), str(ROOT)],
+                out / 'build.log', 'cross-' + args.target)
     image = identity.read_text().strip()
     try:
         subprocess.run(docker + ['create', '--name', name, image], check=True, stdout=subprocess.DEVNULL)

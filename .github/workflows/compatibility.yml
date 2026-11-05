@@ -47,7 +47,9 @@ jobs:
       - name: Install build tools
         run: sudo apt-get update && sudo apt-get install -y cmake g++ libssl-dev openssl
       - name: Compare the canonical contract
-        run: python tools/sync_contract.py --core ../core --check-upstream | tee build/compatibility/contract.json
+        run: |
+          python -m pip install --require-hashes -r tools/requirements-check.txt
+          python tools/sync_contract.py --core ../core --check-upstream | tee build/compatibility/contract.json
       - name: Install the selected core and product controls
         run: python -m pip install ../core .
       - name: Check the adapter and host

@@ -2,6 +2,7 @@ FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3
 ARG TARGET
 ENV OPENAVC_CROSS_TARGET=${TARGET}
 COPY tools/debian.sources /etc/apt/sources.list.d/debian.sources
+COPY tools/apt-retries.conf /etc/apt/apt.conf.d/80-sdk-downloads
 RUN set -eu; \
     case "$TARGET" in \
       arm64) arch=arm64; compiler=aarch64-linux-gnu ;; \
@@ -23,6 +24,7 @@ RUN set -eu; \
     sha256sum ./*.deb > /opt/target-packages.sha256; \
     mkdir -p /opt/system-inputs; \
     cp /etc/apt/sources.list.d/debian.sources /opt/system-inputs/; \
+    cp /etc/apt/apt.conf.d/80-sdk-downloads /opt/system-inputs/apt-retries.conf; \
     cp /var/lib/apt/lists/*_InRelease /opt/system-inputs/; \
     rm -rf /var/lib/apt/lists/* /tmp/sdk-target-packages
 WORKDIR /opt/sdk

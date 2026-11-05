@@ -47,6 +47,10 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
     name: Yocto build (${{ matrix.machine }})
@@ -84,6 +88,26 @@ jobs:
           key: yocto-sstate-${{ matrix.machine }}-${{ hashFiles('examples/linux/yocto/setup.py') }}
           restore-keys: |
             yocto-sstate-${{ matrix.machine }}-
+      - name: Restore source downloads
+        uses: actions/cache@v4
+        with:
+          path: build/yocto/build/downloads
+          key: yocto-downloads-${{ matrix.machine }}-${{ hashFiles('examples/linux/yocto/setup.py') }}-${{ github.sha }}
+          restore-keys: |
+            yocto-downloads-${{ matrix.machine }}-${{ hashFiles('examples/linux/yocto/setup.py') }}-
+            yocto-downloads-${{ matrix.machine }}-
+      - name: Download and verify firmware sources
+        env:
+          LANG: en_US.UTF-8
+        run: |
+          sdk_checkout="$PWD"
+          # Recheck restored archives instead of trusting cached verification stamps.
+          if test -d build/yocto/build/downloads; then
+            find build/yocto/build/downloads -name '*.done' -type f -delete
+          fi
+          source build/yocto/layers/openembedded-core/oe-init-build-env "$PWD/build/yocto/build" "$PWD/build/yocto/layers/bitbake"
+          set -eo pipefail
+          bitbake --runall=fetch openavc-sdk openavc-example-image 2>&1 | tee "$sdk_checkout/build/yocto-downloads.log"
       - name: Build packages and the reference filesystem
         id: firmware
         env:
@@ -91,6 +115,7 @@ jobs:
         run: |
           sdk_checkout="$PWD"
           source build/yocto/layers/openembedded-core/oe-init-build-env "$PWD/build/yocto/build" "$PWD/build/yocto/layers/bitbake"
+          set -eo pipefail
           bitbake -c unpack openavc-sdk python3-openavc-oem openavc-example-consumer 2>&1 | tee "$sdk_checkout/build/yocto-source-check.log"
           bitbake openavc-sdk openavc-example-image 2>&1 | tee "$sdk_checkout/build/yocto-build.log"
           image_root=$(bitbake-getvar -r openavc-example-image --value IMAGE_ROOTFS)

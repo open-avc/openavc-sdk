@@ -74,6 +74,7 @@ def setup(args):
         'RM_WORK_EXCLUDE += "openavc-sdk openavc-example-image"\n'
         'BB_DISKMON_DIRS = "STOPTASKS,${TMPDIR},4G,100K HALT,${TMPDIR},2G,50K"\n'
         'BB_HASHSERVE = "auto"\nBB_SIGNATURE_HANDLER = "OEEquivHash"\n'
+        f'FETCHCMD_wget = "/usr/bin/env python3 {Path(__file__).parent / "fetch.py"} --tries=3 --timeout=30"\n'
         'require conf/fragments/yocto/sstate-mirror-cdn.conf\n')
     (configuration / 'sources.json').write_text(json.dumps(
         {'sources': SOURCES, 'sdk_revision': args.sdk_revision, 'machine': args.machine,

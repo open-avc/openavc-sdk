@@ -8,6 +8,35 @@ permissions:
   contents: read
 
 jobs:
+  server-dependencies:
+    name: Server dependencies (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            tools/requirements-check.txt
+            tools/requirements-server.txt
+      - name: Read the selected server and check its dependency lock
+        run: |
+          python -m pip install --require-hashes -r tools/requirements-check.txt
+          python -c "import json,pathlib; print(json.loads(pathlib.Path('sdk/contract/origin.json').read_text())['core_head'])" > /tmp/openavc-ref
+          git init /tmp/openavc
+          git -C /tmp/openavc remote add origin https://github.com/open-avc/openavc.git
+          git -C /tmp/openavc fetch --depth 1 origin "$(cat /tmp/openavc-ref)"
+          git -C /tmp/openavc checkout --detach FETCH_HEAD
+          python tools/check_server_lock.py --core /tmp/openavc
+      - name: Download verified wheels and check transitive dependencies
+        run: python tools/check_server_lock.py --core /tmp/openavc --download --wheels build/server-wheels --machine "$(uname -m)"
+
   cross-build:
     name: Cross-build ${{ matrix.target }} on ${{ matrix.runner }}
     strategy:
@@ -20,8 +49,16 @@ jobs:
             target: x86_64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
+    env:
+      OPENAVC_BUILD_CACHE: ${{ github.workspace }}/build/image-cache
     steps:
       - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.OPENAVC_BUILD_CACHE }}
+          key: sdk-cross-${{ matrix.target }}-${{ runner.arch }}-${{ github.sha }}
+          restore-keys: sdk-cross-${{ matrix.target }}-${{ runner.arch }}-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -81,34 +118,46 @@ jobs:
 
   native:
     name: Native Linux (${{ matrix.runner }})
+    needs: server-dependencies
     strategy:
       fail-fast: false
       matrix:
         runner: [ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
+    env:
+      OPENAVC_BUILD_CACHE: ${{ github.workspace }}/build/image-cache
     steps:
       - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.OPENAVC_BUILD_CACHE }}
+          key: sdk-native-${{ runner.arch }}-${{ github.sha }}
+          restore-keys: sdk-native-${{ runner.arch }}-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-venv cmake clang libc++-dev libc++abi-dev libssl-dev openssl
+          sudo apt-get install -y python3-venv cmake clang libc++-dev libc++abi-dev libssl-dev openssl wget
       - name: Install the pinned core and product controls
         run: |
+          python -m pip install --require-hashes -r tools/requirements-check.txt
           python -c "import json,pathlib; print(json.loads(pathlib.Path('sdk/contract/origin.json').read_text())['core_head'])" > /tmp/openavc-ref
           git clone --filter=blob:none https://github.com/open-avc/openavc.git /tmp/openavc
           git -C /tmp/openavc checkout "$(cat /tmp/openavc-ref)"
           python -m pip install /tmp/openavc .
           python tools/sync_contract.py --core /tmp/openavc --check
-      - name: Build and exercise C and C++
+      - name: Check source and documentation
         run: |
           python tools/generate_api_reference.py --check
           python tools/check_docs.py
           python tools/check_vendor_sources.py
           python doctor.py --report build/environment.json
+      - name: Build and exercise C and C++
+        run: |
           python try-example.py --exercise-demo
           python try-example.py --language cpp --exercise-demo
           python try-example.py --form direct --exercise-demo
@@ -117,8 +166,10 @@ jobs:
           python try-example.py --project build/my-product --build-only
           python try-example.py --project build/my-product --checks build/my-product/checks.json --out build/project-checks
           python collect-diagnostics.py --environment build/environment.json --checks build/project-checks/report.json --out build/support-preview.json
-          python -m unittest discover -s tests -v
-          node --test tests/browser_inventory.test.mjs
+      - name: SDK unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Browser inventory test
+        run: node --test tests/browser_inventory.test.mjs
       - name: Check setup with the operating system's Python
         run: |
           /usr/bin/python3 -m venv build/python
@@ -163,6 +214,14 @@ jobs:
           kill "$profile_test_pid"
           wait "$profile_test_pid" || true
           trap - EXIT
+      - name: Prepare the full-system image
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tools.build_support import build_image
+          build_image(['docker'], ['-f', 'examples/system/Dockerfile', '.'],
+                      Path('build/system-image.log'), 'system-image')
+          PY
       - name: Exercise both complete arrangements
         run: |
           python try-system.py --arrangement external --out build/check-external --check --cloud --authority-checks --resource-checks --compatibility-checks
@@ -192,6 +251,7 @@ jobs:
           name: sdk-${{ matrix.runner }}
           path: |
             build/package/*.tar.gz
+            build/system-image.log
             build/package/*.sha256
             build/package/build.log
             build/package/image-build.log

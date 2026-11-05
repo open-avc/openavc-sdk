@@ -19,6 +19,9 @@ Choose `--target x86_64` and a different output directory for x86-64.
 The first build downloads its toolchain and target development packages from
 the dated Debian archives selected in [`tools/debian.sources`](../tools/debian.sources).
 The container's Python base image is selected by its digest.
+Individual Debian downloads have bounded retries. A failed build prints its
+last output and retains the full `build.log`; see [build caching](building.md)
+for reuse across builds.
 
 The container runs on the build computer's processor. It builds the invented
 C and C++ adapters, generated model and Linux device service against a Debian 12

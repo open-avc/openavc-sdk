@@ -138,7 +138,18 @@ build, and deliberately update and qualify these pins together. The reference
 build does not automatically adopt newer system packages.
 
 When updating the SDK's core
-pin, review these inputs together. Downloaded wheels must match their recorded
+pin, review these inputs together. `sync_contract.py` checks the selected core's
+declared requirements and the retained notice versions against the server lock
+before writing any generated files. Install its parser first:
+
+```sh
+python3 -m pip install --require-hashes -r tools/requirements-check.txt
+```
+
+The SDK checks begin with separate server-dependency jobs for both CPUs. They
+download the locked Linux/Python 3.12 wheels, verify their hashes, and check
+transitive requirements and requested extras before the native builds start.
+Downloaded wheels must match their recorded
 hashes, and the installed combination must pass `pip check`. Qualify changed
 inputs through both native Linux package jobs before distributing a new bundle.
 Do not remove the hash checks to get past a dependency mismatch.
@@ -154,3 +165,16 @@ The command checks that checkout's committed `HEAD`, not its uncommitted edits.
 Use `--check` instead to require both matching contract bytes and the exact
 recorded core commit. A mismatch needs review before updating the pin or generated
 files; do not suppress a failing comparison to continue a firmware build.
+
+To verify the selected server lock and its complete wheel dependencies locally:
+
+```sh
+python3 tools/check_server_lock.py --core /path/to/openavc --download \
+  --wheels build/server-wheels-arm64 --machine aarch64
+```
+
+Use `--machine x86_64` and a separate wheel directory for x86-64. This reads
+wheel metadata without executing the packages. It selects wheels for Debian 12,
+independently of the development computer's OS. Omit `--download` to verify an
+existing wheel directory offline. Without `--wheels` and `--machine`, the check
+covers declared requirements and notice identities only.

@@ -61,11 +61,12 @@ def build(output):
         text=True), encoding='utf-8')
     sources = {}
     for name in ['openavc_oem', 'examples/system', 'sdk/contract', 'pyproject.toml',
-                 'tools/build_server.py', 'tools/server_bundle.py', 'tools/wheel_inventory.py',
+                 'tools/build_server.py', 'tools/build_support.py', 'tools/server_bundle.py', 'tools/wheel_inventory.py',
                  'tools/wheel_contents.py', 'licenses/wheels',
                  'tools/refresh_wheel_notices.py', 'tools/wheel-notice-sources.json',
                  'tools/build_browser.mjs', 'tools/browser_inventory.mjs',
-                 'tools/requirements-server.txt', 'tools/requirements-build.txt', 'tools/debian.sources']:
+                 'tools/requirements-server.txt', 'tools/requirements-build.txt', 'tools/debian.sources',
+                 'tools/apt-retries.conf']:
         source = sdk / name
         for path in sorted(source.rglob('*')) if source.is_dir() else [source]:
             if path.is_file() and '__pycache__' not in path.parts:

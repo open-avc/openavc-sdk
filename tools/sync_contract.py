@@ -6,6 +6,8 @@ import json
 from pathlib import Path, PurePosixPath
 import subprocess
 
+from check_server_lock import check_sources
+
 FILES = ["__init__.py", "drivers/__init__.py", "drivers/spec.py",
          "drivers/avcdriver_semantic.py", "drivers/equipment_protocol.py",
          "utils/__init__.py", "utils/regex_safety.py"]
@@ -75,6 +77,11 @@ def main():
     parser.add_argument("--check", action="store_true", help="Compare without writing files.")
     parser.add_argument("--check-upstream", action="store_true", help="Compare contract bytes without requiring the same commit ID.")
     args = parser.parse_args()
+    # Refuse an incompatible core before changing any generated file or pin.
+    try:
+        check_sources(args.core, args.revision)
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        parser.exit(1, 'Server dependency check failed: ' + str(error) + '\n')
     args.check = args.check or args.check_upstream
     output = Path(__file__).resolve().parents[1] / "sdk/contract"
     record = {"repository": "https://github.com/open-avc/openavc",

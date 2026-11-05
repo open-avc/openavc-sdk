@@ -191,6 +191,10 @@ The Python build tools and Docker base images are pinned too. System packages
 come from the dated Debian archives in [`tools/debian.sources`](../tools/debian.sources).
 Downloads occur
 during image preparation; wheel assembly then runs with networking disabled.
+The builders retry individual Debian downloads up to three times and print the
+last build output when a step fails. Full logs remain in the output directory.
+Repository signatures, wheel hashes and the installed dependency check remain
+required.
 It starts no product or hardware integration. The result is under
 `build/server-bundle/wheels`, with a checksummed `openavc-server-linux-<cpu>.tar.gz`
 for transfer. `bundle.json` records hashes, core revision, Python,
@@ -224,10 +228,20 @@ later runs can use `--offline`. The tool reads archives as data and verifies the
 source and notice hashes. It does not run their build scripts. When updating a
 dependency, review its sources and update this record before building the bundle.
 Normal server builds use the retained notices without these downloads.
+Before changing the selected server, run the
+[server dependency checks](compatibility.md#how-upstream-changes-are-checked).
 Keep these records and `build-inputs/` with your firmware build. That directory
 contains the Python locks, web dependency lockfiles, Dockerfile and an inventory
 of the builder's installed system packages. `build-inputs/system-inputs/` retains
 the selected Debian repositories and their signed release metadata.
+
+CI retains BuildKit caches between builds. To use a persistent local cache with
+the native, cross or server builders, set `OPENAVC_BUILD_CACHE` to a dedicated
+directory and select a Docker Buildx builder that supports the local cache
+exporter. Cached layers are reused only when their build inputs match. A failed
+build retains its previous cache and is reported as a failure. Without this
+variable, the tools use the Docker engine's normal local build cache.
+
 `build-inputs/browser-builds/` records
 packages that contributed to the compiled Programmer and Simulator, including
 their workers, with hashes checked against the emitted files. It also records

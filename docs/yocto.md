@@ -69,6 +69,10 @@ shared-state mirror and removes temporary completed build work to reduce disk us
 Initial builds require internet access. Interrupted source downloads are attempted
 up to three times at the same pinned revision. Credential, certificate and missing
 revision errors stop preparation. Existing build directories are not overwritten.
+Archive requests start afresh at each mirror, with up to three attempts and a
+30-second network timeout. Recipe checksums and certificate checks remain required.
+CI separates source downloads from compilation, caches the downloaded files,
+and removes cached verification stamps so restored archives are checked again.
 
 From a committed SDK source checkout whose revision is available on GitHub:
 
@@ -78,6 +82,8 @@ python3 examples/linux/yocto/setup.py --out build/yocto \
 sdk_checkout="$PWD"
 source build/yocto/layers/openembedded-core/oe-init-build-env \
   "$PWD/build/yocto/build" "$PWD/build/yocto/layers/bitbake"
+set -eo pipefail
+bitbake --runall=fetch openavc-sdk openavc-example-image
 bitbake -c unpack openavc-sdk python3-openavc-oem openavc-example-consumer
 bitbake openavc-sdk openavc-example-image
 image_root=$(bitbake-getvar -r openavc-example-image --value IMAGE_ROOTFS)

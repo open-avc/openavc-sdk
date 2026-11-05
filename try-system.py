@@ -15,6 +15,8 @@ import time
 import urllib.error
 import urllib.request
 
+from tools.build_support import build_image
+
 ROOT = Path(__file__).resolve().parent
 
 
@@ -116,21 +118,18 @@ def run(args):
     try:
         call(['info', '--format', '{{.OSType}}'])
         print('Building the Linux example and the pinned OpenAVC server. The first build downloads dependencies.', flush=True)
-        with (out / 'build.log').open('w') as log:
-            built = subprocess.run(docker + ['build', '--iidfile', str(image_file), '-f', str(ROOT / 'examples/system/Dockerfile'), str(ROOT)],
-                                   stdout=log, stderr=subprocess.STDOUT)
-        if built.returncode:
-            raise RuntimeError('The example image did not build. Read ' + str(out / 'build.log'))
+        build_image(docker, ['--iidfile', str(image_file), '-f',
+                            str(ROOT / 'examples/system/Dockerfile'), str(ROOT)],
+                    out / 'build.log', 'system-image')
         image = image_file.read_text(encoding='utf-8').strip()
         if not re.fullmatch(r'sha256:[0-9a-f]{64}', image):
             raise RuntimeError('Docker did not record a valid example image ID. Read build.log.')
         layout['image'] = image
         if args.network_faults:
             network_image = out / 'network-tools-image.txt'
-            with (out / 'network-tools-build.log').open('w') as log:
-                subprocess.run(docker + ['build', '--iidfile', str(network_image), '-f',
-                    str(ROOT / 'examples/system/network-tools.Dockerfile'), str(ROOT)],
-                    check=True, stdout=log, stderr=subprocess.STDOUT)
+            build_image(docker, ['--iidfile', str(network_image), '-f',
+                                str(ROOT / 'examples/system/network-tools.Dockerfile'), str(ROOT)],
+                        out / 'network-tools-build.log', 'network-tools')
             layout['network_tools_image'] = network_image.read_text().strip()
         network_options = ['--internal', *(['--ipv6'] if args.equipment_ipv6 else []),
                            '--label', 'openavc.sdk.example=' + prefix]

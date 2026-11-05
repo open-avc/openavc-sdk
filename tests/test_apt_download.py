@@ -1,7 +1,6 @@
 """Exercise APT's configured retry bound and hash rejection on a local server."""
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -40,10 +39,12 @@ class AptDownloads(unittest.TestCase):
             with tempfile.TemporaryDirectory() as folder:
                 for endpoint, success in (('temporary', True), ('corrupt', False), ('down', False)):
                     destination = Path(folder) / endpoint
-                    result = subprocess.run([str(HELPER), 'download-file',
+                    # -c loads this file after host defaults; APT_CONFIG is
+                    # read before them and can be overridden by the runner.
+                    result = subprocess.run([str(HELPER), '-c', str(CONFIG), 'download-file',
                         f'http://127.0.0.1:{server.server_port}/{endpoint}', str(destination),
                         'SHA256:' + hashlib.sha256(payload).hexdigest()],
-                        env={**os.environ, 'APT_CONFIG': str(CONFIG)}, capture_output=True, text=True, timeout=30)
+                        capture_output=True, text=True, timeout=30)
                     self.assertEqual(result.returncode == 0, success, result.stdout + result.stderr)
                     if success:
                         self.assertEqual(destination.read_bytes(), payload)

@@ -14,7 +14,7 @@ use the server selected by the kit's pin when evaluating these examples.
 
 | Component | Combination for this checkout |
 |---|---|
-| OpenAVC server, separate or product-hosted | Core commit `a72322448be0b322798d7aba17c28a5c77de6df0`, recorded in `sdk/contract/origin.json`. |
+| OpenAVC server, separate or product-hosted | Exact `core_head` recorded in [`sdk/contract/origin.json`](../sdk/contract/origin.json). |
 | Equipment protocol | `openavc-device-1`. A different protocol is refused before control. |
 | Product description and callbacks | Generate the model and compile the adapter together using this SDK checkout. |
 | Native headers, libraries and service | Use one matching source build or supplied archive for the target CPU. |
@@ -137,8 +137,8 @@ required. Check for dependency and security updates when selecting a new firmwar
 build, and deliberately update and qualify these pins together. The reference
 build does not automatically adopt newer system packages.
 
-When updating the SDK's core
-pin, review these inputs together. `sync_contract.py` checks the selected core's
+When updating the core pin from an SDK source checkout, review these inputs
+together. `sync_contract.py` checks the selected core's
 declared requirements and the retained notice versions against the server lock
 before writing any generated files. Install its parser first:
 

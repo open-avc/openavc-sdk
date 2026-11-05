@@ -14,10 +14,14 @@ RUN rm -rf .git openavc/web/programmer/node_modules openavc/web/simulator/node_m
 FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258 AS server-runtime
 COPY tools/debian.sources /etc/apt/sources.list.d/debian.sources
 COPY tools/apt-retries.conf /etc/apt/apt.conf.d/80-sdk-downloads
-RUN apt-get update && apt-get install -y --no-install-recommends cmake build-essential libssl-dev openssl iputils-ping && \
+COPY tools/apt_packages.py tools/apt-retries.conf /opt/build-tools/
+RUN apt-get update && \
+    python /opt/build-tools/apt_packages.py --record /opt/system-inputs/debian-packages.json install \
+      cmake build-essential libssl-dev openssl iputils-ping && \
     mkdir -p /opt/system-inputs && \
     cp /etc/apt/sources.list.d/debian.sources /opt/system-inputs/ && \
     cp /etc/apt/apt.conf.d/80-sdk-downloads /opt/system-inputs/apt-retries.conf && \
+    cp /opt/build-tools/apt_packages.py /opt/system-inputs/ && \
     cp /var/lib/apt/lists/*_InRelease /opt/system-inputs/ && \
     rm -rf /var/lib/apt/lists/*
 COPY tools/requirements-server.txt tools/requirements-build.txt /opt/build-inputs/

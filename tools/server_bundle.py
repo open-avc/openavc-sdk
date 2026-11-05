@@ -66,7 +66,7 @@ def build(output):
                  'tools/refresh_wheel_notices.py', 'tools/wheel-notice-sources.json',
                  'tools/build_browser.mjs', 'tools/browser_inventory.mjs',
                  'tools/requirements-server.txt', 'tools/requirements-build.txt', 'tools/debian.sources',
-                 'tools/apt-retries.conf']:
+                 'tools/apt-retries.conf', 'tools/apt_packages.py']:
         source = sdk / name
         for path in sorted(source.rglob('*')) if source.is_dir() else [source]:
             if path.is_file() and '__pycache__' not in path.parts:

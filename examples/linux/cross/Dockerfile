@@ -3,6 +3,7 @@ ARG TARGET
 ENV OPENAVC_CROSS_TARGET=${TARGET}
 COPY tools/debian.sources /etc/apt/sources.list.d/debian.sources
 COPY tools/apt-retries.conf /etc/apt/apt.conf.d/80-sdk-downloads
+COPY tools/apt_packages.py tools/apt-retries.conf /opt/build-tools/
 RUN set -eu; \
     case "$TARGET" in \
       arm64) arch=arm64; compiler=aarch64-linux-gnu ;; \
@@ -11,13 +12,14 @@ RUN set -eu; \
     esac; \
     apt-get update; \
     if [ "$(dpkg --print-architecture)" = "$arch" ]; then \
-      apt-get install -y --no-install-recommends cmake make gcc g++; \
+      python /opt/build-tools/apt_packages.py --record /opt/system-inputs/debian-packages.json install cmake make gcc g++; \
     else \
-      apt-get install -y --no-install-recommends cmake make "gcc-$compiler" "g++-$compiler"; \
+      python /opt/build-tools/apt_packages.py --record /opt/system-inputs/debian-packages.json install cmake make "gcc-$compiler" "g++-$compiler"; \
       dpkg --add-architecture "$arch"; apt-get update; \
     fi; \
     mkdir -p /opt/sysroot /tmp/sdk-target-packages; cd /tmp/sdk-target-packages; \
-    apt-get download "libc6:$arch" "libc6-dev:$arch" "linux-libc-dev:$arch" \
+    python /opt/build-tools/apt_packages.py --record /opt/system-inputs/target-debian-packages.json download \
+      "libc6:$arch" "libc6-dev:$arch" "linux-libc-dev:$arch" \
       "libssl3:$arch" "libssl-dev:$arch" "libgcc-s1:$arch" "libstdc++6:$arch"; \
     for package in ./*.deb; do dpkg-deb -x "$package" /opt/sysroot; done; \
     dpkg-query -W > /opt/build-packages.txt; \
@@ -25,6 +27,7 @@ RUN set -eu; \
     mkdir -p /opt/system-inputs; \
     cp /etc/apt/sources.list.d/debian.sources /opt/system-inputs/; \
     cp /etc/apt/apt.conf.d/80-sdk-downloads /opt/system-inputs/apt-retries.conf; \
+    cp /opt/build-tools/apt_packages.py /opt/system-inputs/; \
     cp /var/lib/apt/lists/*_InRelease /opt/system-inputs/; \
     rm -rf /var/lib/apt/lists/* /tmp/sdk-target-packages
 WORKDIR /opt/sdk

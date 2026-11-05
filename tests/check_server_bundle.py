@@ -81,6 +81,17 @@ for name, sha in record['build_inputs'].items():
 system_inputs = bundle / 'build-inputs/system-inputs'
 assert (system_inputs / 'debian.sources').read_bytes() == (
     Path(__file__).resolve().parents[1] / 'tools/debian.sources').read_bytes()
+for name in ['apt-retries.conf', 'apt_packages.py']:
+    assert (system_inputs / name).read_bytes() == (
+        Path(__file__).resolve().parents[1] / 'tools' / name).read_bytes()
+deb_downloads = json.loads((system_inputs / 'debian-packages.json').read_text())
+assert deb_downloads
+for package in deb_downloads:
+    assert package['uri'].startswith('https://snapshot.debian.org/archive/')
+    assert package['download_uri'].startswith(('https://snapshot.debian.org/archive/',
+                                               'https://deb.debian.org/'))
+    assert package['uri'].endswith('.deb') and package['file'].endswith('.deb')
+    assert re.fullmatch('[0-9a-f]{64}', package['sha256']) and package['size'] > 0
 releases = list(system_inputs.glob('*_InRelease'))
 assert len(releases) == 3
 assert all(path.read_bytes().startswith(b'-----BEGIN PGP SIGNED MESSAGE-----') for path in releases)

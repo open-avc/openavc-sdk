@@ -16,8 +16,11 @@ python3 tools/build_target.py --target arm64 --out build/arm64-target
 
 Choose `--target x86_64` and a different output directory for x86-64.
 `--docker-context <name>` selects an engine without changing your active context.
-The first build downloads its toolchain and target development packages from
-the dated Debian archives selected in [`tools/debian.sources`](../tools/debian.sources).
+The first build selects its toolchain and target development packages from
+the signed, dated Debian indexes in [`tools/debian.sources`](../tools/debian.sources).
+Exact package archives are fetched from Debian's regular mirror when available,
+then from the snapshot if needed. Files must match the selected hashes and sizes.
+The output's `system-inputs` directory records both selections and download sources.
 The container's Python base image is selected by its digest.
 Individual Debian downloads have bounded retries. A failed build prints its
 last output and retains the full `build.log`; see [build caching](building.md)

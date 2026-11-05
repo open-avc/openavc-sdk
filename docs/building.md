@@ -188,8 +188,11 @@ The tool builds both OpenAVC web interfaces from the pinned core revision and
 builds the server and product-management wheels. It uses the supplied Python
 dependency versions and wheel hashes for Linux ARM64/x86-64 with Python 3.12.
 The Python build tools and Docker base images are pinned too. System packages
-come from the dated Debian archives in [`tools/debian.sources`](../tools/debian.sources).
-Downloads occur
+are selected from the signed, dated indexes in [`tools/debian.sources`](../tools/debian.sources).
+Package files are fetched from Debian's regular mirror when it has the exact
+archive, with the dated archive as fallback. Every file must match the selected
+index's SHA-256 and size. The build inputs retain the original package URI,
+download URI and hash in `debian-packages.json`. Downloads occur
 during image preparation; wheel assembly then runs with networking disabled.
 The builders retry individual Debian downloads up to three times and print the
 last build output when a step fails. Full logs remain in the output directory.

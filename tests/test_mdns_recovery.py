@@ -1,10 +1,12 @@
 """A failed periodic announcement must not terminate equipment discovery."""
 import asyncio
 import socket
+import struct
 from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
+from openavc_oem._dns_wire import encode_dns_name
 from openavc_oem.mdns import Advertiser
 
 
@@ -114,6 +116,91 @@ class MulticastRecovery(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(advertiser.active)
         await advertiser.task
         self.assertFalse(advertiser.active)
+
+
+class RecordingSocket:
+    """A UDP socket that keeps every option, bind and close it is given."""
+
+    def __init__(self, *_args):
+        self.calls = []
+        self.interface = None
+
+    def setsockopt(self, level, option, value):
+        self.calls.append((level, option, value))
+        if (level, option) == (socket.IPPROTO_IP, socket.IP_MULTICAST_IF):
+            self.interface = socket.inet_ntoa(value)
+
+    def bind(self, address):
+        self.calls.append(('bind', address))
+
+    def setblocking(self, _flag):
+        pass
+
+    def close(self):
+        self.calls.append(('close',))
+
+    def memberships(self):
+        return [value for level, option, value in
+                (call for call in self.calls if len(call) == 3)
+                if (level, option) == (socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP)]
+
+
+class SelectedInterfaces(unittest.IsolatedAsyncioTestCase):
+    """The socket binds every address so multicast arrives; it joins and answers only where chosen."""
+
+    async def test_the_group_is_joined_and_announced_only_on_the_selected_addresses(self):
+        advertiser = Advertiser('example', 9443, ['192.0.2.20', '192.0.2.10'])
+        advertiser.enabled = True
+        created, sent = [], []
+
+        def make(*args):
+            created.append(RecordingSocket(*args))
+            return created[-1]
+
+        async def sendto(sock, _packet, address):
+            sent.append((sock.interface, address))
+
+        with patch('openavc_oem.mdns.socket.socket', make), \
+                patch.object(asyncio.get_running_loop(), 'sock_sendto', sendto):
+            await advertiser.refresh_interfaces()
+        self.assertIsNone(advertiser.error)
+        [sock] = created
+        self.assertIn(('bind', ('', 5353)), sock.calls)
+        group = socket.inet_aton('224.0.0.251')
+        self.assertEqual(sock.memberships(), [group + socket.inet_aton('192.0.2.10'),
+                                              group + socket.inet_aton('192.0.2.20')])
+        self.assertEqual(sent, [('192.0.2.10', ('224.0.0.251', 5353)),
+                                ('192.0.2.20', ('224.0.0.251', 5353))])
+
+    async def test_a_question_is_answered_on_the_group_never_to_the_asker(self):
+        advertiser = Advertiser('example', 9443, ['192.0.2.10'])
+        advertiser.enabled = True
+        advertiser.addresses = ['192.0.2.10']
+        advertiser.socket = RecordingSocket()
+        question = (struct.pack('!HHHHHH', 0, 0, 1, 0, 0, 0)
+                    + encode_dns_name('_openavc-device._tcp.local.') + struct.pack('!HH', 12, 1))
+        waiting, sent = asyncio.Event(), []
+
+        async def receive(_sock, _limit):
+            if not waiting.is_set():
+                waiting.set()
+                return question, ('198.51.100.7', 5353)
+            await asyncio.Event().wait()
+
+        async def sendto(sock, _packet, address):
+            sent.append((sock.interface, address))
+
+        loop = asyncio.get_running_loop()
+        with patch.object(loop, 'sock_recvfrom', receive), patch.object(loop, 'sock_sendto', sendto):
+            listening = asyncio.create_task(advertiser.listen())
+            await asyncio.wait_for(waiting.wait(), 1)
+            for _ in range(20):
+                if sent:
+                    break
+                await asyncio.sleep(0)
+            listening.cancel()
+            await asyncio.gather(listening, return_exceptions=True)
+        self.assertEqual(sent, [('192.0.2.10', ('224.0.0.251', 5353))])
 
 
 if __name__ == '__main__':

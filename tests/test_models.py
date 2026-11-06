@@ -183,6 +183,18 @@ target_link_libraries(model-test PRIVATE adapter)
                 self.assertEqual(self.command(params)[0], 422)
         self.assertEqual(self.ready()["state"]["writes"], before)
 
+    def test_file_methods_reach_the_equipment_handler_and_are_refused(self):
+        for method in ("PUT", "DELETE"):
+            with self.subTest(method=method):
+                request = urllib.request.Request(self.url + "/product.json", method=method,
+                    data=b"{}" if method == "PUT" else None,
+                    headers={"Authorization": "Bearer " + self.token, "Content-Type": "application/json"})
+                with self.assertRaises(urllib.error.HTTPError) as caught:
+                    urllib.request.urlopen(request, context=self.context, timeout=3)
+                with caught.exception as response:
+                    self.assertEqual(response.status, 405)
+                    self.assertEqual(json.load(response)["error"], "method_not_allowed")
+
     def test_product_checker_with_changed_model_and_adapter(self):
         def physical_writes():
             self.process.stdin.write('snapshot\n')

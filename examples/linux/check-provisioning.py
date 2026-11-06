@@ -167,6 +167,7 @@ def check(args):
 
     def refuse_tls(ca, expected):
         context = ssl.create_default_context(cafile=str(ca))
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
         try:
             with socket.create_connection(('127.0.0.1', args.equipment_port), timeout=5) as connection:
                 with context.wrap_socket(connection, server_hostname='127.0.0.1'):

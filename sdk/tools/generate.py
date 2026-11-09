@@ -128,7 +128,10 @@ def generate(model_path, core, out):
                "    const char *name = oavc_command_name(request);",
                "    (void)context; (void)operation; (void)name;", *branches, "    return OAVC_REFUSED;", "}", ""]
     generated = {"commands.h": "\n".join(header), "commands.c": "\n".join(source)}
-    contract_files = ["drivers/avcdriver_semantic.py", "drivers/spec.py", "utils/regex_safety.py"]
+    contract_files = ["drivers/avcdriver_semantic.py", "drivers/child_ids.py",
+                      "drivers/condition_checks.py", "drivers/declared_names.py",
+                      "drivers/push_block_checks.py", "drivers/response_rule_checks.py",
+                      "drivers/spec.py", "utils/regex_safety.py"]
     record = {
         "model_sha256": hashlib.sha256(model_bytes).hexdigest(),
         "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),

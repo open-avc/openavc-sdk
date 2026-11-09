@@ -21,7 +21,8 @@ add_custom_command(
   DEPENDS "${OPENAVC_PRODUCT}" "${SDK}/tools/prepare_product.py" "${SDK}/tools/generate.py" "${SDK}/tools/state_mapping.py"
     "${SDK}/contract/openavc/drivers/avcdriver_semantic.py" "${SDK}/contract/openavc/drivers/child_ids.py"
     "${SDK}/contract/openavc/drivers/condition_checks.py" "${SDK}/contract/openavc/drivers/declared_names.py"
-    "${SDK}/contract/openavc/drivers/push_block_checks.py" "${SDK}/contract/openavc/drivers/response_rule_checks.py"
+    "${SDK}/contract/openavc/drivers/push_block_checks.py" "${SDK}/contract/openavc/drivers/query_entry_checks.py"
+    "${SDK}/contract/openavc/drivers/response_rule_checks.py"
     "${SDK}/contract/openavc/drivers/spec.py" "${SDK}/contract/openavc/utils/regex_safety.py"
   VERBATIM)
 add_library(openavc_runtime STATIC "${SDK}/src/endpoint.cpp" "${SDK}/src/adapter.cpp" "${SDK}/src/lifecycle.cpp")

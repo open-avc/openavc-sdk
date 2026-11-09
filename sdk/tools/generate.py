@@ -130,7 +130,8 @@ def generate(model_path, core, out):
     generated = {"commands.h": "\n".join(header), "commands.c": "\n".join(source)}
     contract_files = ["drivers/avcdriver_semantic.py", "drivers/child_ids.py",
                       "drivers/condition_checks.py", "drivers/declared_names.py",
-                      "drivers/push_block_checks.py", "drivers/response_rule_checks.py",
+                      "drivers/push_block_checks.py", "drivers/query_entry_checks.py",
+                      "drivers/response_rule_checks.py",
                       "drivers/spec.py", "utils/regex_safety.py"]
     record = {
         "model_sha256": hashlib.sha256(model_bytes).hexdigest(),

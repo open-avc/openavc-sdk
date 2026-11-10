@@ -135,7 +135,8 @@ def generate(model_path, core, out):
                       "drivers/declared_names.py", "drivers/framing_checks.py",
                       "drivers/liveness_checks.py", "drivers/param_aid_checks.py",
                       "drivers/push_block_checks.py", "drivers/query_entry_checks.py",
-                      "drivers/response_rule_checks.py", "drivers/sign_in_checks.py",
+                      "drivers/response_rule_checks.py", "drivers/routing_checks.py",
+                      "drivers/setting_checks.py", "drivers/sign_in_checks.py",
                       "drivers/spec.py", "drivers/state_variable_checks.py",
                       "utils/regex_safety.py"]
     record = {

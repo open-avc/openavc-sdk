@@ -23,6 +23,7 @@ add_custom_command(
     "${SDK}/contract/openavc/drivers/avcdriver_semantic.py" "${SDK}/contract/openavc/drivers/child_ids.py"
     "${SDK}/contract/openavc/drivers/child_type_checks.py"
     "${SDK}/contract/openavc/drivers/command_checks.py" "${SDK}/contract/openavc/drivers/condition_checks.py"
+    "${SDK}/contract/openavc/drivers/conversion_checks.py"
     "${SDK}/contract/openavc/drivers/declared_names.py" "${SDK}/contract/openavc/drivers/driver_warnings.py"
     "${SDK}/contract/openavc/drivers/framing_checks.py"
     "${SDK}/contract/openavc/drivers/liveness_checks.py" "${SDK}/contract/openavc/drivers/param_aid_checks.py"

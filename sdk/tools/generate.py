@@ -128,7 +128,8 @@ def generate(model_path, core, out):
                "    const char *name = oavc_command_name(request);",
                "    (void)context; (void)operation; (void)name;", *branches, "    return OAVC_REFUSED;", "}", ""]
     generated = {"commands.h": "\n".join(header), "commands.c": "\n".join(source)}
-    contract_files = ["drivers/avcdriver_semantic.py", "drivers/child_ids.py",
+    contract_files = ["drivers/action_checks.py",
+                      "drivers/avcdriver_semantic.py", "drivers/child_ids.py",
                       "drivers/child_type_checks.py",
                       "drivers/command_checks.py", "drivers/condition_checks.py",
                       "drivers/declared_names.py", "drivers/param_aid_checks.py",

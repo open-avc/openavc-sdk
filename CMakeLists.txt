@@ -19,6 +19,7 @@ add_custom_command(
   COMMAND "${Python3_EXECUTABLE}" "${SDK}/tools/prepare_product.py" --product "${OPENAVC_PRODUCT}" --core "${SDK}/contract" --out "${GENERATED}/model.json"
   COMMAND "${Python3_EXECUTABLE}" "${SDK}/tools/generate.py" --model "${GENERATED}/model.json" --core "${SDK}/contract" --out "${GENERATED}"
   DEPENDS "${OPENAVC_PRODUCT}" "${SDK}/tools/prepare_product.py" "${SDK}/tools/generate.py" "${SDK}/tools/state_mapping.py"
+    "${SDK}/contract/openavc/drivers/action_checks.py"
     "${SDK}/contract/openavc/drivers/avcdriver_semantic.py" "${SDK}/contract/openavc/drivers/child_ids.py"
     "${SDK}/contract/openavc/drivers/child_type_checks.py"
     "${SDK}/contract/openavc/drivers/command_checks.py" "${SDK}/contract/openavc/drivers/condition_checks.py"

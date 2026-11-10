@@ -132,13 +132,14 @@ def generate(model_path, core, out):
                       "drivers/avcdriver_semantic.py", "drivers/child_ids.py",
                       "drivers/child_type_checks.py",
                       "drivers/command_checks.py", "drivers/condition_checks.py",
-                      "drivers/declared_names.py", "drivers/framing_checks.py",
+                      "drivers/declared_names.py", "drivers/driver_warnings.py",
+                      "drivers/framing_checks.py",
                       "drivers/liveness_checks.py", "drivers/param_aid_checks.py",
                       "drivers/push_block_checks.py", "drivers/query_entry_checks.py",
                       "drivers/response_rule_checks.py", "drivers/routing_checks.py",
                       "drivers/setting_checks.py", "drivers/sign_in_checks.py",
                       "drivers/spec.py", "drivers/state_variable_checks.py",
-                      "utils/regex_safety.py"]
+                      "drivers/substitution_checks.py", "utils/regex_safety.py"]
     record = {
         "model_sha256": hashlib.sha256(model_bytes).hexdigest(),
         "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),

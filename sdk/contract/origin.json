@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/open-avc/openavc",
-  "core_head": "6a12a7c412848f9efb7a018832ea224f3df1f7dd",
+  "core_head": "d4a6851a175ecbfee2221d8e149e7820fe731e89",
   "files": {
     "__init__.py": {
       "sha256": "da6420723411b11727e17835b82ff14fd61d65de470665d9c5260d422266fdbc"
@@ -12,7 +12,7 @@
       "sha256": "2cac8342e03838831d91f23cd3abd0c30d65ee30c6de10463ea0ae61f7f15c15"
     },
     "drivers/avcdriver_semantic.py": {
-      "sha256": "bf8d916f088a96401d78238faee3a5dd3c8515a42964da5233562942d23a1f19"
+      "sha256": "ef088f544eb00cb58a9bf346d6bb5b07242481051205d43c365ca59dee5877ef"
     },
     "drivers/child_fault_checks.py": {
       "sha256": "d24af4d7c82d33010bbc68f39ed89700985ddf0dffead4493b99dcb5dd6b470c"
@@ -67,6 +67,9 @@
     },
     "drivers/routing_checks.py": {
       "sha256": "14f55d4ab7f0eef1774b19d501bb4d239292666e38ac5d649f99b52db3129ecf"
+    },
+    "drivers/serial_line.py": {
+      "sha256": "c717ba8c79bb0d5a7a7a73b18ccfac9647708c612662e42d4d91cb705a33d85c"
     },
     "drivers/setting_checks.py": {
       "sha256": "a0723da4ea11d852d846e4183f5e65e62abc3563ff06883194b9d84b3a6843a3"

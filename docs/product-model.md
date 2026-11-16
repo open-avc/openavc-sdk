@@ -108,16 +108,16 @@ Optional values use a generated `present`/`value` struct. The compiler rejects a
 type with no C callback mapping and reports generated-name collisions. Implement
 every callback declared in `commands.h`; a missing implementation fails the link.
 
-Commands can also carry the canonical `description`, `help`, `sets`, `query_for`,
-`confirm` and `restarts_device_for` metadata. These describe the command to OpenAVC;
+Commands can also carry the canonical `help`, `sets`, `query_for`, `confirm`
+and `restarts_device_for` metadata. These describe the command to OpenAVC;
 they do not execute your hardware operation or replace its completion/readback.
 Transport fields such as `send`, `method` and `path` are supplied by the SDK and
 are refused in the product command description.
 
 ## Settings and common actions
 
-The product file also accepts canonical `device_settings`, `quick_actions`,
-`actions` and `capabilities`. Use these to describe how existing states and
+The product file also accepts canonical `device_settings`, `quick_actions` and
+`actions`. Use these to describe how existing states and
 commands appear in OpenAVC. They retain the normal OpenAVC field meanings and
 validation; they do not add another firmware callback mechanism.
 
@@ -132,8 +132,10 @@ header determine what your selected SDK supports.
 
 The supported top-level product fields are the metadata listed above,
 `state_variables`, `child_entity_types`, `commands`, `device_settings`,
-`quick_actions`, `actions` and `capabilities`. Connection settings, polling,
-parsers and protocol templates belong to the SDK; omit them from `product.json`.
+`quick_actions` and `actions`. Connection settings, polling, parsers and
+protocol templates belong to the SDK; omit them from `product.json`. The build
+refuses a field that OpenAVC 0.37.0, the first release that controls
+equipment, does not understand.
 
 ## Inspect and test the result
 

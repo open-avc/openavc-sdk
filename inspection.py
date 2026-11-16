@@ -18,7 +18,7 @@ def inspect_product(request, expected_model):
             result['identity'] = description['identity']
             result['capabilities'] = {
                 'product': {key: model[key] for key in ['id', 'name', 'manufacturer', 'category', 'version', 'description'] if key in model},
-                'commands': {name: {key: command[key] for key in ['label', 'description', 'params'] if key in command}
+                'commands': {name: {key: command[key] for key in ['label', 'params'] if key in command}
                              for name, command in model.get('commands', {}).items()},
                 'state_variables': model.get('state_variables', {}),
                 'child_entity_types': model.get('child_entity_types', {}),

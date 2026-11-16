@@ -1,6 +1,8 @@
 """Expand a product-only description through the canonical OpenAVC validator.
 
 Product fields retain their canonical meaning; the SDK supplies transport.
+Which fields a product may declare, and the OpenAVC release every field must
+work with, are the contract's equipment surface (its spec.py).
 """
 
 import argparse
@@ -13,31 +15,50 @@ import sys
 from generate import unique_fields
 
 
+def unsupported(place, known, allowed, supplied):
+    """Why a product key is refused: a field the SDK supplies, or none at all."""
+    name = place.rsplit('.', 1)[-1]
+    if name in known:
+        return f'{place}: {supplied}'
+    return f'{place}: not a product field. Use {", ".join(allowed)}.'
+
+
+def check_fields(product, spec):
+    """Refuse a product key outside the contract's equipment surface."""
+    for key in product:
+        if key not in spec.EQUIPMENT_PRODUCT_FIELDS:
+            raise ValueError(unsupported(key, spec.FIELDS, spec.EQUIPMENT_PRODUCT_FIELDS,
+                                         'the SDK supplies connection behavior.'))
+
+
+def check_command(name, command, spec):
+    """Refuse a command that is not an object, or a command key outside the
+    contract's equipment surface."""
+    if not isinstance(command, dict):
+        raise ValueError(f'commands.{name}: use a JSON object.')
+    for key in command:
+        if key not in spec.EQUIPMENT_PRODUCT_COMMAND_FIELDS:
+            raise ValueError(unsupported(
+                f'commands.{name}.{key}', spec.DEFS['commandEntry']['fields'],
+                spec.EQUIPMENT_PRODUCT_COMMAND_FIELDS,
+                'the SDK supplies command transport; implement hardware behavior in its callback.'))
+
+
 def prepare(product_path, core, out):
     sys.path.insert(0, str(core.resolve()))
-    from openavc.drivers import avcdriver_semantic
+    from openavc.drivers import avcdriver_semantic, spec
     if not Path(avcdriver_semantic.__file__).resolve().is_relative_to(core.resolve()):
         raise ValueError('Validator came from a different OpenAVC checkout.')
     product = json.loads(product_path.read_bytes(), object_pairs_hook=unique_fields)
     if not isinstance(product, dict):
         raise ValueError('Product description must be a JSON object.')
-    supported = {'id', 'name', 'manufacturer', 'category', 'version', 'author',
-                 'source_url', 'description', 'state_variables', 'child_entity_types', 'commands',
-                 'device_settings', 'quick_actions', 'actions', 'capabilities', 'tags',
-                 'compatible_models'}
-    for key in product:
-        if key not in supported:
-            raise ValueError(f'{key}: describe product capabilities here; the SDK supplies connection behavior.')
+    check_fields(product, spec)
     model = copy.deepcopy(product)
     commands = model.setdefault('commands', {})
     if not isinstance(commands, dict):
         raise ValueError('commands: use a JSON object of named commands.')
     for name, command in commands.items():
-        if not isinstance(command, dict):
-            raise ValueError(f'commands.{name}: use a JSON object.')
-        for key in command:
-            if key not in {'label', 'description', 'help', 'params', 'sets', 'query_for', 'confirm', 'restarts_device_for'}:
-                raise ValueError(f'commands.{name}.{key}: the SDK supplies command transport; implement hardware behavior in its callback.')
+        check_command(name, command, spec)
         command.update(method='POST', path='/v1/command')
     states = model.setdefault('state_variables', {})
     if not isinstance(states, dict):
@@ -47,7 +68,8 @@ def prepare(product_path, core, out):
         'url': {'type': 'string', 'label': 'Endpoint URL', 'required': True},
         'token': {'type': 'string', 'label': 'Endpoint Credential', 'required': True, 'secret': True},
     }
-    errors = avcdriver_semantic.validate_driver_definition(model, strict=True)
+    errors = (avcdriver_semantic.validate_driver_definition(model, strict=True)
+              or spec.equipment_floor_problems(model))
     if errors:
         raise ValueError('OpenAVC model validation failed:\n' + '\n'.join(errors))
     # Validate before touching any output, including an earlier successful build.

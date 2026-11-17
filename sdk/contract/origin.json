@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/open-avc/openavc",
-  "core_head": "2fea82176a933f197c0d1f2f8715326c8a3b9de7",
+  "core_head": "111e0d6e9969645707d529cd5562f550049888ef",
   "files": {
     "__init__.py": {
       "sha256": "da6420723411b11727e17835b82ff14fd61d65de470665d9c5260d422266fdbc"
@@ -87,7 +87,7 @@
       "sha256": "84c6240083bbd83152eb2f675842e933ec54aa057b97852f083699aedba95003"
     },
     "drivers/spec.py": {
-      "sha256": "ad7eea901ca7602d7a50d7cf1943be04e9c29d10ecefb3e0f7dcf42975a2b8ad"
+      "sha256": "d0533d61bd630407aa1898a5a2919eeeeccf7ee6a52f24b5eea54e706bff5896"
     },
     "drivers/state_variable_checks.py": {
       "sha256": "1984c2ab8e621415098866c9d553e16dcb7099c227fdec990c81ec77b988c243"

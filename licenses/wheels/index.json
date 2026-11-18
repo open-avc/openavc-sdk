@@ -6313,6 +6313,25 @@
       "origin": "https://static.rust-lang.org/dist/2025-10-30/rustc-1.91.0-x86_64-unknown-linux-gnu.tar.xz#rustc-1.91.0-x86_64-unknown-linux-gnu/rustc/share/doc/rust/COPYRIGHT-library.html",
       "source_sha256": "a7169e8cb6174af2f45717703370363d8de82ce55f6ccba185893045b9370874",
       "source_format": "tar"
+    },
+    {
+      "package": "bacpypes3",
+      "version": "0.1.0",
+      "wheel_sha256": [
+        "b7418df5587a1f6484f1c9b7551c53292bfcc37b1920fed16ad4cba86d65f155"
+      ],
+      "dependency_scope": "direct",
+      "component": {
+        "name": "bacpypes3",
+        "version": "0.1.0",
+        "ecosystem": "pypi"
+      },
+      "evidence": "Publisher wheel METADATA declares License-Expression: MIT. This OpenAVC supplement retains author attribution and the named MIT terms; it is not an upstream license file. The stale BSD classifier and missing upstream license file are stated in the supplement.",
+      "file": "f3d1b68209bbbd9ad4b6903da61126a542f63d7b6c505097735e86f2e2023090.txt",
+      "sha256": "f3d1b68209bbbd9ad4b6903da61126a542f63d7b6c505097735e86f2e2023090",
+      "origin": "https://raw.githubusercontent.com/open-avc/openavc/a14493e105cdc70ed392cc52b5e52b18910cb5af/openavc/licenses/bacpypes3.txt",
+      "source_sha256": "f3d1b68209bbbd9ad4b6903da61126a542f63d7b6c505097735e86f2e2023090",
+      "source_format": "file"
     }
   ]
 }

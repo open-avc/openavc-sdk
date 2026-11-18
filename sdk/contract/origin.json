@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/open-avc/openavc",
-  "core_head": "4dc8ddc7690f53b4f635b32dc553347a9a1ccc2e",
+  "core_head": "f23fedbae3da8f33c226b106cbf20573e9053976",
   "files": {
     "__init__.py": {
       "sha256": "da6420723411b11727e17835b82ff14fd61d65de470665d9c5260d422266fdbc"

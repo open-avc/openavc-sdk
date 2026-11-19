@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/open-avc/openavc",
-  "core_head": "0c769c8cc0ab15a738289740fad13e0739c85362",
+  "core_head": "b2b930c9677465cb889b5aa93cac33834d7baf5b",
   "files": {
     "__init__.py": {
       "sha256": "da6420723411b11727e17835b82ff14fd61d65de470665d9c5260d422266fdbc"
@@ -12,7 +12,7 @@
       "sha256": "1ea00529cf5db0de355d1f1cdf362c4508eaa4b74fcf38499325963fbab158aa"
     },
     "drivers/avcdriver_semantic.py": {
-      "sha256": "20742512b7f47dd2e5ad1d7e85a89e9724dd56a586ab69d33320ec6fa2fa4851"
+      "sha256": "88115c3e7259481ed4de62a1ed9df6048b4f4e5cc1656c1684848eccbbc0ced0"
     },
     "drivers/child_fault_checks.py": {
       "sha256": "d24af4d7c82d33010bbc68f39ed89700985ddf0dffead4493b99dcb5dd6b470c"
@@ -24,7 +24,7 @@
       "sha256": "c96f30766bf770363be173cbdd10083b61ed200789a98b85348da796d70aae09"
     },
     "drivers/command_checks.py": {
-      "sha256": "37980c16f49f730a76ef34f4d6fd7820560187ca9ddb59a6f40118bd1ab936d0"
+      "sha256": "ee3f0f8b8de3e50b77fe2f116229c14782116787fcd009faaebcbf7ae1415bdc"
     },
     "drivers/condition_checks.py": {
       "sha256": "18111a789cd459ba43d80f81ed9bbf93d537ef4502138459017daa65ee973541"
@@ -83,11 +83,14 @@
     "drivers/routing_checks.py": {
       "sha256": "14f55d4ab7f0eef1774b19d501bb4d239292666e38ac5d649f99b52db3129ecf"
     },
+    "drivers/send_shape.py": {
+      "sha256": "f9c110f89f5434c522463fba356bc0ae81e600d52f6a2f1cb7956752e8255954"
+    },
     "drivers/serial_line.py": {
       "sha256": "c717ba8c79bb0d5a7a7a73b18ccfac9647708c612662e42d4d91cb705a33d85c"
     },
     "drivers/setting_checks.py": {
-      "sha256": "a0723da4ea11d852d846e4183f5e65e62abc3563ff06883194b9d84b3a6843a3"
+      "sha256": "1d8f98aca6cd918969d17c2d96f7e04c928dd7d4348726e83fead1988da32858"
     },
     "drivers/shape_checks.py": {
       "sha256": "ce574ee70ec5d0865f2f3e49c83a3c94341bd69cd9dfa7c0951e7fb7dde4aa55"
@@ -96,13 +99,13 @@
       "sha256": "84c6240083bbd83152eb2f675842e933ec54aa057b97852f083699aedba95003"
     },
     "drivers/spec.py": {
-      "sha256": "35bb6a1d66883a6d3016d8e5076418a1378f597673327dc8212885e786f2cb4b"
+      "sha256": "cde184467e0d9a2b777c8c78ef4510ce559337bd1593044ff9361ba7dde5fa81"
     },
     "drivers/state_variable_checks.py": {
       "sha256": "1984c2ab8e621415098866c9d553e16dcb7099c227fdec990c81ec77b988c243"
     },
     "drivers/substitution_checks.py": {
-      "sha256": "7f90f75ad6ce3c9814e5878d08891903835fb93c78bb9992a814459a8b449d79"
+      "sha256": "ce6a5a5caac68673b755ad91a1d03d06ca428b5f7dc3a1658f8098bd4fc3d71c"
     },
     "drivers/tagged_errors.py": {
       "sha256": "c5f7a6978c4c47e5328e527089eb06c37afa53e09dde486decb05bbb7b23d577"

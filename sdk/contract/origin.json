@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/open-avc/openavc",
-  "core_head": "b2b930c9677465cb889b5aa93cac33834d7baf5b",
+  "core_head": "7e2ab8f6bfca15a7ccd0ecacdbe1ebbf126a088f",
   "files": {
     "__init__.py": {
       "sha256": "da6420723411b11727e17835b82ff14fd61d65de470665d9c5260d422266fdbc"
@@ -36,7 +36,7 @@
       "sha256": "754f73a69ac189d19829b0e03775b30f0e0a9ddca46152ad5623d4f4b4c002ad"
     },
     "drivers/discovery_block.py": {
-      "sha256": "0f3d8693249336718671bfe0a900e0d41b77672b164ba80ca16b95a6a6479625"
+      "sha256": "0d75cec4b72b0cf8ac49b262ace29031f24b566c9b6523c8ac1ad14a1e887f1c"
     },
     "drivers/discovery_hint.py": {
       "sha256": "ff622d290ac8b38e960e0e4e4f2b483abe326da8b3635a471f3c3320074edb8a"
@@ -63,7 +63,7 @@
       "sha256": "74227044974183d74e28f12544c96f931360712b6142b7aa9d2e1daf9668403e"
     },
     "drivers/platform_floor_checks.py": {
-      "sha256": "dbed711a55d1a4df2a1472f732a108f384119ff3eb06dc0a21a23e38323f12cd"
+      "sha256": "adbec4c78b203571a52158a1a5c193db0e24a9d1531a0554e4d70f45e8b6e521"
     },
     "drivers/push_block_checks.py": {
       "sha256": "e109dca96c81ed1a66c4061f037ca059cecca55b6630b77bbb9c6174a6d4eb2e"
@@ -99,7 +99,7 @@
       "sha256": "84c6240083bbd83152eb2f675842e933ec54aa057b97852f083699aedba95003"
     },
     "drivers/spec.py": {
-      "sha256": "cde184467e0d9a2b777c8c78ef4510ce559337bd1593044ff9361ba7dde5fa81"
+      "sha256": "f366faedd4fec5425e976d7fe9dcd10ff6b3dc60ef88c52cebc1b42aead2a34c"
     },
     "drivers/state_variable_checks.py": {
       "sha256": "1984c2ab8e621415098866c9d553e16dcb7099c227fdec990c81ec77b988c243"
@@ -118,6 +118,9 @@
     },
     "utils/regex_safety.py": {
       "sha256": "98389acb5628d4006322e680044d9f9e5f1e566bcdd086709fa3fe5706f1f44f"
+    },
+    "utils/version_rule.py": {
+      "sha256": "26f47d74800b1651b6aced07cdd523467465093f55e02dbdb06f3a8cfb8cdcfd"
     }
   },
   "dns_sources": {

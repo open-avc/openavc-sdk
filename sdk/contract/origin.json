@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/open-avc/openavc",
-  "core_head": "15351bfb5a1aa3e457ecef2f5b94f612f0c01fb8",
+  "core_head": "0c769c8cc0ab15a738289740fad13e0739c85362",
   "files": {
     "__init__.py": {
       "sha256": "da6420723411b11727e17835b82ff14fd61d65de470665d9c5260d422266fdbc"
@@ -12,7 +12,7 @@
       "sha256": "1ea00529cf5db0de355d1f1cdf362c4508eaa4b74fcf38499325963fbab158aa"
     },
     "drivers/avcdriver_semantic.py": {
-      "sha256": "014da528533e2613a928270f0bccc071dd0d2d38d458fd21003c3ad47fc0ca48"
+      "sha256": "20742512b7f47dd2e5ad1d7e85a89e9724dd56a586ab69d33320ec6fa2fa4851"
     },
     "drivers/child_fault_checks.py": {
       "sha256": "d24af4d7c82d33010bbc68f39ed89700985ddf0dffead4493b99dcb5dd6b470c"
@@ -45,7 +45,7 @@
       "sha256": "2de05a2e79aa25dbb9061f18cfddfd1b6995e5d852fb77d77b532d355bfb0837"
     },
     "drivers/driver_model.py": {
-      "sha256": "c51e94e30906baa58bca33c0cf6343f86e8a52f093b364eafe10023560a3182a"
+      "sha256": "6ec4db5ef0832102c8d1cbaee00c13bb10d542a5fbad75c41972909ab2f4fb9c"
     },
     "drivers/driver_warnings.py": {
       "sha256": "e4032c823461696db0d1b30088462b92c380d26dd080f5a34a5908a785f04f80"
@@ -102,7 +102,7 @@
       "sha256": "1984c2ab8e621415098866c9d553e16dcb7099c227fdec990c81ec77b988c243"
     },
     "drivers/substitution_checks.py": {
-      "sha256": "0f52c75b20c8e943752f85da04ca2b30a3fcd69ec962a4016b5f0b1cb982289f"
+      "sha256": "7f90f75ad6ce3c9814e5878d08891903835fb93c78bb9992a814459a8b449d79"
     },
     "drivers/tagged_errors.py": {
       "sha256": "c5f7a6978c4c47e5328e527089eb06c37afa53e09dde486decb05bbb7b23d577"

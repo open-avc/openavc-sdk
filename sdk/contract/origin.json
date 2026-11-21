@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/open-avc/openavc",
-  "core_head": "45fae0d6c2011db401a46027888297047736c6bd",
+  "core_head": "50c8a4b4565c0293f281bae9d9e6cabf81921d63",
   "files": {
     "__init__.py": {
       "sha256": "da6420723411b11727e17835b82ff14fd61d65de470665d9c5260d422266fdbc"
@@ -24,7 +24,7 @@
       "sha256": "4abdcb5c3f91bb9f0fb59ad0b2e77bab54362fdd462907ff3bff55ad11c01ebf"
     },
     "drivers/child_type_checks.py": {
-      "sha256": "71a752e7f32f9bd62ba83bbc42b033ce6f7875eb05556e598b1edcffac100391"
+      "sha256": "32a40b4f0863b4d3501d5f60bb7f83660db9c9b9d713285ebe8014b2206e9353"
     },
     "drivers/command_checks.py": {
       "sha256": "ee3f0f8b8de3e50b77fe2f116229c14782116787fcd009faaebcbf7ae1415bdc"
@@ -81,7 +81,7 @@
       "sha256": "517aa5e793d93704c29dd2f48842603e4c255c0dfd6edeb19473831e1ffff85c"
     },
     "drivers/response_rule_checks.py": {
-      "sha256": "a46fe700140d0f96b72024e68cfeebaa5a2f4f41aa7c6ffa1718636008489f21"
+      "sha256": "eda36502062b060e61fe8bc9521e45574ee5042df3be287934dc87fe83247e9c"
     },
     "drivers/routing_checks.py": {
       "sha256": "14f55d4ab7f0eef1774b19d501bb4d239292666e38ac5d649f99b52db3129ecf"

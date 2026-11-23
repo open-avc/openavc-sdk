@@ -9,6 +9,13 @@ from openavc.cloud.command_handler import CommandHandler
 from openavc.core.engine import Engine
 from openavc_oem.cloud_policy import install
 
+# A call the server's own input check admits, so each test reaches the
+# product's access controls rather than the server's refusal of a malformed
+# request.
+DEVICE = {'device_id': 'output_1'}
+# How long a test waits for a step that should be immediate.
+STEP = 5
+
 
 class Permissions(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
@@ -26,15 +33,16 @@ class Permissions(unittest.IsolatedAsyncioTestCase):
     async def test_disabled_programmer_refuses_ai_before_dispatch(self):
         self.state['programmer'] = False
         callback = AsyncMock()
-        await self.handler._execute_tool('request', 'update_device', callback, {})
+        await self.handler._execute_tool('request', 'update_device', callback, dict(DEVICE))
         callback.assert_not_awaited()
         self.handler._send_result.assert_awaited_once()
         self.assertFalse(self.handler._send_result.await_args.args[1])
+        self.assertIn('Programming is turned off', self.handler._send_result.await_args.kwargs['error'])
 
     async def test_queued_ai_rechecks_after_its_project_lock(self):
         callback = AsyncMock()
         await self.handler._project_lock.acquire()
-        task = asyncio.create_task(self.handler._execute_tool('request', 'update_device', callback, {}))
+        task = asyncio.create_task(self.handler._execute_tool('request', 'update_device', callback, dict(DEVICE)))
         await asyncio.sleep(0)
         self.state.update(revision=2, programmer=False)
         self.handler._project_lock.release()
@@ -48,20 +56,20 @@ class Permissions(unittest.IsolatedAsyncioTestCase):
             entered.set()
             await release.wait()
             return {'saved': True}
-        task = asyncio.create_task(self.handler._execute_tool('request', 'update_device', callback, {}))
-        await entered.wait()
+        task = asyncio.create_task(self.handler._execute_tool('request', 'update_device', callback, dict(DEVICE)))
+        await asyncio.wait_for(entered.wait(), STEP)
         self.state.update(revision=2, programmer=False)
         acknowledgement = asyncio.create_task(self.boundary.wait_for_idle())
         await asyncio.sleep(0)
         self.assertFalse(acknowledgement.done())
         release.set()
-        await asyncio.gather(task, acknowledgement)
+        await asyncio.wait_for(asyncio.gather(task, acknowledgement), STEP)
         self.handler._send_result.assert_awaited_once_with('request', True, result={'saved': True})
 
     async def test_default_enabled_policy_uses_the_normal_ai_callback(self):
         callback = AsyncMock(return_value={'saved': True})
-        await self.handler._execute_tool('request', 'update_device', callback, {'name': 'Output'})
-        callback.assert_awaited_once_with({'name': 'Output'})
+        await self.handler._execute_tool('request', 'update_device', callback, {**DEVICE, 'name': 'Output'})
+        callback.assert_awaited_once_with({**DEVICE, 'name': 'Output'})
         self.handler._send_result.assert_awaited_once_with('request', True, result={'saved': True})
 
     async def test_queued_config_push_cannot_apply_after_permission_changes(self):
@@ -76,7 +84,7 @@ class Permissions(unittest.IsolatedAsyncioTestCase):
             boundary = install(self.policy)
             try:
                 task = asyncio.create_task(CommandHandler.handle(Mock(), {'type': 'config_push'}))
-                await entered.wait()
+                await asyncio.wait_for(entered.wait(), STEP)
                 self.state.update(revision=2, programmer=False)
                 release.set()
                 with self.assertRaises(PermissionError):

@@ -2,7 +2,14 @@
 it runs on asks it: with the request's connection where the server checks
 that the panel is still admitted, without it on an older server."""
 
-from openavc_oem.interfaces import _panel_token_holds
+import os
+import tempfile
+from pathlib import Path
+
+# The module reads where the interface state lives as it loads.
+os.environ.setdefault("OPENAVC_INTERFACE_STATE", str(Path(tempfile.mkdtemp()) / "interfaces.json"))
+
+from openavc_oem.interfaces import _panel_token_holds  # noqa: E402
 
 
 def test_a_server_that_checks_admission_is_handed_the_connection():

@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/open-avc/openavc",
-  "core_head": "9326cdf3cfaf46b7cf5b55c2f0b31a0b91f84549",
+  "core_head": "84bd42a7c7a297747f5ac66e1f7fd319c80849a9",
   "files": {
     "__init__.py": {
       "sha256": "da6420723411b11727e17835b82ff14fd61d65de470665d9c5260d422266fdbc"
@@ -15,7 +15,7 @@
       "sha256": "28d7281c9de5be9afc480c5eb3fb5e53ebbcd929f13b15726f5f7c8b98db63cc"
     },
     "drivers/avcdriver_semantic.py": {
-      "sha256": "ce2695bf0ba9e07013082dc75313a6f33d145c1f24a176422304c31c61e52065"
+      "sha256": "9b3b2e8a96ca5f8b54c4972cb5a8d09484b4d9fb729fa3c1c626c3a6b3c8bcff"
     },
     "drivers/child_fault_checks.py": {
       "sha256": "d24af4d7c82d33010bbc68f39ed89700985ddf0dffead4493b99dcb5dd6b470c"
@@ -51,7 +51,7 @@
       "sha256": "2de05a2e79aa25dbb9061f18cfddfd1b6995e5d852fb77d77b532d355bfb0837"
     },
     "drivers/driver_model.py": {
-      "sha256": "d4fd97908758884e825b6e95c8fc617ef7fbac410cef96bba92b56bbfbd5fa68"
+      "sha256": "294f3a996ea31b0413aa37007c06e2050c5b6cf72d2e13bd942d4cc205e00e6d"
     },
     "drivers/driver_warnings.py": {
       "sha256": "fc26736a52c0215940bf9e1da26adccce07c92b4160b61c4cd9bb5f1ad5531e9"
@@ -69,7 +69,7 @@
       "sha256": "03f97f6b640d6d8003c0f2cea18e717f0e4dbc1c27bd661f24836955db035ca4"
     },
     "drivers/param_aid_checks.py": {
-      "sha256": "7d50c9e57959d1c82d27a62aacc2a4339fd2b7306194cdc0732f7197e719eb4e"
+      "sha256": "cec6bd5670da50f5ab7efcd2ff97fa736c0d23a91752278d7294ccb06f84e719"
     },
     "drivers/platform_floor_checks.py": {
       "sha256": "adbec4c78b203571a52158a1a5c193db0e24a9d1531a0554e4d70f45e8b6e521"
@@ -102,7 +102,7 @@
       "sha256": "80b63006935f7e5a6ef4b89217a8a3b68265eacc4df449c4bbdbbba2dd1255bf"
     },
     "drivers/setting_checks.py": {
-      "sha256": "ea031608e00d2dd7a147703d2aba97140481f9f78ed339a33cb9c6911695cf29"
+      "sha256": "ce8374d1a1cbead2f8406872ebec801316fa6ae6eea3164786eceae9a92a6e2d"
     },
     "drivers/shape_checks.py": {
       "sha256": "d65036dfda7419ae0faa37a93f52f974d08951d838133fe34753ca46f5647672"
@@ -111,7 +111,7 @@
       "sha256": "8ef3638366a0b35af61cbe4897ab6fae390b99d73ad0e648255b85b4e56a6996"
     },
     "drivers/spec.py": {
-      "sha256": "50d252df1ea4f444626d1747487cf2da4b493ccf51a9c7c8401c2e81cbc8a09d"
+      "sha256": "0fef65f5fb8d344de746498d14a4f5feac7e1aefe06b73387ae5952ca0b48563"
     },
     "drivers/state_variable_checks.py": {
       "sha256": "1984c2ab8e621415098866c9d553e16dcb7099c227fdec990c81ec77b988c243"
@@ -127,6 +127,9 @@
     },
     "drivers/usable_number.py": {
       "sha256": "18fc888a92e4f594618dfb28257c7b194ad7ec7a67748432b638a7bf106044f0"
+    },
+    "drivers/yaml_text.py": {
+      "sha256": "359a8f443d223aa3eb64b8fcdeacf9dacd5ba6884c11ef8ee21d33bf543559ee"
     },
     "utils/__init__.py": {
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"

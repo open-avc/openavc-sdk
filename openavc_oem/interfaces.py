@@ -2,6 +2,7 @@
 
 import asyncio
 import hmac
+import inspect
 import os
 from contextlib import suppress
 from pathlib import Path
@@ -136,7 +137,7 @@ class Policy:
                 return state["programmer"]
             prefix = f"/api/plugins/{plugin_id}/ext"
             panel_path = panel_path_allowed(plugin_id, scope["method"], scope["path"][len(prefix):] or "/")
-            if token and verify_panel_token(token, plugin_id):
+            if token and _panel_token_holds(verify_panel_token, token, plugin_id, conn):
                 # When both interfaces are enabled, leave an out-of-scope
                 # credential to the existing guard's ordinary 401 response.
                 return state["panel"] and (panel_path or state["programmer"])
@@ -316,3 +317,13 @@ def install(app, identity):
     policy.host_policy.install_endpoint(app, policy.apply)
     app.add_middleware(Interfaces, policy=policy)
     return policy
+
+
+def _panel_token_holds(verify, token, plugin_id, conn):
+    """A plugin panel token's check, as the server running here asks it: a
+    server whose check also asks whether the panel is still admitted takes the
+    request's connection, an older one only the token and the plugin."""
+    if len(inspect.signature(verify).parameters) >= 3:
+        return verify(token, plugin_id, conn)
+    return verify(token, plugin_id)
+

@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/open-avc/openavc",
-  "core_head": "73477d8d823981dc5b36c9416a2a4be4be19aa79",
+  "core_head": "0285ed49c295f812d57e0fecb28f46acbcbb3098",
   "files": {
     "__init__.py": {
       "sha256": "da6420723411b11727e17835b82ff14fd61d65de470665d9c5260d422266fdbc"
@@ -27,7 +27,7 @@
       "sha256": "32a40b4f0863b4d3501d5f60bb7f83660db9c9b9d713285ebe8014b2206e9353"
     },
     "drivers/command_checks.py": {
-      "sha256": "bdeb418aaaa692d7a7a003860c4242e20aba1d0df32c39a3e57730440f6a1a99"
+      "sha256": "5247bb82b8a64fdd00eeee795a91c2c856006bc21259b2615c346d2e2e4b551d"
     },
     "drivers/command_form.py": {
       "sha256": "bde7ec4206ad09193030a31bd6481268fafd754a164699eae4db972592f59236"
@@ -51,7 +51,7 @@
       "sha256": "2de05a2e79aa25dbb9061f18cfddfd1b6995e5d852fb77d77b532d355bfb0837"
     },
     "drivers/driver_model.py": {
-      "sha256": "33ec0eab42dc71607f1ea1e50a0ca48d70c4a3142663aa079bf469b95e128ef5"
+      "sha256": "d4fd97908758884e825b6e95c8fc617ef7fbac410cef96bba92b56bbfbd5fa68"
     },
     "drivers/driver_warnings.py": {
       "sha256": "c90a43cc6ff49ff897576c328aac0e45db49d473102fdc0bc162e16154fa1027"
@@ -75,13 +75,13 @@
       "sha256": "adbec4c78b203571a52158a1a5c193db0e24a9d1531a0554e4d70f45e8b6e521"
     },
     "drivers/push_block_checks.py": {
-      "sha256": "01851433fd4767351b045c658035622e985294d45b163445487ada16895f72c7"
+      "sha256": "dd9945eb172b899aa7a300aa5c9a056a0a0c98ec86c3a55a60f8768dcf2d21dc"
     },
     "drivers/query_entry.py": {
       "sha256": "5a509be6d0e265ce6a0028a47cca7dca1e90885723998d54aa10dbcf8d25b499"
     },
     "drivers/query_entry_checks.py": {
-      "sha256": "9f6c73a1c3189468de5221dee9afea80b5e9a6bbc684efe817736d15741585d6"
+      "sha256": "943727c8660bea675022306341f0640a95eda540e69e39087f2e2144c7f18e95"
     },
     "drivers/reply_name_checks.py": {
       "sha256": "517aa5e793d93704c29dd2f48842603e4c255c0dfd6edeb19473831e1ffff85c"
@@ -108,7 +108,7 @@
       "sha256": "8ef3638366a0b35af61cbe4897ab6fae390b99d73ad0e648255b85b4e56a6996"
     },
     "drivers/spec.py": {
-      "sha256": "5640a6fbe12cb136f3dfc9c391da0c525434e4214e1dcfa733a2da897ac36147"
+      "sha256": "c9eb17db7355b3388d63e457aa2db62eac10fb98fdcb2cfb39fdc939acb807c5"
     },
     "drivers/state_variable_checks.py": {
       "sha256": "1984c2ab8e621415098866c9d553e16dcb7099c227fdec990c81ec77b988c243"

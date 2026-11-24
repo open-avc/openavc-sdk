@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/open-avc/openavc",
-  "core_head": "2cd8e4950b73988e476a79af7a6a04c505bbfd57",
+  "core_head": "fde545b498d20232fc069f785ff44a66b8b572eb",
   "files": {
     "__init__.py": {
       "sha256": "da6420723411b11727e17835b82ff14fd61d65de470665d9c5260d422266fdbc"
@@ -15,10 +15,16 @@
       "sha256": "28d7281c9de5be9afc480c5eb3fb5e53ebbcd929f13b15726f5f7c8b98db63cc"
     },
     "drivers/avcdriver_semantic.py": {
-      "sha256": "87f3244916b5ef4d46fabe9573d9edeb0ba99c4579d918153390a86a241cabc9"
+      "sha256": "dfe3692eddb0e4b0959ec40a84270e42c585cafcef85a265d730ece356d5ce5a"
+    },
+    "drivers/capture_ref.py": {
+      "sha256": "4f509ef9c9fdfba82a0c63edfda5f347d50d404efa80d501ab74a27845c4ea49"
+    },
+    "drivers/capture_ref_checks.py": {
+      "sha256": "e196d57ed60319015da710d0099870bb250c8a63362e806292051e33f82c2788"
     },
     "drivers/child_fault_checks.py": {
-      "sha256": "d24af4d7c82d33010bbc68f39ed89700985ddf0dffead4493b99dcb5dd6b470c"
+      "sha256": "00124444840760bc72d4c97c083f8e854d59516bcd041f01524fba204e63d2c4"
     },
     "drivers/child_ids.py": {
       "sha256": "d2e285670b8b790c6ad1c527e166a4635f2c37ff965dba13dc9bb2356b9e89c5"
@@ -81,13 +87,13 @@
       "sha256": "5a509be6d0e265ce6a0028a47cca7dca1e90885723998d54aa10dbcf8d25b499"
     },
     "drivers/query_entry_checks.py": {
-      "sha256": "943727c8660bea675022306341f0640a95eda540e69e39087f2e2144c7f18e95"
+      "sha256": "01d81c1b4096d1a9e21658db97f41a2eb002e43867180952166a87b1fdf3efac"
     },
     "drivers/reply_name_checks.py": {
       "sha256": "517aa5e793d93704c29dd2f48842603e4c255c0dfd6edeb19473831e1ffff85c"
     },
     "drivers/response_rule_checks.py": {
-      "sha256": "7f7f41b717e3672225802775bc2c469b39e43c48f2d6113d391f5a1119a32254"
+      "sha256": "d7c216c2e7f6e928d328a0a36c127ca9fcdeec9197c7211c5ae265e568569234"
     },
     "drivers/roster_source.py": {
       "sha256": "266e21af04685f0069e14e2c0d05e1eb3d5d0dae5b15de1f37501e869cb1a71e"
